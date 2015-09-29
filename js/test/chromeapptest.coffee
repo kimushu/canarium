@@ -226,11 +226,22 @@ class ChromeAppTest
       return if @phase == 1
       console.log("##{Array(80+1).join("-")}")
       console.log("# Test Case ##{@index} (#{["Setup", "", "Prologue", "Body", "Epilogue"][n]})")
+    protect = (func, callback) =>
+      try
+        func.call(this, callback)
+      catch error
+        console.log({exception: error})
+        @print("""
+        <span class="exception">
+        **** Exception occured: #{error.toString()} ****
+        </span>
+        """)
+        callback(@FAIL)
     exec = =>
       $("#row-#{@index}").addClass("case-next")
       c = @cases[@index]
       phase(0)  # Setup
-      (c.setup or pass).call(this, (res_setup) =>
+      protect(c.setup or pass, (res_setup) =>
         if res_setup != @PASS
           record(res_setup)
           return next()
@@ -242,16 +253,16 @@ class ChromeAppTest
           $("#row-#{@index}").removeClass("case-next").addClass("case-testing")
           $("#res-#{@index}").html("TESTING")
           phase(2)  # Prologue
-          (c.prologue or pass).call(this, (res_pro) =>
+          protect(c.prologue or pass, (res_pro) =>
             if res_pro != @PASS
               record(res_pro)
               return next()
             phase(3)  # Body
             startTime = Date.now()
-            (c.body or wait).call(this, (res_body) =>
+            protect(c.body or wait, (res_body) =>
               record(res_body, Date.now() - startTime)
               phase(4)  # Epilogue
-              (c.epilogue or pass).call(this, (res_epi) =>
+              protect(c.epilogue or pass, (res_epi) =>
                 if res_epi == @FAIL
                   warn("Some error has occured in epilogue of case ##{@index}")
                 return next()
