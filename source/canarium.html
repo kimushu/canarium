@@ -18,35 +18,94 @@
   <pre class="prettyprint lang-js">/*
 全モジュールのDEBUGレベルをセット
  */
-
-/*
-Object.definePropertyによるプロパティ定義メソッド
- */
 var Canarium,
   slice = [].slice;
 
 if (!Function.prototype.property) {
+
+  /*
+  Object.definePropertyによるプロパティ定義メソッド
+   */
   Function.prototype.property = function(prop, desc) {
     return Object.defineProperty(this.prototype, prop, desc);
   };
 }
 
-
-/*
-非同期関数を用いたシーケンス実行ユーティリティ
- */
-
 if (!Function.Sequence) {
+
+<span id='Function-Sequence'>  /**
+</span>  @private
+  @class
+    非同期関数を用いたシーケンス実行クラス
+   */
   Function.Sequence = (function() {
+
+<span id='Function-Sequence-property-list'>    /**
+</span>    @property {function(Function.Sequence)[]}
+      シーケンスで実行する要素の関数リスト
+    @readonly
+     */
+    Sequence.list = null;
+
+
+<span id='Function-Sequence-property-onFinal'>    /**
+</span>    @property {function(Function.Sequence)}
+      シーケンス終了時に成功失敗にかかわらず呼び出される関数。
+      finalメソッドでも設定可能。
+     */
+
+    Sequence.prototype.onFinal = null;
+
+
+<span id='Function-Sequence-property-index'>    /**
+</span>    @property {null/number}
+      現在実行中の要素番号(シーケンス開始前はnull)
+    @readonly
+     */
+
+    Sequence.prototype.index = null;
+
+
+<span id='Function-Sequence-property-aborted'>    /**
+</span>    @property {boolean}
+      異常終了したかどうか
+    @readonly
+     */
+
+    Sequence.prototype.aborted = false;
+
+
+<span id='Function-Sequence-property-finished'>    /**
+</span>    @property {boolean}
+      正常終了したかどうか
+    @readonly
+     */
+
+    Sequence.prototype.finished = false;
+
+
+<span id='Function-Sequence-method-Sequence'>    /**
+</span>    @method
+      コンストラクタ
+    @param {function(Function.Sequence)[]} list...
+      初期状態で追加するシーケンス要素の関数リスト
+     */
+
     function Sequence() {
       var list;
       list = 1 &lt;= arguments.length ? slice.call(arguments, 0) : [];
       this.list = list;
-      this.onFinal = null;
-      this.index = null;
-      this.aborted = false;
-      this.finished = false;
     }
+
+
+<span id='Function-Sequence-method-add'>    /**
+</span>    @method
+      シーケンス要素を末尾に追加する
+    @param {function(Function.Sequence)[]} f...
+      追加するシーケンス要素の関数(複数可)
+    @chainable
+    @return {Function.Sequence} this
+     */
 
     Sequence.prototype.add = function() {
       var f, ref;
@@ -55,10 +114,27 @@ if (!Function.Sequence) {
       return this;
     };
 
+
+<span id='Function-Sequence-method-final'>    /**
+</span>    @method
+      シーケンス終了時に成功失敗にかかわらず呼び出される関数を登録する
+    @param {function(Function.Sequence)} f
+      登録する関数
+    @chainable
+    @return {Function.Sequence} this
+     */
+
     Sequence.prototype.final = function(f) {
       this.onFinal = f;
       return this;
     };
+
+
+<span id='Function-Sequence-method-start'>    /**
+</span>    @method
+      シーケンスを開始する
+    @return {void}
+     */
 
     Sequence.prototype.start = function() {
       this.index = -1;
@@ -66,6 +142,15 @@ if (!Function.Sequence) {
       this.finished = false;
       this.next(true);
     };
+
+
+<span id='Function-Sequence-method-next'>    /**
+</span>    @method
+      シーケンスを一つ次へ進める(次が無ければ正常終了する)。または異常終了する。
+    @param {boolean} [success]
+      現在の要素が正常終了したかどうか(省略時true)。falseを指定するとシーケンスを異常終了する。
+    @return {void}
+     */
 
     Sequence.prototype.next = function(success) {
       if (this.aborted || this.finished || this.index === null) {
@@ -89,12 +174,26 @@ if (!Function.Sequence) {
       this.redo();
     };
 
+
+<span id='Function-Sequence-method-redo'>    /**
+</span>    @method
+      シーケンスを次に進めずに、現在の要素をもう一度繰り返す。
+    @return {void}
+     */
+
     Sequence.prototype.redo = function() {
       if (this.aborted || this.finished || this.index === null) {
         return;
       }
-      this.list[this.index](this);
+      this.list[this.index].call(this, this);
     };
+
+
+<span id='Function-Sequence-method-abort'>    /**
+</span>    @method
+      シーケンスを異常終了させる。next(false)に同じ。
+    @return {void}
+     */
 
     Sequence.prototype.abort = function() {
       this.next(false);
@@ -150,7 +249,7 @@ PERIDOTボードドライバ
  */
 
 Canarium = (function() {
-  var DEBUG, EEPROM_SLAVE_ADDR;
+  var CONFIG_TIMEOUT_MS, DEBUG, EEPROM_SLAVE_ADDR;
 
   DEBUG = (DEBUG != null) || 0;
 
@@ -245,6 +344,16 @@ Canarium = (function() {
    */
 
   EEPROM_SLAVE_ADDR = 0x50;
+
+
+<span id='Canarium-property-CONFIG_TIMEOUT_MS'>  /**
+</span>  @private
+  @property {number}
+    コンフィグレーション開始のタイムアウト時間(ms)
+  @readonly
+   */
+
+  CONFIG_TIMEOUT_MS = 3000;
 
 
 <span id='Canarium-static-method-enumerate'>  /**
@@ -362,7 +471,125 @@ Canarium = (function() {
   @return {void}
    */
 
-  Canarium.prototype.config = function(boardInfo, rbfdata, callback) {};
+  Canarium.prototype.config = function(boardInfo, rbfdata, callback) {
+    var seq, startTime;
+    if (!this._base.connected) {
+      return callback(false);
+    }
+    startTime = null;
+    seq = new Function.Sequence();
+    if (boardInfo) {
+      if (!(this.boardInfo.id &amp;&amp; this.boardInfo.serialcode)) {
+        seq.add((function(_this) {
+          return function() {
+            return _this.getinfo(function(result) {
+              return seq.next(result);
+            });
+          };
+        })(this));
+      }
+      seq.add((function(_this) {
+        return function() {
+          var mismatch;
+          mismatch = function(a, b) {
+            return a &amp;&amp; a !== b;
+          };
+          if (mismatch(boardInfo.id, _this.boardInfo.id)) {
+            return seq.abort();
+          }
+          if (mismatch(boardInfo.serialcode, _this.boardInfo.serialcode)) {
+            return seq.abort();
+          }
+          return seq.next();
+        };
+      })(this));
+    }
+    seq.add((function(_this) {
+      return function() {
+        return _this._base.transCommand(0x3b, function(result, response) {
+          if (!result) {
+            return seq.abort();
+          }
+          if ((response &amp; 0x01) === 0x00) {
+            return seq.next();
+          }
+          return seq.abort();
+        });
+      };
+    })(this));
+    seq.add(function() {
+      startTime = window.performance.now();
+      return seq.next();
+    });
+    seq.add((function(_this) {
+      return function() {
+        return _this._base.transCommand(0x32, function(result, response) {
+          var dulation;
+          if (!result) {
+            return seq.abort();
+          }
+          if ((response &amp; 0x06) === 0x00) {
+            return seq.next();
+          }
+          dulation = parseInt(window.performance.now() - startTime);
+          if (dulation &gt; CONFIG_TIMEOUT_MS) {
+            return seq.abort();
+          }
+          return seq.redo();
+        });
+      };
+    })(this));
+    seq.add((function(_this) {
+      return function() {
+        return _this._base.transCommand(0x33, function(result, response) {
+          var dulation;
+          if (!result) {
+            return seq.abort();
+          }
+          if ((response &amp; 0x06) === 0x02) {
+            return seq.next();
+          }
+          dulation = parseInt(window.performance.now() - startTime);
+          if (dulation &gt; CONFIG_TIMEOUT_MS) {
+            return seq.abort();
+          }
+          return seq.redo();
+        });
+      };
+    })(this));
+    seq.add((function(_this) {
+      return function() {
+        return _this._base.transData(rbfdata, 0, function(result) {
+          return seq.next(result);
+        });
+      };
+    })(this));
+    seq.add((function(_this) {
+      return function() {
+        return _this._base.transCommand(0x33, function(result, response) {
+          if (!result) {
+            return seq.abort();
+          }
+          if ((response &amp; 0x06) === 0x06) {
+            return seq.next();
+          }
+          return seq.abort();
+        });
+      };
+    })(this));
+    seq.add((function(_this) {
+      return function() {
+        return _this._base.transCommand(0x39, function(result, response) {
+          return seq.next(result);
+        });
+      };
+    })(this));
+    seq.final(function() {
+      if (seq.aborted) {
+        return callback(false);
+      }
+    }).start();
+  };
 
 
 <span id='Canarium-method-reset'>  /**
@@ -373,7 +600,34 @@ Canarium = (function() {
   @return {void}
    */
 
-  Canarium.prototype.reset = function(callback) {};
+  Canarium.prototype.reset = function(callback) {
+    if (!this._base.connected) {
+      return callback(false);
+    }
+    new Function.Sequence((function(_this) {
+      return function(seq) {
+        return _this._base.transCommand(0x31, function(result, response) {
+          if (!result) {
+            return seq.abort();
+          }
+          return window.setTimeout((function() {
+            return seq.next();
+          }), 100);
+        });
+      };
+    })(this), (function(_this) {
+      return function(seq) {
+        return _this._base.transCommand(0x39, function(result, response) {
+          if (!result) {
+            return seq.abort();
+          }
+          return seq.next();
+        });
+      };
+    })(this)).final(function(seq) {
+      return callback(seq.finished);
+    }).start();
+  };
 
 
 <span id='Canarium-method-getinfo'>  /**
@@ -1267,7 +1521,7 @@ Canarium.I2CComm = (function() {
       return function(done, abort, retry) {
         var bit;
         bitNum -= 1;
-        bit = (writeData &gt;&gt; 7) &amp; 1;
+        bit = (writeData &gt;&gt;&gt; 7) &amp; 1;
         writeData &lt;&lt;= 1;
         if (DEBUG &gt;= 2) {
           console.log(&quot;i2c::write::writeBits[&quot; + bitNum + &quot;]&quot;);
@@ -1491,12 +1745,17 @@ PERIDOTボードAvalon-STパケット層通信クラス
  */
 
 Canarium.AvsPackets = (function() {
+  var DEBUG;
+
+  DEBUG = (DEBUG != null) || 0;
+
 
 <span id='Canarium-AvsPackets-property-_base'>  /**
 </span>  @private
   @property {Canarium.BaseComm}
     下位層通信クラスのインスタンス
    */
+
   AvsPackets.prototype._base = null;
 
 
@@ -1598,13 +1857,37 @@ PERIDOTボードAvalon-MMトランザクション層通信クラス
  */
 
 Canarium.AvmTransactions = (function() {
+  var AVM_TRANS_MAX_BYTES, DEBUG;
+
+  DEBUG = (DEBUG != null) || 0;
+
 
 <span id='Canarium-AvmTransactions-property-_avs'>  /**
 </span>  @private
   @property {Canarium.AvsPackets}
     Avalon-STパケット層通信クラスのインスタンス
    */
+
   AvmTransactions.prototype._avs = null;
+
+
+<span id='Canarium-AvmTransactions-property-_channel'>  /**
+</span>  @private
+  @property {number}
+    パケットのチャネル番号
+   */
+
+  AvmTransactions._channel = null;
+
+
+<span id='Canarium-AvmTransactions-property-AVM_TRANS_MAX_BYTES'>  /**
+</span>  @private
+  @property {number}
+    1回のトランザクションで読み書きできる最大バイト数
+  @readonly
+   */
+
+  AVM_TRANS_MAX_BYTES = 32768;
 
 
 <span id='Canarium-AvmTransactions-method-AvmTransactions'>  /**
@@ -1612,10 +1895,13 @@ Canarium.AvmTransactions = (function() {
     コンストラクタ
   @param {Canarium.AvsPackets} _avs
     Avalon-STパケット層通信クラスのインスタンス
+  @param {number} _channel
+    パケットのチャネル番号
    */
 
-  function AvmTransactions(_avs) {
+  function AvmTransactions(_avs, _channel) {
     this._avs = _avs;
+    this._channel = _channel;
   }
 
 
@@ -1631,7 +1917,37 @@ Canarium.AvmTransactions = (function() {
   @return {void}
    */
 
-  AvmTransactions.prototype.read = function(address, bytenum, callback) {};
+  AvmTransactions.prototype.read = function(address, bytenum, callback) {
+    var byteOffset, dst, remainder;
+    dst = new Uint8Array(bytenum);
+    byteOffset = 0;
+    remainder = bytenum;
+    new Function.Sequence((function(_this) {
+      return function(seq) {
+        var len;
+        len = Math.min(remainder, AVM_TRANS_MAX_BYTES);
+        return _this._trans(0x14, address + byteOffset, null, len, function(result, partialData) {
+          if (!result) {
+            return seq.abort();
+          }
+          dst.set(new Uint8Array(partialData), byteOffset);
+          byteOffset += len;
+          remainder -= len;
+          if (remainder &gt; 0) {
+            return seq.redo();
+          }
+          return seq.next();
+        });
+      };
+    })(this)).final((function(_this) {
+      return function(seq) {
+        if (seq.aborted) {
+          return callback(false, null);
+        }
+        return callback(true, dst.buffer);
+      };
+    })(this)).start();
+  };
 
 
 <span id='Canarium-AvmTransactions-method-write'>  /**
@@ -1646,7 +1962,33 @@ Canarium.AvmTransactions = (function() {
   @return {void}
    */
 
-  AvmTransactions.prototype.write = function(address, writedata, callback) {};
+  AvmTransactions.prototype.write = function(address, writedata, callback) {
+    var byteOffset, remainder, src;
+    src = new Uint8Array(writedata);
+    byteOffset = 0;
+    remainder = writedata.byteLength;
+    new Function.Sequence((function(_this) {
+      return function(seq) {
+        var len;
+        len = Math.min(remainder, AVM_TRANS_MAX_BYTES);
+        return _this._trans(0x04, address + byteOffset, src.subarray(byteOffset, len), null, function(result) {
+          if (!result) {
+            return seq.abort();
+          }
+          byteOffset += len;
+          remainder -= len;
+          if (remainder &gt; 0) {
+            return seq.redo();
+          }
+          return seq.next();
+        });
+      };
+    })(this)).final((function(_this) {
+      return function(seq) {
+        return callback(seq.finished);
+      };
+    })(this)).start();
+  };
 
 
 <span id='Canarium-AvmTransactions-method-iord'>  /**
@@ -1661,7 +2003,17 @@ Canarium.AvmTransactions = (function() {
   @return {void}
    */
 
-  AvmTransactions.prototype.iord = function(address, offset, callback) {};
+  AvmTransactions.prototype.iord = function(address, offset, callback) {
+    this._trans(0x10, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), null, 4, function(result, rxdata) {
+      var readData, src;
+      if (!result) {
+        return callback(false, null);
+      }
+      src = new Uint8Array(rxdata);
+      readData = (src[3] &lt;&lt; 24) | (src[2] &lt;&lt; 16) | (src[1] &lt;&lt; 8) | (src[0] &lt;&lt; 0);
+      return callback(true, readData);
+    });
+  };
 
 
 <span id='Canarium-AvmTransactions-method-iowr'>  /**
@@ -1678,7 +2030,17 @@ Canarium.AvmTransactions = (function() {
   @return {void}
    */
 
-  AvmTransactions.prototype.iowr = function(address, offset, writedata, callback) {};
+  AvmTransactions.prototype.iowr = function(address, offset, writedata, callback) {
+    var src;
+    src = new Uint8Array(4);
+    src[0] = (writedata &gt;&gt;&gt; 24) &amp; 0xff;
+    src[1] = (writedata &gt;&gt;&gt; 16) &amp; 0xff;
+    src[2] = (writedata &gt;&gt;&gt; 8) &amp; 0xff;
+    src[3] = (writedata &gt;&gt;&gt; 0) &amp; 0xff;
+    this._trans(0x00, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), src, 4, function(result) {
+      return callback(result);
+    });
+  };
 
 
 <span id='Canarium-AvmTransactions-method-option'>  /**
@@ -1694,6 +2056,54 @@ Canarium.AvmTransactions = (function() {
    */
 
   AvmTransactions.prototype.option = function(option, callback) {};
+
+
+<span id='Canarium-AvmTransactions-method-_trans'>  /**
+</span>  @private
+  @method
+    トランザクションの発行
+  @param {number} transCode
+    トランザクションコード
+  @param {number} address
+    アドレス
+  @param {Uint8Array/null} txdata
+    送信パケットに付加するデータ(受信時はnull)
+  @param {null/number}  rxsize
+    受信するバイト数(送信時はnull)
+  @param {function(boolean,ArrayBuffer):void} callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvmTransactions.prototype._trans = function(transCode, address, txdata, rxsize, callback) {
+    var len, pkt;
+    len = (txdata != null ? txdata.byteLength : void 0) || rxsize;
+    pkt = new Uint8Array(8 + ((txdata != null ? txdata.byteLength : void 0) || 0));
+    pkt[0] = transCode;
+    pkt[1] = 0x00;
+    pkt[2] = (len &gt;&gt;&gt; 8) &amp; 0xff;
+    pkt[3] = (len &gt;&gt;&gt; 0) &amp; 0xff;
+    pkt[4] = (address &gt;&gt;&gt; 24) &amp; 0xff;
+    pkt[5] = (address &gt;&gt;&gt; 16) &amp; 0xff;
+    pkt[6] = (address &gt;&gt;&gt; 8) &amp; 0xff;
+    pkt[7] = (address &gt;&gt;&gt; 0) &amp; 0xff;
+    if (txdata) {
+      pkt.set(txdata, 8);
+    }
+    this._avs.transPacket(this._channel, pkt.buffer, (rxsize || 0) + 4, (function(_this) {
+      return function(result, rxdata) {
+        var src;
+        if (!result) {
+          return callback(false, null);
+        }
+        src = new Uint8Array(rxdata);
+        if (!(src[0] === pkt[0] ^ 0x80 &amp;&amp; src[2] === pkt[2] &amp;&amp; src[3] === pkt[3])) {
+          return callback(false, null);
+        }
+        return callback(true, rxdata.buffer(4));
+      };
+    })(this));
+  };
 
   return AvmTransactions;
 
