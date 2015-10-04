@@ -82,6 +82,14 @@ class Canarium
   ###
   EEPROM_SLAVE_ADDR = 0b1010000
 
+  ###*
+  @private
+  @property {number}
+    コンフィグレーション開始のタイムアウト時間(ms)
+  @readonly
+  ###
+  CONFIG_TIMEOUT_MS = 3000
+
   #----------------------------------------------------------------
   # Public methods
   #
@@ -167,6 +175,85 @@ class Canarium
   @return {void}
   ###
   config: (boardInfo, rbfdata, callback) ->
+    return callback(false) unless @_base.connected
+    startTime = null
+    seq = new Function.Sequence()
+    if boardInfo
+      unless @boardInfo.id and @boardInfo.serialcode
+        # まだボード情報が読み込まれていないので先に読み込む
+        seq.add(=>
+          @getinfo((result) -> seq.next(result))
+        )
+      # コンフィグレーション可否の判断を行う
+      seq.add(=>
+        mismatch = (a, b) -> a and a != b
+        return seq.abort() if mismatch(boardInfo.id, @boardInfo.id)
+        return seq.abort() if mismatch(boardInfo.serialcode, @boardInfo.serialcode)
+        seq.next()
+      )
+    seq.add(=>
+      # モードチェック
+      @_base.transCommand(
+        0x3b  # 即時応答ON
+        (result, response) ->
+          return seq.abort() unless result
+          return seq.next() if (response & 0x01) == 0x00  # PSモード
+          # ASモード
+          seq.abort()
+      )
+    )
+    seq.add(->
+      startTime = window.performance.now()
+      seq.next()
+    )
+    seq.add(=>
+      # コンフィグレーション開始リクエスト発行(モード切替)
+      @_base.transCommand(
+        0x32  # コンフィグモード, nCONFIGアサート, 即時応答ON
+        (result, response) ->
+          return seq.abort() unless result
+          return seq.next() if (response & 0x06) == 0x00  # nSTATUS=L, CONF_DONE=L
+          dulation = parseInt(window.performance.now() - startTime)
+          return seq.abort() if dulation > CONFIG_TIMEOUT_MS
+          seq.redo()
+      )
+    )
+    seq.add(=>
+      # FPGAの応答待ち
+      @_base.transCommand(
+        0x33  # コンフィグモード, nCONFIGネゲート, 即時応答ON
+        (result, response) ->
+          return seq.abort() unless result
+          return seq.next() if (response & 0x06) == 0x02  # nSTATUS=H, CONF_DONE=L
+          dulation = parseInt(window.performance.now() - startTime)
+          return seq.abort() if dulation > CONFIG_TIMEOUT_MS
+          seq.redo()
+      )
+    )
+    seq.add(=>
+      # コンフィグレーションデータ送信
+      @_base.transData(rbfdata, 0, (result) -> seq.next(result))
+    )
+    seq.add(=>
+      # コンフィグレーション完了チェック
+      @_base.transCommand(
+        0x33  # コンフィグモード, 即時応答ON
+        (result, response) ->
+          return seq.abort() unless result
+          return seq.next() if (response & 0x06) == 0x06  # nSTATUS=H, CONF_DONE=H
+          seq.abort()
+      )
+    )
+    seq.add(=>
+      # コンフィグレーション完了(モード切替)
+      @_base.transCommand(
+        0x39  # ユーザーモード
+        (result, response) -> seq.next(result)
+      )
+    )
+    seq.final(->
+      return callback(false) if seq.aborted
+    ).start()
     return
 
   ###*
@@ -177,6 +264,28 @@ class Canarium
   @return {void}
   ###
   reset: (callback) ->
+    unless @_base.connected
+      return callback(false)
+    new Function.Sequence(
+      (seq) =>
+        @_base.transCommand(
+          0x31  # コンフィグモード(リセットアサート)
+          (result, response) ->
+            return seq.abort() unless result
+            window.setTimeout((-> seq.next()), 100)
+        )
+      (seq) =>
+        @_base.transCommand(
+          0x39  # ユーザモード(リセットネゲート)
+          (result, response) ->
+            return seq.abort() unless result
+            # @_base.sendImmediate = false
+            seq.next()
+        )
+    ).final(
+      (seq) ->
+        callback(seq.finished)
+    ).start()
     return
 
   ###*
