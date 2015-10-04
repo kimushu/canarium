@@ -1,5 +1,7 @@
 TARGETS = canarium.js canarium.min.js
-SOURCE = common.coffee canarium.coffee basecomm.coffee i2ccomm.coffee
+SOURCE = common.coffee canarium.coffee \
+			basecomm.coffee i2ccomm.coffee \
+			avspackets.coffee avmtransactions.coffee
 JS_TYPES = ArrayBuffer chrome.serial
 DOC_DIR = doc
 

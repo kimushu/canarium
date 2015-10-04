@@ -220,7 +220,7 @@ class Canarium.BaseComm
       len = 0
       for byte in src
         if byte == 0x3a or byte == 0x3d
-          dst[len] = 0x3d
+          dst[len] = 0x3d # Escape
           len += 1
           byte ^= 0x20
         dst[len] = byte
@@ -250,6 +250,7 @@ class Canarium.BaseComm
       callback(false, null)
       return
     @_rxQueue.push({length: rxsize, callback: callback})
+    return unless txdata
     console.log({"BaseComm::(send)": new Uint8Array(txdata).hexDump()}) if DEBUG >= 1
     chrome.serial.send(@_cid, txdata, -> null)
     return

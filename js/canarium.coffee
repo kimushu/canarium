@@ -35,7 +35,7 @@ class Canarium
     get: -> @_base.bitrate
     set: (v) -> @_base.bitrate = v
 
-  ###*
+  ###
   @property {Canarium.Channel[]}
     チャネル[0～255]
   @readonly
@@ -43,18 +43,25 @@ class Canarium
   channels: null
 
   ###*
-  @property {Object}
-    AvalonMMアクセス制御クラスのインスタンス
-  @readonly
-  ###
-  avm: null
-
-  ###*
   @property {Canarium.I2CComm}
     I2C通信制御クラスのインスタンス
   @readonly
   ###
   i2c: null
+
+  ###*
+  @property {Canarium.AvsPackets}
+    Avalon-STパケット層通信クラスのインスタンス
+  @readonly
+  ###
+  avs: null
+
+  ###*
+  @property {Canarium.AvmTransactions}
+    Avalon-MMトランザクション層通信クラスのインスタンス
+  @readonly
+  ###
+  avm: null
 
   #----------------------------------------------------------------
   # Private properties
@@ -96,6 +103,8 @@ class Canarium
   constructor: ->
     @_base = new Canarium.BaseComm()
     @i2c = new Canarium.I2CComm(@_base)
+    @avs = new Canarium.AvsPackets(@_base)
+    @avm = new Canarium.AvmTransactions(@avs)
 
   ###*
   @inheritdoc Canarium.BaseComm#connect
@@ -274,79 +283,6 @@ class Canarium
           callback(true, array.buffer)
         )
     ).start()
-
-  ###*
-  @class Canarium.AvsPacket
-  Avalon-STパケットクラス
-  ###
-  class AvsPacket
-    ###*
-    ###
-
-  ###*
-  @class Canarium.Channel
-  仮想通信ポート(チャネル)クラス
-  ###
-  class Channel
-    ###*
-    @property {Canarium}
-      オーナーのCanariumクラスインスタンス
-    @readonly
-    @private
-    ###
-    _canarium: null
-
-    ###*
-    @property {Number}
-      チャネル番号(0～255)
-    @readonly
-    ###
-    index: null
-
-    ###*
-    @method
-      コンストラクタ
-    @param {Canarium} canarium
-      オーナーのCanariumクラスインスタンス
-    @param {Number}   index
-      チャネル番号(0～255)
-    @private
-    ###
-    constructor: (@_canarium, @index) ->
-
-    ###*
-    @method
-      非同期データ送信要求をキューに入れます。
-      複数の送信要求をキューに入れることができます。送信順序はキューに入れた順です。
-    @param {Number[]/ArrayBuffer/String}  senddata
-      送信するデータ
-    @param {Function}     successCallback
-      送信成功時のコールバック
-    @param {Number/null}  [timeout]
-      タイムアウト時間[ms] (省略時 or nullは無限待ち)
-    @param {Function}     [errorCallback]
-      エラー発生時のコールバック
-    @return {boolean} true:キュー追加成功(送信成功とは異なる)、false:失敗
-    ###
-    send: (senddata, successCallback, timeout, errorCallback) ->
-      null
-
-    ###*
-    @method
-      データ受信イベントを登録します。一度受信するか失敗が確定すると解除されます。
-      複数の受信待ちを同時に登録することはできません。
-    @param {"arraybuffer"/"string"} readtype
-      受信したデータを受け取る際のデータ型
-    @param {Function}     successCallback
-      受信成功時のコールバック (function(readdata))
-    @param {Number/null}  [timeout]
-      タイムアウト時間[ms] (省略時 or nullは無限待ち)
-    @param {Function}     [errorCallback]
-      エラー発生時のコールバック
-    @return {boolean} true:登録成功(受信成功とは異なる)、false:失敗
-    ###
-    recv: (readtype, successCallback, timeout, errorCallback) ->
-      null
 
   #----------------------------------------------------------------
   # Private methods
