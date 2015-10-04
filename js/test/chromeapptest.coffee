@@ -169,7 +169,7 @@ class ChromeAppTest
     record = (result, time) =>
       r = $("#row-#{@index}").removeClass("case-next").removeClass("case-testing")
       t = $("#res-#{@index}")
-      p = ["<br/>(Setup)", "<br/>(By user)", "<br/>(Prologue)", ""][@phase]
+      p = ["<br/>(Setup)", "<br/>(By user)", "<br/>(Prologue)"][@phase] or ""
       a = null
       switch result
         when @PASS
@@ -186,7 +186,7 @@ class ChromeAppTest
           a = @skipped
       return if @index == 0 or @index >= @cases.length
       a.push(@index)
-      $("#dul-#{@index}").text("#{time} ms") if time and @cases[@index].body
+      $("#dul-#{@index}").text("#{time} ms") if time? and @cases[@index].body
     pass = (callback) => callback(@PASS)
     warn = (message) -> console.log(message)
     next = =>
@@ -236,7 +236,7 @@ class ChromeAppTest
       try
         func.call(this, callback)
       catch error
-        console.log({exception: error})
+        console.log({exception: error, stack: "#{error.stack}".split("\n")})
         @print("""
         <span class="exception">
         **** Exception occured: #{error.toString()} ****
@@ -244,7 +244,9 @@ class ChromeAppTest
         """)
         callback(@FAIL)
     exec = =>
-      $("#row-#{@index}").addClass("case-next")
+      r = $("#row-#{@index}").addClass("case-next")
+      if $("#autoscroll").prop("checked")
+        $("html, body").animate({scrollTop: r.offset().top - 32}, 300)
       c = @cases[@index]
       phase(0)  # Setup
       $("#res-#{@index}").html("SETTING UP")

@@ -9,12 +9,14 @@
     <script src="cases.js"></script>
     <style type="text/css">
 <!--
+html {
+  overflow-y: scroll;
+}
 body {
   margin-top: 32px;
-  margin-right: 16px;
 }
 .fixed-header {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -78,7 +80,7 @@ table, td, th {
   text-align: right;
 }
 @media print {
-  #pass, #fail, #skip, #print {
+  #pass, #fail, #skip, #print, #autoscroll {
     display: none;
   }
 }
@@ -94,6 +96,9 @@ table, td, th {
       <div class="pull-right">
         <label>
         <input type="checkbox" id="onebyone" value="1" />One by one
+        </label>
+        <label>
+        <input type="checkbox" id="autoscroll" value="1" checked />Auto scroll
         </label>
       </div>
     </div>

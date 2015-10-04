@@ -129,8 +129,8 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       )
   )
   @add(
-    category: "接続(正常系)"
-    description: "PERIDOTへ接続"
+    category: "ベースレイヤ接続(正常系)"
+    description: "PERIDOTへ接続(BaseCommのみ)"
     setup: (callback) ->
       if dev_test[0]
         c = new Canarium()
@@ -139,10 +139,20 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         c = null
         callback(@FAIL)
     body: (callback) ->
-      c._base.open(dev_test[0], (result) =>
+      c._base.connect(dev_test[0], (result) =>
         return callback(@PASS) if result
         c = null
         callback(@FAIL)
+      )
+  )
+  @add(
+    category: "ベースレイヤ接続(異常系)"
+    description: "接続済みのPERIDOTへ多重接続(BaseCommのみ)"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c._base.connect(dev_test[0], (result) =>
+        callback(if result then @FAIL else @PASS)
       )
   )
   @add(
@@ -158,8 +168,82 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         a = new Uint8Array(readdata)
         @print(dump(a))
         if a[0] == 0x4a and a[1] == 0x37 and a[2] == 0x57
-          callback(@PASS)
+          return callback(@PASS)
         callback(@FAIL)
+      )
+  )
+  @add(
+    category: "ベースレイヤ切断(正常系)"
+    description: "PERIDOTから切断(BaseCommのみ)"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c._base.disconnect((result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "ベースレイヤ切断(異常系)"
+    description: "切断済みのPERIDOTから多重切断(BaseCommのみ)"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c._base.disconnect((result) =>
+        callback(if result then @FAIL else @PASS)
+      )
+  )
+  @add(
+    category: "接続(正常系)"
+    description: "PERIDOTに接続"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.open(dev_test[0], (result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "接続(異常系)"
+    description: "接続済みのPERIDOTに多重接続"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.open(dev_test[0], (result) =>
+        callback(if result then @FAIL else @PASS)
+      )
+  )
+  @add(
+    category: "ボード情報(正常系)"
+    description: "I2C通信でEEPROMからボード情報を読み出す"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.getinfo((result) =>
+        @print(JSON.stringify(c.boardInfo))
+        unless result
+          @print("読み出し失敗")
+          return callback(@FAIL)
+        callback(@PASS)
+      )
+  )
+  @add(
+    category: "切断(正常系)"
+    description: "PERIDOTから切断"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.close((result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "切断(異常系)"
+    description: "切断済みのPERIDOTから多重切断"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.close((result) =>
+        callback(if result then @FAIL else @PASS)
       )
   )
   @start()

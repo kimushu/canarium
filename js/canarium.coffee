@@ -101,8 +101,10 @@ class Canarium
   @inheritdoc Canarium.BaseComm#connect
   ###
   open: (portname, callback) ->
+    if @_base.connected
+      callback(false)
+      return
     @boardInfo = null
-
     new Function.Sequence(
       (seq) =>
         @_base.connect(portname, (result) -> seq.next(result))
@@ -117,7 +119,7 @@ class Canarium
           seq.abort()
         )
     ).final(
-      (seq) ->
+      (seq) =>
         return @_base.disconnect(-> callback(false)) if seq.aborted
         callback(true)
     ).start()
@@ -131,6 +133,13 @@ class Canarium
   @return {void}
   ###
   close: (callback) ->
+    unless @_base.connected
+      callback(false)
+      return
+    @_base.disconnect((result) =>
+      @boardInfo = null
+      callback(result)
+    )
     return
 
   ###*
@@ -170,6 +179,8 @@ class Canarium
   ###
   getinfo: (callback) ->
     unless @_base.connected and @boardInfo?.version
+      console.log(@_base)
+      console.log(@boardInfo)
       callback(false)
       return
     seq = new Function.Sequence()
@@ -180,6 +191,7 @@ class Canarium
           @_eepromRead(0x04, 8, (result, readData) =>
             return seq.abort() unless result
             info = new Uint8Array(readData)
+            console.log("getinfo::ver1::read(#{info.hexDump()})") if DEBUG >= 2
             mid = (info[0] << 8) | (info[1] << 0)
             pid = (info[2] << 8) | (info[3] << 0)
             sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
@@ -196,6 +208,7 @@ class Canarium
           @_eepromRead(0x04, 22, (result, readData) =>
             return seq.abort() unless result
             info = new Uint8Array(readData)
+            console.log("getinfo::ver2::read(#{info.hexDump()})") if DEBUG >= 2
             bid = ""
             (bid += String.fromCharCode(info[i])) for i in [0...4]
             s = ""
@@ -207,6 +220,7 @@ class Canarium
         )
       else
         # 未知のヘッダバージョン
+        console.log("getinfo::unknown_version") if DEBUG >= 1
         callback(false)
         return
     seq.final((seq) ->
@@ -246,19 +260,19 @@ class Canarium
           seq.next(result and ack)
         )
       (seq) =>  # Read bytes
-        seq.next() if readbytes == 0
+        return seq.next() if readbytes == 0
         @i2c.read(readbytes > 1, (result, readdata) =>
-          seq.abort() unless result
+          return seq.abort() unless result
           array[index += 1] = readdata
           readbytes -= 1
           seq.redo()
         )
-      (seq) =>  # Stop condition
-        @i2c.stop((result) => seq.next(result))
     ).final(
-      (seq) ->
-        return callback(false, null) if seq.aborted
-        callback(true, array.buffer)
+      (seq) =>  # Stop condition
+        @i2c.stop((result) ->
+          return callback(false, null) if seq.aborted or not result
+          callback(true, array.buffer)
+        )
     ).start()
 
   ###*

@@ -74,6 +74,14 @@ class Canarium.BaseComm
   ###
   _rxTotalLength: null
 
+  ###*
+  @private
+  @property {boolean}
+    chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
+  @readonly
+  ###
+  SPLIT_EVENT_CONTEXT = false
+
   #----------------------------------------------------------------
   # Public methods
   #
@@ -157,7 +165,7 @@ class Canarium.BaseComm
     unless @connected
       callback(false)
       return
-    chrome.serial.disconnect(@_cid, (result) ->
+    chrome.serial.disconnect(@_cid, (result) =>
       return callback(false) unless result
       chrome.serial.onReceive.removeListener(@_onReceive)
       chrome.serial.onReceiveError.removeListener(@_onReceiveError)
@@ -261,7 +269,10 @@ class Canarium.BaseComm
   _onReceiveHandler: (info) ->
     return unless info.connectionId == @_cid and @connected
     @_addRxBuffer(info.data)
-    window.setTimeout((=> @_onReceiveHandler2()), 0)
+    if SPLIT_EVENT_CONTEXT
+      window.setTimeout((=> @_onReceiveHandler2()), 0)
+    else
+      @_onReceiveHandler2()
     return
 
   _onReceiveHandler2: ->
@@ -333,7 +344,10 @@ class Canarium.BaseComm
   ###
   _onReceiveErrorHandler: (info) ->
     return unless info.connectionId == @_cid and @connected
-    window.setTimeout((=> @_onReceiveErrorHandler2()), 0)
+    if SPLIT_EVENT_CONTEXT
+      window.setTimeout((=> @_onReceiveErrorHandler2()), 0)
+    else
+      @_onReceiveErrorHandler2()
     return
 
   _onReceiveErrorHandler2: ->
