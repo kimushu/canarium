@@ -21,8 +21,8 @@ unless Function.Sequence
       @aborted = false
       @finished = false
 
-    add: (f) ->
-      @list.push(f)
+    add: (f...) ->
+      @list.push(f...)
       return this
 
     final: (f) ->
