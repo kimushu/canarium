@@ -1,8 +1,9 @@
 ###*
 @class Canarium
-PERIDOT通信クラス
+PERIDOTボードドライバ
 ###
 class Canarium
+  DEBUG = DEBUG? or 0
 
   #----------------------------------------------------------------
   # Public properties
@@ -27,65 +28,97 @@ class Canarium
   boardInfo: null
 
   ###*
-  @property {number}
-    デフォルトのビットレート
+  @property {number} serialBitrate
+    デフォルトのビットレート({@link Canarium.BaseComm#bitrate}のアクセサとして定義)
   ###
-  serialBitrate: 115200
+  @property "serialBitrate",
+    get: -> @_base.bitrate
+    set: (v) -> @_base.bitrate = v
 
   ###*
-  @property {Channel[]}
+  @property {Canarium.Channel[]}
     チャネル[0～255]
   @readonly
   ###
   channels: null
+
+  ###*
+  @property {Object}
+    AvalonMMアクセス制御クラスのインスタンス
+  @readonly
+  ###
+  avm: null
+
+  ###*
+  @property {Canarium.I2CComm}
+    I2C通信制御クラスのインスタンス
+  @readonly
+  ###
+  i2c: null
 
   #----------------------------------------------------------------
   # Private properties
   #
 
   ###*
-  @property {number}
-    chrome.serialのコネクションID
   @private
+  @property {Canarium.BaseComm}
+    下位層通信クラスのインスタンス
   ###
-  connectionId: null
-
-  #----------------------------------------------------------------
-  # Private methods
-  #
+  _base: null
 
   ###*
-  @method
-    開発者向けのエラーログを出力する
-  @param {Object} data
-    出力メッセージ等のデータ(型は自由)
-  @return {void}
   @private
+  @property {number}
+    EEPROMのスレーブアドレス(7-bit)
+  @readonly
   ###
-  err: (data) ->
-    console.log({"error": data, "canarium": this})
-    undefined
+  EEPROM_SLAVE_ADDR = 0x50
 
   #----------------------------------------------------------------
   # Public methods
   #
 
   ###*
+  @static
   @method
-    PERIDOTデバイスポートのオープン
-  @param {string} portname
-    接続するポート名(chrome.serial.getDevicesのports[].pathを指定)
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @inheritdoc Canarium.BaseComm#enumerate
+  @localdoc {@link Canarium.BaseComm#enumerate}に転送されます
+  ###
+  @enumerate: (args...) ->
+    Canarium.BaseComm.enumerate(args...)
+
+  ###*
+  @method
+    コンストラクタ
+  ###
+  constructor: ->
+    @_base = new Canarium.BaseComm()
+    @i2c = new Canarium.I2CComm(@_base)
+
+  ###*
+  @inheritdoc Canarium.BaseComm#connect
   ###
   open: (portname, callback) ->
-    if @connected
-      callback(false) # 接続済みの場合は失敗として扱う
-      return
-
     @boardInfo = null
-    undefined
+
+    new Function.Sequence(
+      (seq) =>
+        @_base.connect(portname, (result) -> seq.next(result))
+      (seq) =>
+        @_eepromread(0x00, 4, (result, buffer) =>
+          return seq.abort() unless result
+          header = new Uint8Array(buffer)
+          if header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
+            @boardInfo = {version: header[3]}
+            seq.next()
+          seq.abort()
+        )
+    ).final(
+      (seq) ->
+        callback(seq.finished)
+    ).start()
+    return
 
   ###*
   @method
@@ -95,7 +128,7 @@ class Canarium
   @return {void}
   ###
   close: (callback) ->
-    undefined
+    return
 
   ###*
   @method
@@ -113,7 +146,7 @@ class Canarium
   @return {void}
   ###
   config: (boardInfo, rbfdata, callback) ->
-    undefined
+    return
 
   ###*
   @method
@@ -123,7 +156,7 @@ class Canarium
   @return {void}
   ###
   reset: (callback) ->
-    undefined
+    return
 
   ###*
   @method
@@ -137,22 +170,109 @@ class Canarium
       callback(false)
       return
 
-    undefined
+    return
 
   ###*
-  @class Channel
+  @method
+    AvalonSTパケットの送受信
+  @param {Number} channel
+    チャネル番号(CPLDv1.1時点では0固定)
+  @param {ArrayBuffer}  writedata
+    書き込みデータ
+  @param {Object} options
+    パケット送信オプション
+  @param {function(boolean,ArrayBuffer):void} callback
+    コールバック関数
+  @return {void}
+  @private
+  ###
+  _transpacket: (channel, writedata, options, callback) ->
+    # パケット送信予約
+    @_packetsend(
+      channel,
+      writedata,
+      (result) -> callback(false, null) unless result
+    )
+    # パケット受信予約
+    @_packetrecv(
+      channel,
+      callback
+    )
+    return
+
+  ###*
+  @method
+    AvalonSTパケットの送信
+  ###
+  _packetsend: (channel, data, callback) ->
+
+  ###*
+  @private
+  @method
+    EEPROMの読み出し
+  @param {number} startaddr
+    読み出し開始アドレス
+  @param {number} readbytes
+    読み出しバイト数
+  @param {function(boolean,ArrayBuffer)} callback
+    コールバック関数
+  ###
+  _eepromread: (startaddr, readbytes, callback) ->
+    array = new Uint8Array(readbytes)
+    index = -1
+    new Function.Sequence(
+      (seq) =>  # Start condition
+        @i2c.start((result) => seq.next(result))
+      (seq) =>  # Send slave address and direction (write)
+        @i2c.write((EEPROM_SLAVE_ADDR << 1), (result, ack) =>
+          seq.next(result and ack)
+        )
+      (seq) =>  # Send EEPROM address
+        @i2c.write((startaddr & 0xff), (result, ack) =>
+          seq.next(result and ack)
+        )
+      (seq) =>  # Repeat start condition
+        @i2c.start((result) => seq.next(result))
+      (seq) =>  # Send slave address and direction (read)
+        @i2c.write((EEPROM_SLAVE_ADDR << 1) + 1, (result, ack) =>
+          seq.next(result and ack)
+        )
+      (seq) =>  # Read bytes
+        seq.next() if readbytes == 0
+        @i2c.read(readbytes > 1, (result, readdata) =>
+          seq.abort() unless result
+          array[index += 1] = readdata
+          readbytes -= 1
+          seq.redo()
+        )
+      (seq) =>  # Stop condition
+        @i2c.stop((result) => seq.next(result))
+    ).final(
+      (seq) ->
+        return callback(false, null) if seq.aborted
+        callback(true, array.buffer)
+    ).start()
+
+  ###*
+  @class Canarium.AvsPacket
+  Avalon-STパケットクラス
+  ###
+  class AvsPacket
+    ###*
+    ###
+
+  ###*
+  @class Canarium.Channel
   仮想通信ポート(チャネル)クラス
   ###
-
   class Channel
-
     ###*
     @property {Canarium}
       オーナーのCanariumクラスインスタンス
     @readonly
     @private
     ###
-    canarium: null
+    _canarium: null
 
     ###*
     @property {Number}
@@ -170,7 +290,7 @@ class Canarium
       チャネル番号(0～255)
     @private
     ###
-    constructor: (@canarium, @index) ->
+    constructor: (@_canarium, @index) ->
 
     ###*
     @method
@@ -184,7 +304,7 @@ class Canarium
       タイムアウト時間[ms] (省略時 or nullは無限待ち)
     @param {Function}     [errorCallback]
       エラー発生時のコールバック
-    @return {Boolean} true:キュー追加成功(送信成功とは異なる)、false:失敗
+    @return {boolean} true:キュー追加成功(送信成功とは異なる)、false:失敗
     ###
     send: (senddata, successCallback, timeout, errorCallback) ->
       null
@@ -201,8 +321,28 @@ class Canarium
       タイムアウト時間[ms] (省略時 or nullは無限待ち)
     @param {Function}     [errorCallback]
       エラー発生時のコールバック
-    @return {Boolean} true:登録成功(受信成功とは異なる)、false:失敗
+    @return {boolean} true:登録成功(受信成功とは異なる)、false:失敗
     ###
     recv: (readtype, successCallback, timeout, errorCallback) ->
       null
+
+  #----------------------------------------------------------------
+  # Private methods
+  #
+
+  ###*
+  @method
+    開発者向けのエラーログを出力する
+  @param {Object} data
+    出力メッセージ等のデータ(型は自由)
+  @return {void}
+  @private
+  ###
+  _err: (data) ->
+    console.log({
+      "error": data,
+      "stack": new Error().stack,
+      "canarium": this
+    })
+    return
 

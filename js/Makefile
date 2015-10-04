@@ -1,26 +1,38 @@
 TARGETS = canarium.js canarium.min.js
-JS_TYPES = ArrayBuffer
+SOURCE = common.coffee canarium.coffee basecomm.coffee i2ccomm.coffee
+JS_TYPES = ArrayBuffer chrome.serial
+DOC_DIR = doc
 
 comma := ,
 empty :=
 space := $(empty) $(empty)
 
+target_backup = (test ! -e $@ || ($(target_cleanup) && mv $@ .bak-$@))
+target_rollback = (test ! -e .bak-$@ || (rm -r $@ && mv .bak-$@ $@))
+target_update = (test ! -e .bak-$@/.git || (mv .bak-$@/.git $@/ && git -C $@ add --all .))
+target_cleanup = (test ! -e .bak-$@ || rm -r .bak-$@)
+
 .PHONY: all
 all: $(TARGETS)
 
 .PHONY: doc
-doc: canarium.js
-	jsduck --output $@ \
-		--external=$(subst $(space),$(comma),$(JS_TYPES)) \
-		$(firstword $(TARGETS))
+doc: $(firstword $(TARGETS))
+	$(target_backup)
+	jsduck --output $@ --external=$(subst $(space),$(comma),$(JS_TYPES)) $< || ($(target_rollback); false)
+	$(target_update)
+	$(target_cleanup)
 
 .PHONY: clean
 clean:
 	rm -f $(TARGETS)
-	rm -rf doc
+	rm -rf doc/*
 
-%.js: %.coffee
-	coffee -c -b $<
+.PHONY: test
+test: all
+	$(MAKE) -C $@
+
+canarium.js: $(SOURCE)
+	cat $^ | coffee -c -b -s --no-header > $@ || (rm -f $@; false)
 
 %.min.js: %.js
 	uglifyjs -o $@ $<

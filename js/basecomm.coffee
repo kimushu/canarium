@@ -1,18 +1,24 @@
 ###*
 @class Canarium.BaseComm
-PERIDOT下位層通信クラス
+PERIDOTボード下位層通信クラス
 @uses chrome.serial
 ###
 class Canarium.BaseComm
+  DEBUG = DEBUG? or 0
+
+  #----------------------------------------------------------------
+  # Public properties
+  #
+
   ###*
   @property {boolean}
-    接続されているかどうか
+    接続状態(true:接続済み, false:未接続)
   ###
   connected: false
 
   ###*
   @property {string}
-    現在接続中のパス
+    接続しているシリアル通信デバイスのパス
   ###
   path: null
 
@@ -21,6 +27,10 @@ class Canarium.BaseComm
     ビットレート(bps)
   ###
   bitrate: 115200
+
+  #----------------------------------------------------------------
+  # Private properties
+  #
 
   ###*
   @private
@@ -32,14 +42,14 @@ class Canarium.BaseComm
   ###*
   @private
   @property {Function}
-    受信コールバック関数(thisバインド付き)
+    受信コールバック関数(thisバインド付きの関数オブジェクト)
   ###
   _onReceive: null
 
   ###*
   @private
   @property {Function}
-    受信エラーコールバック関数(thisバインド付き)
+    受信エラーコールバック関数(thisバインド付きの関数オブジェクト)
   ###
   _onReceiveError: null
 
@@ -63,6 +73,10 @@ class Canarium.BaseComm
     受信データの合計サイズ
   ###
   _rxTotalLength: null
+
+  #----------------------------------------------------------------
+  # Public methods
+  #
 
   ###*
   @static
@@ -118,6 +132,7 @@ class Canarium.BaseComm
         Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
         ###
         unless connectionInfo
+          chrome.runtime.lastError  # エラー読み捨て
           @connected = false
           return callback(false)
         @path = "#{path}"
@@ -206,6 +221,10 @@ class Canarium.BaseComm
     @_transSerial(txdata, rxsize, callback)
     return
 
+  #----------------------------------------------------------------
+  # Private methods
+  #
+
   ###*
   @private
   @method
@@ -223,6 +242,7 @@ class Canarium.BaseComm
       callback(false, null)
       return
     @_rxQueue.push({length: rxsize, callback: callback})
+    console.log({"BaseComm::(send)": new Uint8Array(txdata).hexDump()}) if DEBUG >= 1
     chrome.serial.send(@_cid, txdata, -> null)
     return
 
@@ -241,11 +261,16 @@ class Canarium.BaseComm
   _onReceiveHandler: (info) ->
     return unless info.connectionId == @_cid and @connected
     @_addRxBuffer(info.data)
+    window.setTimeout((=> @_onReceiveHandler2()), 0)
+    return
+
+  _onReceiveHandler2: ->
     while @_rxQueue.length > 0
       length = @_rxQueue[0].length
       break if length > @_rxTotalLength
       queue = @_rxQueue.shift()
       buffer = @_sliceRxBuffer(length)
+      console.log({"BaseComm::(recv)": new Uint8Array(buffer).hexDump()}) if DEBUG >= 1
       queue.callback.call(undefined, true, buffer)
     return
 
@@ -268,10 +293,11 @@ class Canarium.BaseComm
     受信データバッファの先頭からデータを取り出す
   @param {number} length
     取り出すバイト数
-  @return {ArrayBuffer}
-    取り出したデータ
+  @return {ArrayBuffer/null}
+    取り出したデータ(バッファ不足時はnull)
   ###
   _sliceRxBuffer: (length) ->
+    return null if length > @_rxTotalLength
     array = new Uint8Array(length)
     pos = 0
     rem = length
@@ -288,6 +314,7 @@ class Canarium.BaseComm
       array.set(new Uint8Array(partBuf, 0, partLen), pos)
       pos += partLen
       rem -= partLen
+    @_rxTotalLength -= length
     return array.buffer
 
   ###*
@@ -306,12 +333,18 @@ class Canarium.BaseComm
   ###
   _onReceiveErrorHandler: (info) ->
     return unless info.connectionId == @_cid and @connected
-    @_rxBuffers = []
-    @_rxTotalLength = 0
-    q.callback.call(undefined, false, null) for q in @_rxQueue
+    window.setTimeout((=> @_onReceiveErrorHandler2()), 0)
+    return
+
+  _onReceiveErrorHandler2: ->
     # シリアル通信レベルでの通信エラーは、原則として復旧不可。
-    # また、ケーブル切断によるエラーの場合、ソフト的に切断しておかないと
+    # また、ケーブル切断によるエラーの場合、ドライバを切断しておかないと
     # Windowsでは次回接続時に支障がでるため自動的にdisconnectする。
     @disconnect(-> return)
+    # キューされた受信待ちキューをすべてエラー終了とする
+    @_rxBuffers = []
+    @_rxTotalLength = 0
+    while queue = @_rxQueue.shift()
+      queue.callback.call(undefined, false, null)
     return
 
