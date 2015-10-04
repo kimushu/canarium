@@ -2,7 +2,7 @@ TARGETS = canarium.js canarium.min.js
 SOURCE = common.coffee canarium.coffee \
 			basecomm.coffee i2ccomm.coffee \
 			avspackets.coffee avmtransactions.coffee
-JS_TYPES = ArrayBuffer chrome.serial
+JS_TYPES = ArrayBuffer chrome.serial Uint8Array
 DOC_DIR = doc
 
 comma := ,

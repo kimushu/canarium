@@ -4,6 +4,7 @@ PERIDOTボードAvalon-STパケット層通信クラス
 @uses Canarium.BaseComm
 ###
 class Canarium.AvsPackets
+  DEBUG = DEBUG? or 0
 
   #----------------------------------------------------------------
   # Public properties

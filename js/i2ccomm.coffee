@@ -178,7 +178,7 @@ class Canarium.I2CComm
     writeData = 0 + writebyte
     writeBits = (done, abort, retry) =>
       bitNum -= 1
-      bit = (writeData >> 7) & 1
+      bit = (writeData >>> 7) & 1
       writeData <<= 1
       console.log("i2c::write::writeBits[#{bitNum}]") if DEBUG >= 2
       @_writeBit(bit, (result) ->
