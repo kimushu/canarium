@@ -1,7 +1,11 @@
-new ChromeAppTest("Canarium Test", new Canarium().version).setup(->
+c = null
+new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
   dev_prescan = []
   dev_ignore = []
   dev_test = []
+  dump = (arg) ->
+    a = if arg instanceof Uint8Array then arg else new Uint8Array(arg)
+    "[" + (("0x"+("0"+i.toString(16)).substr(-2)) for i in a).join(", ") + "]"
   @add(
     category: "環境整備(手動操作)"
     description: "PERIDOT以外のシリアル通信デバイスを確認"
@@ -45,7 +49,7 @@ new ChromeAppTest("Canarium Test", new Canarium().version).setup(->
       )
   )
   @add(
-    category: "列挙テスト(正常系)"
+    category: "列挙(正常系)"
     description: "PERIDOT接続無しのデバイス列挙"
     body: (callback) ->
       Canarium.enumerate((result, devices) =>
@@ -67,7 +71,7 @@ new ChromeAppTest("Canarium Test", new Canarium().version).setup(->
       callback(@PASS)
   )
   @add(
-    category: "列挙テスト(正常系)"
+    category: "列挙(正常系)"
     description: "PERIDOT接続有りのデバイス列挙"
     body: (callback) ->
       Canarium.enumerate((result, devices) =>
@@ -90,17 +94,17 @@ new ChromeAppTest("Canarium Test", new Canarium().version).setup(->
       )
   )
   @add(
-    category: "接続テスト(異常系)"
+    category: "接続(異常系)"
     description: "存在しないデバイスに対する接続"
     body: (callback) ->
-      new Canarium().open("/non_existing_device", (result) =>
+      (c = new Canarium()).open("/non_existing_device", (result) =>
         return callback(@FAIL) if result
         callback(@PASS)
       )
   )
   cid = null
   @add(
-    category: "接続テスト(異常系)"
+    category: "接続(異常系)"
     description: "他のアプリケーションが排他接続済みのデバイスに対する接続"
     setup: (callback) ->
       return callback(@FAIL) unless dev_test[0]
@@ -113,7 +117,7 @@ new ChromeAppTest("Canarium Test", new Canarium().version).setup(->
           callback(@PASS)
       )
     body: (callback) ->
-      new Canarium().open(dev_test[0], (result) =>
+      (c = new Canarium()).open(dev_test[0], (result) =>
         return callback(@FAIL) if result
         callback(@PASS)
       )
@@ -125,14 +129,37 @@ new ChromeAppTest("Canarium Test", new Canarium().version).setup(->
       )
   )
   @add(
-    category: "接続テスト(正常系)"
+    category: "接続(正常系)"
     description: "PERIDOTへ接続"
     setup: (callback) ->
-      callback(if dev_test[0] then @PASS else @FAIL)
-    body: (callback) ->
-      new Canarium().open(dev_test[0], (result) =>
-        return callback(@FAIL) unless result
+      if dev_test[0]
+        c = new Canarium()
         callback(@PASS)
+      else
+        c = null
+        callback(@FAIL)
+    body: (callback) ->
+      c._base.open(dev_test[0], (result) =>
+        return callback(@PASS) if result
+        c = null
+        callback(@FAIL)
+      )
+  )
+  @add(
+    category: "I2C通信(正常系)"
+    description: "I2C通信でEEPROMからデータを読み出す"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c._eepromread(0x00, 4, (result, readdata) =>
+        unless result
+          @print("読み出し失敗")
+          return callback(@FAIL)
+        a = new Uint8Array(readdata)
+        @print(dump(a))
+        if a[0] == 0x4a and a[1] == 0x37 and a[2] == 0x57
+          callback(@PASS)
+        callback(@FAIL)
       )
   )
   @start()

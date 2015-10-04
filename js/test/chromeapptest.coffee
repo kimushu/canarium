@@ -29,10 +29,10 @@ class ChromeAppTest
           callback(@PASS)
         )
       body: (callback) ->
-        $("#pass").val(" START ").prop("disabled", false).
+        $("#pass").val(" START (1) ").prop("disabled", false).
           unbind("click").click(=> callback(@PASS))
       epilogue: (callback) ->
-        $("#pass").val(" PASS ").unbind("click")
+        $("#pass").val(" PASS (1) ").unbind("click")
         @print("Test started: #{new Date().toString()}")
         $("#res-0").html("STARTED")
         callback(@PASS)
@@ -142,6 +142,12 @@ class ChromeAppTest
     @_onLoad = null
     f() for f in onload
     $("#print").unbind("click").click(-> window.print())
+    $("body").keydown((e) ->
+      switch e.keyCode
+        when 0x31 then $("#pass").click()
+        when 0x32 then $("#fail").click()
+        when 0x33 then $("#skip").click()
+    )
   )
 
   ###*
@@ -241,11 +247,13 @@ class ChromeAppTest
       $("#row-#{@index}").addClass("case-next")
       c = @cases[@index]
       phase(0)  # Setup
+      $("#res-#{@index}").html("SETTING UP")
       protect(c.setup or pass, (res_setup) =>
         if res_setup != @PASS
           record(res_setup)
           return next()
         phase(1)  # User operation
+        $("#res-#{@index}").html("WAITING USER")
         step((res_user) =>
           if res_user != @PASS
             record(res_user)
@@ -258,9 +266,9 @@ class ChromeAppTest
               record(res_pro)
               return next()
             phase(3)  # Body
-            startTime = Date.now()
+            startTime = window.performance.now()
             protect(c.body or wait, (res_body) =>
-              record(res_body, Date.now() - startTime)
+              record(res_body, parseInt(window.performance.now() - startTime))
               phase(4)  # Epilogue
               protect(c.epilogue or pass, (res_epi) =>
                 if res_epi == @FAIL
