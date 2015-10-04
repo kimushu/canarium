@@ -1,10 +1,10 @@
 
-TARGET = canarium.js chromeapptest.js cases.js
+TARGETS = canarium.js chromeapptest.js cases.js
 
-all: $(TARGET)
-	
+test: $(TARGETS)
+
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGETS)
 
 canarium.js: ../canarium.js
 	cp $< $@

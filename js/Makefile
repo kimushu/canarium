@@ -12,8 +12,13 @@ target_rollback = (test ! -e .bak-$@ || (rm -r $@ && mv .bak-$@ $@))
 target_update = (test ! -e .bak-$@/.git || (mv .bak-$@/.git $@/ && git -C $@ add --all .))
 target_cleanup = (test ! -e .bak-$@ || rm -r .bak-$@)
 
+compile:
+
 .PHONY: all
-all: $(TARGETS)
+all: compile doc test
+
+.PHONY: compile
+compile: $(TARGETS)
 
 .PHONY: doc
 doc: $(firstword $(TARGETS))
@@ -28,7 +33,7 @@ clean:
 	rm -rf doc/*
 
 .PHONY: test
-test: all
+test: compile
 	$(MAKE) -C $@
 
 canarium.js: $(SOURCE)
