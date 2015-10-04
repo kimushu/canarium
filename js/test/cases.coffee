@@ -151,7 +151,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     setup: (callback) ->
       callback(if c then @PASS else @FAIL)
     body: (callback) ->
-      c._eepromread(0x00, 4, (result, readdata) =>
+      c._eepromRead(0x00, 4, (result, readdata) =>
         unless result
           @print("読み出し失敗")
           return callback(@FAIL)

@@ -70,10 +70,10 @@ class Canarium
   ###*
   @private
   @property {number}
-    EEPROMのスレーブアドレス(7-bit)
+    EEPROMのスレーブアドレス(7-bit表記)
   @readonly
   ###
-  EEPROM_SLAVE_ADDR = 0x50
+  EEPROM_SLAVE_ADDR = 0b1010000
 
   #----------------------------------------------------------------
   # Public methods
@@ -83,7 +83,8 @@ class Canarium
   @static
   @method
   @inheritdoc Canarium.BaseComm#enumerate
-  @localdoc {@link Canarium.BaseComm#enumerate}に転送されます
+  @localdoc
+    {@link Canarium.BaseComm#enumerate}に転送されます
   ###
   @enumerate: (args...) ->
     Canarium.BaseComm.enumerate(args...)
@@ -106,17 +107,19 @@ class Canarium
       (seq) =>
         @_base.connect(portname, (result) -> seq.next(result))
       (seq) =>
-        @_eepromread(0x00, 4, (result, buffer) =>
+        @_eepromRead(0x00, 4, (result, readData) =>
           return seq.abort() unless result
-          header = new Uint8Array(buffer)
+          header = new Uint8Array(readData)
           if header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
+            console.log("Canarium#connect::version(#{header[3]})") if DEBUG >= 1
             @boardInfo = {version: header[3]}
             seq.next()
           seq.abort()
         )
     ).final(
       (seq) ->
-        callback(seq.finished)
+        return @_base.disconnect(-> callback(false)) if seq.aborted
+        callback(true)
     ).start()
     return
 
@@ -166,45 +169,50 @@ class Canarium
   @return {void}
   ###
   getinfo: (callback) ->
-    if not @connected or @getinfoBarrier
+    unless @_base.connected and @boardInfo?.version
       callback(false)
       return
-
+    seq = new Function.Sequence()
+    switch @boardInfo.version
+      when 1
+        # ver.1 ヘッダ
+        seq.add((seq) =>
+          @_eepromRead(0x04, 8, (result, readData) =>
+            return seq.abort() unless result
+            info = new Uint8Array(readData)
+            mid = (info[0] << 8) | (info[1] << 0)
+            pid = (info[2] << 8) | (info[3] << 0)
+            sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
+            if mid == 0x0072
+              s = "#{pid.hex(4)}#{sid.hex(8)}"
+              @boardInfo.id = "J72A"
+              @boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-000000"
+            seq.next()
+          )
+        )
+      when 2
+        # ver.2 ヘッダ
+        seq.add((seq) =>
+          @_eepromRead(0x04, 22, (result, readData) =>
+            return seq.abort() unless result
+            info = new Uint8Array(readData)
+            bid = ""
+            (bid += String.fromCharCode(info[i])) for i in [0...4]
+            s = ""
+            (s += String.fromCharCode(info[i])) for i in [4...22]
+            @boardInfo.id = bid
+            @boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-#{s.substr(12, 6)}"
+            seq.next()
+          )
+        )
+      else
+        # 未知のヘッダバージョン
+        callback(false)
+        return
+    seq.final((seq) ->
+      callback(seq.finished)
+    ).start()
     return
-
-  ###*
-  @method
-    AvalonSTパケットの送受信
-  @param {Number} channel
-    チャネル番号(CPLDv1.1時点では0固定)
-  @param {ArrayBuffer}  writedata
-    書き込みデータ
-  @param {Object} options
-    パケット送信オプション
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
-  @private
-  ###
-  _transpacket: (channel, writedata, options, callback) ->
-    # パケット送信予約
-    @_packetsend(
-      channel,
-      writedata,
-      (result) -> callback(false, null) unless result
-    )
-    # パケット受信予約
-    @_packetrecv(
-      channel,
-      callback
-    )
-    return
-
-  ###*
-  @method
-    AvalonSTパケットの送信
-  ###
-  _packetsend: (channel, data, callback) ->
 
   ###*
   @private
@@ -217,7 +225,7 @@ class Canarium
   @param {function(boolean,ArrayBuffer)} callback
     コールバック関数
   ###
-  _eepromread: (startaddr, readbytes, callback) ->
+  _eepromRead: (startaddr, readbytes, callback) ->
     array = new Uint8Array(readbytes)
     index = -1
     new Function.Sequence(
