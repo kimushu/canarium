@@ -150,7 +150,7 @@ PERIDOTボードドライバ
  */
 
 Canarium = (function() {
-  var AvsPacket, Channel, DEBUG, EEPROM_SLAVE_ADDR;
+  var DEBUG, EEPROM_SLAVE_ADDR;
 
   DEBUG = (DEBUG != null) || 0;
 
@@ -192,22 +192,13 @@ Canarium = (function() {
   });
 
 
-<span id='Canarium-property-channels'>  /**
-</span>  @property {Canarium.Channel[]}
+  /*
+  @property {Canarium.Channel[]}
     チャネル[0～255]
   @readonly
    */
 
   Canarium.prototype.channels = null;
-
-
-<span id='Canarium-property-avm'>  /**
-</span>  @property {Object}
-    AvalonMMアクセス制御クラスのインスタンス
-  @readonly
-   */
-
-  Canarium.prototype.avm = null;
 
 
 <span id='Canarium-property-i2c'>  /**
@@ -217,6 +208,24 @@ Canarium = (function() {
    */
 
   Canarium.prototype.i2c = null;
+
+
+<span id='Canarium-property-avs'>  /**
+</span>  @property {Canarium.AvsPackets}
+    Avalon-STパケット層通信クラスのインスタンス
+  @readonly
+   */
+
+  Canarium.prototype.avs = null;
+
+
+<span id='Canarium-property-avm'>  /**
+</span>  @property {Canarium.AvmTransactions}
+    Avalon-MMトランザクション層通信クラスのインスタンス
+  @readonly
+   */
+
+  Canarium.prototype.avm = null;
 
 
 <span id='Canarium-property-_base'>  /**
@@ -261,6 +270,8 @@ Canarium = (function() {
   function Canarium() {
     this._base = new Canarium.BaseComm();
     this.i2c = new Canarium.I2CComm(this._base);
+    this.avs = new Canarium.AvsPackets(this._base);
+    this.avm = new Canarium.AvmTransactions(this.avs);
   }
 
 
@@ -521,108 +532,7 @@ Canarium = (function() {
   };
 
 
-<span id='Canarium-AvsPacket'>  /**
-</span>  @class Canarium.AvsPacket
-  Avalon-STパケットクラス
-   */
-
-  AvsPacket = (function() {
-
-<span id='AvsPacket'>    /**
-</span>     */
-    function AvsPacket() {}
-
-    return AvsPacket;
-
-  })();
-
-
-<span id='Canarium-Channel'>  /**
-</span>  @class Canarium.Channel
-  仮想通信ポート(チャネル)クラス
-   */
-
-  Channel = (function() {
-
-<span id='Canarium-Channel-property-_canarium'>    /**
-</span>    @property {Canarium}
-      オーナーのCanariumクラスインスタンス
-    @readonly
-    @private
-     */
-    Channel.prototype._canarium = null;
-
-
-<span id='Canarium-Channel-property-index'>    /**
-</span>    @property {Number}
-      チャネル番号(0～255)
-    @readonly
-     */
-
-    Channel.prototype.index = null;
-
-
-<span id='Canarium-Channel-method-Channel'>    /**
-</span>    @method
-      コンストラクタ
-    @param {Canarium} canarium
-      オーナーのCanariumクラスインスタンス
-    @param {Number}   index
-      チャネル番号(0～255)
-    @private
-     */
-
-    function Channel(_canarium, index1) {
-      this._canarium = _canarium;
-      this.index = index1;
-    }
-
-
-<span id='Canarium-Channel-method-send'>    /**
-</span>    @method
-      非同期データ送信要求をキューに入れます。
-      複数の送信要求をキューに入れることができます。送信順序はキューに入れた順です。
-    @param {Number[]/ArrayBuffer/String}  senddata
-      送信するデータ
-    @param {Function}     successCallback
-      送信成功時のコールバック
-    @param {Number/null}  [timeout]
-      タイムアウト時間[ms] (省略時 or nullは無限待ち)
-    @param {Function}     [errorCallback]
-      エラー発生時のコールバック
-    @return {boolean} true:キュー追加成功(送信成功とは異なる)、false:失敗
-     */
-
-    Channel.prototype.send = function(senddata, successCallback, timeout, errorCallback) {
-      return null;
-    };
-
-
-<span id='Canarium-Channel-method-recv'>    /**
-</span>    @method
-      データ受信イベントを登録します。一度受信するか失敗が確定すると解除されます。
-      複数の受信待ちを同時に登録することはできません。
-    @param {&quot;arraybuffer&quot;/&quot;string&quot;} readtype
-      受信したデータを受け取る際のデータ型
-    @param {Function}     successCallback
-      受信成功時のコールバック (function(readdata))
-    @param {Number/null}  [timeout]
-      タイムアウト時間[ms] (省略時 or nullは無限待ち)
-    @param {Function}     [errorCallback]
-      エラー発生時のコールバック
-    @return {boolean} true:登録成功(受信成功とは異なる)、false:失敗
-     */
-
-    Channel.prototype.recv = function(readtype, successCallback, timeout, errorCallback) {
-      return null;
-    };
-
-    return Channel;
-
-  })();
-
-
-<span id='Canarium-Channel-method-_err'>  /**
+<span id='Canarium-method-_err'>  /**
 </span>  @method
     開発者向けのエラーログを出力する
   @param {Object} data
@@ -949,6 +859,9 @@ Canarium.BaseComm = (function() {
       length: rxsize,
       callback: callback
     });
+    if (!txdata) {
+      return;
+    }
     if (DEBUG &gt;= 1) {
       console.log({
         &quot;BaseComm::(send)&quot;: new Uint8Array(txdata).hexDump()
@@ -1567,6 +1480,222 @@ Canarium.I2CComm = (function() {
   };
 
   return I2CComm;
+
+})();
+
+
+<span id='Canarium-AvsPackets'>/**
+</span>@class Canarium.AvsPackets
+PERIDOTボードAvalon-STパケット層通信クラス
+@uses Canarium.BaseComm
+ */
+
+Canarium.AvsPackets = (function() {
+
+<span id='Canarium-AvsPackets-property-_base'>  /**
+</span>  @private
+  @property {Canarium.BaseComm}
+    下位層通信クラスのインスタンス
+   */
+  AvsPackets.prototype._base = null;
+
+
+<span id='Canarium-AvsPackets-method-AvsPackets'>  /**
+</span>  @method
+    コンストラクタ
+  @param {Canarium.BaseComm} _base
+    下位層通信クラスのインスタンス
+   */
+
+  function AvsPackets(_base) {
+    this._base = _base;
+  }
+
+
+<span id='Canarium-AvsPackets-method-transPacket'>  /**
+</span>  @method
+    Avalon-STパケットを送受信する。
+    チャネル選択およびSOP/EOPは自動的に付加される。
+    現時点では、受信データに複数のチャネルがインタリーブすることは認めない。
+  @param {number} channel
+    チャネル番号(0～255)
+  @param {ArrayBuffer}  txdata
+    送信するパケットデータ
+  @param {number} rxsize
+    受信するパケットのバイト数
+  @param {function(boolean):void} callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvsPackets.prototype.transPacket = function(channel, txdata, rxsize, callback) {
+    var byte, dst, j, len, len1, src;
+    channel &amp;= 0xff;
+    src = new Uint8Array(txdata);
+    dst = new Uint8Array(txdata.byteLength * 2 + 4);
+    dst[0] = 0x7c;
+    dst[1] = channel;
+    dst[2] = 0x7a;
+    len = 3;
+    for (j = 0, len1 = src.length; j &lt; len1; j++) {
+      byte = src[j];
+      if ((0x7a &lt;= byte &amp;&amp; byte &lt;= 0x7d)) {
+        dst[len] = 0x7d;
+        len += 1;
+        byte ^= 0x20;
+      }
+      dst[len] = byte;
+      len += 1;
+    }
+    dst[len] = 0x7b;
+    len += 1;
+    txdata = dst.buffer.slice(0, len);
+    this._base.transData(txdata, rxsize + 4, (function(_this) {
+      return function(result, rxdata) {
+        var pos, xor;
+        if (!result) {
+          return callback(false, null);
+        }
+        src = new Uint8Array(rxdata);
+        dst = new Uint8Array(rxdata.byteLength - 4);
+        if (!(src[0] === 0x7c &amp;&amp; src[1] === channel &amp;&amp; src[2] === 0x7a)) {
+          return callback(false, null);
+        }
+        pos = 3;
+        len = 0;
+        xor = 0x00;
+        while (pos &lt; src.byteLength) {
+          byte = src[pos];
+          pos += 1;
+          switch (byte) {
+            case 0x7a:
+            case 0x7c:
+              break;
+            case 0x7b:
+              return callback(true, dst.buffer.slice(0, len));
+            case 0x7d:
+              xor = 0x20;
+              continue;
+          }
+          dst[len] = byte ^ xor;
+          len += 1;
+          xor = 0x00;
+        }
+        return callback(false, null);
+      };
+    })(this));
+  };
+
+  return AvsPackets;
+
+})();
+
+
+<span id='Canarium-AvmTransactions'>/**
+</span>@class Canarium.AvmTransactions
+PERIDOTボードAvalon-MMトランザクション層通信クラス
+@uses Canarium.AvsPackets
+ */
+
+Canarium.AvmTransactions = (function() {
+
+<span id='Canarium-AvmTransactions-property-_avs'>  /**
+</span>  @private
+  @property {Canarium.AvsPackets}
+    Avalon-STパケット層通信クラスのインスタンス
+   */
+  AvmTransactions.prototype._avs = null;
+
+
+<span id='Canarium-AvmTransactions-method-AvmTransactions'>  /**
+</span>  @method
+    コンストラクタ
+  @param {Canarium.AvsPackets} _avs
+    Avalon-STパケット層通信クラスのインスタンス
+   */
+
+  function AvmTransactions(_avs) {
+    this._avs = _avs;
+  }
+
+
+<span id='Canarium-AvmTransactions-method-read'>  /**
+</span>  @method
+    AvalonMMメモリリード(IORD_DIRECT)
+  @param {number} address
+    読み込み元アドレス(バイト単位)
+  @param {number} bytenum
+    読み込むバイト数
+  @param {function(boolean,ArrayBuffer):void} callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvmTransactions.prototype.read = function(address, bytenum, callback) {};
+
+
+<span id='Canarium-AvmTransactions-method-write'>  /**
+</span>  @method
+    AvalonMMメモリライト(IOWR_DIRECT)
+  @param {number} address
+    書き込み先アドレス(バイト単位)
+  @param {ArrayBuffer} writedata
+    書き込むデータ
+  @param {function(boolean):void} callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvmTransactions.prototype.write = function(address, writedata, callback) {};
+
+
+<span id='Canarium-AvmTransactions-method-iord'>  /**
+</span>  @method
+    AvalonMMペリフェラルリード(IORD)
+  @param {number} address
+    読み込み元ベースアドレス(バイト単位。ただし自動的に4バイトの倍数に切り捨てられる)
+  @param {number} offset
+    オフセット(4バイトワード単位)
+  @param {function(boolean,number):void}  callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvmTransactions.prototype.iord = function(address, offset, callback) {};
+
+
+<span id='Canarium-AvmTransactions-method-iowr'>  /**
+</span>  @method
+    AvalonMMペリフェラルライト(IOWR)
+  @param {number} address
+    書き込み先ベースアドレス(バイト単位。ただし自動的に4バイトの倍数に切り捨てられる)
+  @param {number} offset
+    オフセット(4バイトワード単位)
+  @param {number} writedata
+    書き込むデータ
+  @param {function(boolean):void} callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvmTransactions.prototype.iowr = function(address, offset, writedata, callback) {};
+
+
+<span id='Canarium-AvmTransactions-method-option'>  /**
+</span>  @method
+    AvalonMMオプション設定 
+  @param {Object} option
+    オプション
+  @param {boolean}  option.fastAcknowledge
+    即時応答ビットを立てるかどうか
+  @param {function(boolean):void} callback
+    コールバック関数
+  @return {void}
+   */
+
+  AvmTransactions.prototype.option = function(option, callback) {};
+
+  return AvmTransactions;
 
 })();
 </pre>
