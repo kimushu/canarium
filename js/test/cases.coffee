@@ -15,7 +15,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         for port in ports
           @print("""
           <label><input type="checkbox" id="dev-#{port.path}" checked />
-          displayName:#{port.displayName}, path:#{port.path}
+          displayName:"#{port.displayName}", path:"#{port.path}"
           </label>
           """)
           dev_prescan.push("#{port.path}")
@@ -65,9 +65,10 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
   )
   @add(
     category: "環境整備(手動操作)"
-    description :"PERIDOTを1台だけ接続する"
+    description :"PERIDOT(PSモード)を1台だけ接続する"
     setup: (callback) ->
-      @prompt("1台だけPERIDOTを接続してから[PASS]をクリックしてください")
+      @prompt("スイッチを<u>PSモードにした</u>PERIDOTを<u>1台だけ</u>" +
+              "接続してから[PASS]をクリックしてください")
       callback(@PASS)
   )
   @add(
@@ -82,7 +83,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         for dev in devices
           if dev.path not in dev_ignore
             found.push("#{dev.path}")
-            @print("- name:#{dev.name}, path:#{dev.path}")
+            @print("- name:\"#{dev.name}\", path:\"#{dev.path}\"")
         if found.length < 1
           @print("デバイスが検出されませんでした")
           return callback(@FAIL)
