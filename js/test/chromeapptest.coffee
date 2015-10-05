@@ -72,7 +72,7 @@ class ChromeAppTest
     Test body code
     (wait user's action if null)
     (skipped if user skips this test case)
-    (dulation measured)
+    (duration measured)
   @param {function(function(number))} [c.epilogue]
     Epilogue code
     (skipped if user skips this test case)
@@ -120,7 +120,7 @@ class ChromeAppTest
       <td class="align-center">#{if i > 0 then i else "---"}</td>
       <td><span id="cat-#{i}">#{c.category or "No category"}</span></td>
       <td><span id="desc-#{i}">#{c.description}</span></td>
-      <td class="align-right"><span id="dul-#{i}"></span></td>
+      <td class="align-right"><span id="dur-#{i}"></span></td>
       <td class="align-center"><span id="res-#{i}"></span></td>
     </tr>
     """) for c, i in @cases
@@ -130,7 +130,7 @@ class ChromeAppTest
       <td class="align-center">---</td>
       <td><span id="cat-#{i}">Test Exit</span></td>
       <td><span id="desc-#{i}">[Overall results]</td>
-      <td class="align-right"><span id="dul-#{i}"></span></td>
+      <td class="align-right"><span id="dur-#{i}"></span></td>
       <td class="align-center"><span id="res-#{i}"></span></td>
     </tr>
     """)
@@ -186,7 +186,11 @@ class ChromeAppTest
           a = @skipped
       return if @index == 0 or @index >= @cases.length
       a.push(@index)
-      $("#dul-#{@index}").text("#{time} ms") if time? and @cases[@index].body
+      if time?
+        if @cases[@index].body
+          $("#dur-#{@index}").text("#{time} ms")
+        else
+          $("#dur-#{@index}").text("---")
     pass = (callback) => callback(@PASS)
     warn = (message) -> console.log(message)
     next = =>
