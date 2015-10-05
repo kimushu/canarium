@@ -76,6 +76,22 @@ class Canarium.BaseComm
 
   ###*
   @private
+  @property {number}
+    1回のシリアル送信の最大バイト数
+  @readonly
+  ###
+  SERIAL_TX_MAX_LENGTH = 1024
+
+  ###*
+  @private
+  @property {number}
+    連続シリアル送信の間隔(ミリ秒)
+  @readonly
+  ###
+  SUCCESSIVE_TX_WAIT_MS = 4
+
+  ###*
+  @private
   @property {boolean}
     chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
   @readonly
@@ -249,10 +265,26 @@ class Canarium.BaseComm
     unless @connected
       callback(false, null)
       return
-    @_rxQueue.push({length: rxsize, callback: callback})
-    return unless txdata
-    console.log({"BaseComm::(send)": new Uint8Array(txdata).hexDump()}) if DEBUG >= 1
-    chrome.serial.send(@_cid, txdata, -> null)
+    @_rxQueue.push({length: rxsize, callback: callback}) if rxsize > 0
+    pos = 0
+    remainder = txdata?.byteLength or 0
+    new Function.Sequence(
+      (seq) =>
+        return seq.next() if remainder == 0
+        len = Math.min(remainder, SERIAL_TX_MAX_LENGTH)
+        partialData = txdata.slice(pos, pos + len)
+        console.log({"BaseComm::(send@#{pos})": new Uint8Array(partialData).hexDump()}) if DEBUG >= 1
+        chrome.serial.send(@_cid, partialData, (writeInfo) =>
+          return seq.abort() unless writeInfo.bytesSent == len
+          pos += len
+          remainder -= len
+          return seq.next() if remainder == 0
+          window.setTimeout((-> seq.redo()), SUCCESSIVE_TX_WAIT_MS)
+        )
+    ).final(
+      (seq) =>
+        callback(seq.finished) if rxsize == 0
+    ).start()
     return
 
   ###*

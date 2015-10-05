@@ -24,7 +24,7 @@ class Canarium.AvmTransactions
   ###*
   @private
   @property {number}
-    パケットのチャネル番号
+    Avalon Packets to Transactions Converterのチャネル番号
   ###
   @_channel: null
 

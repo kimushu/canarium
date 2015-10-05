@@ -90,6 +90,14 @@ class Canarium
   ###
   CONFIG_TIMEOUT_MS = 3000
 
+  ###*
+  @private
+  @property {number}
+    Avalon Packets to Transactions Converterのチャネル番号
+  @readonly
+  ###
+  PACKET2TRANS_CHANNEL = 0
+
   #----------------------------------------------------------------
   # Public methods
   #
@@ -112,7 +120,7 @@ class Canarium
     @_base = new Canarium.BaseComm()
     @i2c = new Canarium.I2CComm(@_base)
     @avs = new Canarium.AvsPackets(@_base)
-    @avm = new Canarium.AvmTransactions(@avs)
+    @avm = new Canarium.AvmTransactions(@avs, PACKET2TRANS_CHANNEL)
 
   ###*
   @inheritdoc Canarium.BaseComm#connect
@@ -252,7 +260,7 @@ class Canarium
       )
     )
     seq.final(->
-      return callback(false) if seq.aborted
+      callback(seq.finished)
     ).start()
     return
 
