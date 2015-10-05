@@ -212,6 +212,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         callback(if result then @FAIL else @PASS)
       )
   )
+  binfo = {}
   @add(
     category: "ボード情報(正常系)"
     description: "I2C通信でEEPROMからボード情報を読み出す"
@@ -223,7 +224,80 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         unless result
           @print("読み出し失敗")
           return callback(@FAIL)
+        binfo.id = c.boardInfo.id
+        binfo.serialcode = c.boardInfo.serialcode
         callback(@PASS)
+      )
+  )
+  rbf = null
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "RBFファイルを用いてコンフィグレーション実行(ボード制限無し)"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    prologue: (callback) ->
+      xhr = new XMLHttpRequest
+      xhr.open("GET", chrome.runtime.getURL("sample_ledlampy.rbf"))
+      xhr.responseType = "arraybuffer"
+      xhr.onload = =>
+        return unless xhr.status == 200
+        rbf = xhr.response.slice(0)
+        callback(@PASS)
+      xhr.onerror = (=> callback(@FAIL))
+      xhr.send()
+    body: (callback) ->
+      c.config(null, rbf, (result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "コンフィグ(異常系)"
+    description: "RBFファイルを用いてコンフィグレーション実行(対象外ボード)"
+    setup: (callback) ->
+      callback(if c and rbf then @PASS else @FAIL)
+    body: (callback) ->
+      c.config({id: "#{binfo.id}X", serialcode: binfo.serialcode}, rbf, (result) =>
+        callback(if result then @FAIL else @PASS)
+      )
+  )
+  @add(
+    category: "コンフィグ(異常系)"
+    description: "RBFファイルを用いてコンフィグレーション実行(対象外シリアルコード)"
+    setup: (callback) ->
+      callback(if c and rbf then @PASS else @FAIL)
+    body: (callback) ->
+      c.config({id: binfo.id, serialcode: "#{binfo.serialcode}X"}, rbf, (result) =>
+        callback(if result then @FAIL else @PASS)
+      )
+  )
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "RBFファイルを用いてコンフィグレーション実行(対象ボード)"
+    setup: (callback) ->
+      callback(if c and rbf then @PASS else @FAIL)
+    body: (callback) ->
+      c.config({id: binfo.id}, rbf, (result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "RBFファイルを用いてコンフィグレーション実行(対象シリアルコード)"
+    setup: (callback) ->
+      callback(if c and rbf then @PASS else @FAIL)
+    body: (callback) ->
+      c.config({serialcode: binfo.serialcode}, rbf, (result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "RBFファイルを用いてコンフィグレーション実行(対象ボードかつ対象シリアルコード)"
+    setup: (callback) ->
+      callback(if c and rbf then @PASS else @FAIL)
+    body: (callback) ->
+      c.config({id: binfo.id, serialcode: binfo.serialcode}, rbf, (result) =>
+        callback(if result then @PASS else @FAIL)
       )
   )
   @add(
