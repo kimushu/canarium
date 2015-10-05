@@ -115,11 +115,16 @@ class Canarium.BaseComm
   @return {void}
   ###
   @enumerate: (callback) ->
+    getName = (port) ->
+      name = port.displayName
+      path = port.path
+      return "#{name} (#{path})" if name
+      "#{path}"
     chrome.serial.getDevices((ports) ->
       devices = []
       devices.push({
         path: "#{port.path}",
-        name: "#{port.displayName or port.path}"
+        name: getName(port)
       }) for port in ports
       callback(true, devices)
     )
