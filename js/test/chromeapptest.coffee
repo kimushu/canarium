@@ -147,6 +147,8 @@ class ChromeAppTest
         when 0x31 then $("#pass").click()
         when 0x32 then $("#fail").click()
         when 0x33 then $("#skip").click()
+        when 0x4f then $("#onebyone").click()
+        when 0x41 then $("#autoscroll").click()
     )
   )
 
