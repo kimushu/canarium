@@ -80,7 +80,7 @@ table, td, th {
   text-align: right;
 }
 @media print {
-  #pass, #fail, #skip, #print, #autoscroll {
+  .not-for-print {
     display: none;
   }
 }
@@ -90,14 +90,14 @@ table, td, th {
   <body>
     <div class="fixed-header">
       <span id="title"></span>
-      <input class="pull-right" type="button" id="skip" value=" SKIP (3) " disabled />
-      <input class="pull-right" type="button" id="fail" value=" FAIL (2) " disabled />
-      <input class="pull-right" type="button" id="pass" value=" PASS (1) " disabled />
+      <input class="pull-right not-for-print" type="button" id="skip" value=" SKIP (3) " disabled />
+      <input class="pull-right not-for-print" type="button" id="fail" value=" FAIL (2) " disabled />
+      <input class="pull-right not-for-print" type="button" id="pass" value=" PASS (1) " disabled />
       <div class="pull-right">
         <label>
         <input type="checkbox" id="onebyone" value="1" />One by one
         </label>
-        <label>
+        <label class="not-for-print">
         <input type="checkbox" id="autoscroll" value="1" checked />Auto scroll
         </label>
       </div>
@@ -115,6 +115,6 @@ table, td, th {
       <tbody id="output">
       </tbody>
     </table>
-    <a href="#" id="print">Print this document</a>
+    <a class="not-for-print" href="#" id="print">Print this document</a>
   </body>
 </html>
