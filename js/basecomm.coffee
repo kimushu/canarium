@@ -4,7 +4,7 @@ PERIDOTボード下位層通信クラス
 @uses chrome.serial
 ###
 class Canarium.BaseComm
-  DEBUG = DEBUG? or 0
+  DEBUG = if DEBUG? then DEBUG else 0
 
   #----------------------------------------------------------------
   # Public properties
@@ -27,6 +27,12 @@ class Canarium.BaseComm
     ビットレート(bps)
   ###
   bitrate: 115200
+
+  ###*
+  @property {boolean}
+    即時応答ビットを立てるかどうか
+  ###
+  sendImmediate: false
 
   #----------------------------------------------------------------
   # Private properties
@@ -257,6 +263,22 @@ class Canarium.BaseComm
   ###*
   @private
   @method
+    ログの出力
+  @param {string} func
+    関数名
+  @param {string} msg
+    メッセージ
+  @param {Object} [data]
+    任意のデータ
+  @return {void}
+  ###
+  _log: (func, msg, data) ->
+    Canarium._log("BaseComm", func, msg, data)
+    return
+
+  ###*
+  @private
+  @method
     シリアル通信の送受信を行う
   @param {ArrayBuffer/null} txdata
     送信するデータ(nullの場合は受信のみ)
@@ -278,7 +300,10 @@ class Canarium.BaseComm
         return seq.next() if remainder == 0
         len = Math.min(remainder, SERIAL_TX_MAX_LENGTH)
         partialData = txdata.slice(pos, pos + len)
-        console.log({"BaseComm::(send@#{pos})": new Uint8Array(partialData).hexDump()}) if DEBUG >= 1
+        @_log(
+          "_transSerial"
+          "info:(send@#{pos}):#{new Uint8Array(partialData).hexDump()}"
+        ) if DEBUG >= 1
         chrome.serial.send(@_cid, partialData, (writeInfo) =>
           return seq.abort() unless writeInfo.bytesSent == len
           pos += len
@@ -319,7 +344,10 @@ class Canarium.BaseComm
       break if length > @_rxTotalLength
       queue = @_rxQueue.shift()
       buffer = @_sliceRxBuffer(length)
-      console.log({"BaseComm::(recv)": new Uint8Array(buffer).hexDump()}) if DEBUG >= 1
+      @_log(
+        "_onReceiveHandler2"
+        "info:(recv)#{new Uint8Array(buffer).hexDump()}"
+      ) if DEBUG >= 1
       queue.callback.call(undefined, true, buffer)
     return
 
@@ -356,9 +384,9 @@ class Canarium.BaseComm
       if partLen <= rem
         @_rxBuffers.shift()
       else
-        array = new Uint8Array(partLen - rem)
-        array.set(new Uint8Array(partBuf, rem))
-        @_rxBuffers[0] = array.buffer
+        partArray = new Uint8Array(partLen - rem)
+        partArray.set(new Uint8Array(partBuf, rem))
+        @_rxBuffers[0] = partArray.buffer
         partLen = rem
       array.set(new Uint8Array(partBuf, 0, partLen), pos)
       pos += partLen

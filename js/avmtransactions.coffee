@@ -4,7 +4,7 @@ PERIDOTボードAvalon-MMトランザクション層通信クラス
 @uses Canarium.AvsPackets
 ###
 class Canarium.AvmTransactions
-  DEBUG = DEBUG? or 0
+  DEBUG = if DEBUG? then DEBUG else 0
 
   #----------------------------------------------------------------
   # Public properties
@@ -193,11 +193,39 @@ class Canarium.AvmTransactions
   @return {void}
   ###
   option: (option, callback) ->
+    new Function.Sequence(
+      (seq) =>
+        seq.next() unless option.fastAcknowledge?
+        @_avs._base.sendImmediate = if option.fastAcknowledge then true else false
+        @_avs._base.transCommand(
+          0x39 | (if @_avs._base.sendImmediate then 0x02 else 0x00)
+          (result, response) -> seq.next(result)
+        )
+    ).final(
+      (seq) ->
+        callback(seq.finished)
+    ).start()
     return
 
   #----------------------------------------------------------------
   # Private methods
   #
+
+  ###*
+  @private
+  @method
+    ログの出力
+  @param {string} func
+    関数名
+  @param {string} msg
+    メッセージ
+  @param {Object} [data]
+    任意のデータ
+  @return {void}
+  ###
+  _log: (func, msg, data) ->
+    Canarium._log("AvmTransactions", func, msg, data)
+    return
 
   ###*
   @private
@@ -227,12 +255,24 @@ class Canarium.AvmTransactions
     pkt[6] = (address >>>  8) & 0xff
     pkt[7] = (address >>>  0) & 0xff
     pkt.set(txdata, 8) if txdata
-    @_avs.transPacket(@_channel, pkt.buffer, (rxsize or 0) + 4, (result, rxdata) =>
+    @_log("_trans", "info:(send)#{pkt.hexDump()}") if DEBUG >= 1
+    @_avs.transPacket(@_channel, pkt.buffer, (rxsize or 4), (result, rxdata) =>
       return callback(false, null) unless result
       src = new Uint8Array(rxdata)
+      @_log("_trans", "info:(recv)#{src.hexDump()}") if DEBUG >= 1
+      if rxsize
+        unless rxdata.byteLength == rxsize
+          @_log(
+            "_trans"
+            "error:Length of received data does not match"
+            {read: rxdata.byteLength, expected: rxsize}
+          )
+          return callback(false, null)
+        return callback(true, rxdata)
       unless src[0] == pkt[0] ^ 0x80 and src[2] == pkt[2] and src[3] == pkt[3]
+        @_log("_trans", "error:Illegal write response", src.hexDump())
         return callback(false, null)
-      callback(true, rxdata.buffer(4))
+      callback(true, null)
     )
     return
 

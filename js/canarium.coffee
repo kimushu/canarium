@@ -138,7 +138,7 @@ class Canarium
           return seq.abort() unless result
           header = new Uint8Array(readData)
           if header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
-            console.log("Canarium#connect::version(#{header[3]})") if DEBUG >= 1
+            @_log("connect", "info:version=#{header[3].hex(2)}") if DEBUG >= 1
             @boardInfo = {version: header[3]}
             seq.next()
           seq.abort()
@@ -305,8 +305,6 @@ class Canarium
   ###
   getinfo: (callback) ->
     unless @_base.connected and @boardInfo?.version
-      console.log(@_base)
-      console.log(@boardInfo)
       callback(false)
       return
     seq = new Function.Sequence()
@@ -317,7 +315,7 @@ class Canarium
           @_eepromRead(0x04, 8, (result, readData) =>
             return seq.abort() unless result
             info = new Uint8Array(readData)
-            console.log("getinfo::ver1::read(#{info.hexDump()})") if DEBUG >= 2
+            @_log("getinfo", "info:(ver1)#{info.hexDump()}") if DEBUG >= 2
             mid = (info[0] << 8) | (info[1] << 0)
             pid = (info[2] << 8) | (info[3] << 0)
             sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
@@ -334,7 +332,7 @@ class Canarium
           @_eepromRead(0x04, 22, (result, readData) =>
             return seq.abort() unless result
             info = new Uint8Array(readData)
-            console.log("getinfo::ver2::read(#{info.hexDump()})") if DEBUG >= 2
+            @_log("getinfo", "info:(ver2)#{info.hexDump()}") if DEBUG >= 2
             bid = ""
             (bid += String.fromCharCode(info[i])) for i in [0...4]
             s = ""
@@ -346,7 +344,7 @@ class Canarium
         )
       else
         # 未知のヘッダバージョン
-        console.log("getinfo::unknown_version") if DEBUG >= 1
+        @_log("getinfo", "error:unknown version")
         callback(false)
         return
     seq.final((seq) ->
@@ -406,18 +404,40 @@ class Canarium
   #
 
   ###*
-  @method
-    開発者向けのエラーログを出力する
-  @param {Object} data
-    出力メッセージ等のデータ(型は自由)
-  @return {void}
   @private
+  @static
+  @method
+    ログの出力(全クラス共通)
+  @param {string} cls
+    クラス名
+  @param {string} func
+    関数名
+  @param {string} msg
+    メッセージ
+  @param {Object} [data]
+    任意のデータ
+  @return {void}
   ###
-  _err: (data) ->
-    console.log({
-      "error": data,
-      "stack": new Error().stack,
-      "canarium": this
-    })
+  @_log: (cls, func, msg, data) ->
+    return if SUPPRESS_LOGS? and SUPPRESS_LOGS
+    out = {"#{cls}##{func}": msg, stack: new Error().stack.split("\n    ").slice(1)}
+    out.data = data if data
+    console.log(out)
+    return
+
+  ###*
+  @private
+  @method
+    ログの出力
+  @param {string} func
+    関数名
+  @param {string} msg
+    メッセージ
+  @param {Object} [data]
+    任意のデータ
+  @return {void}
+  ###
+  _log: (func, msg, data) ->
+    Canarium._log("Canarium", func, msg, data)
     return
 

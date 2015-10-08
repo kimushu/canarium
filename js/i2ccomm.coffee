@@ -49,9 +49,9 @@ class Canarium.I2CComm
   @return {void}
   ###
   start: (callback) ->
-    console.log("i2c::start") if DEBUG >= 1
+    @_log("start", "") if DEBUG >= 1
     setup = (done, abort, retry) =>
-      console.log("i2c::start::setup") if DEBUG >= 2
+      @_log("start", "setup") if DEBUG >= 2
       @_base.transCommand(
         0x3b  # SDA=Z, SCL=Z, 即時応答ON
         (result, response) ->
@@ -60,7 +60,7 @@ class Canarium.I2CComm
           done(true)
       )
     sdaLow = (done, abort, retry) =>
-      console.log("i2c::start::sdaLow") if DEBUG >= 2
+      @_log("start", "sdaLow") if DEBUG >= 2
       @_base.transCommand(
         0x1b  # SDA=L, SCL=Z, 即時応答ON
         (result, response) ->
@@ -68,7 +68,7 @@ class Canarium.I2CComm
           done(true)
       )
     sclLow = (done, abort, retry) =>
-      console.log("i2c::start::sclLow") if DEBUG >= 2
+      @_log("start", "sclLow") if DEBUG >= 2
       @_base.transCommand(
         0x0b  # SDA=L, SCL=L, 即時応答ON
         (result, response) ->
@@ -91,9 +91,9 @@ class Canarium.I2CComm
   @return {void}
   ###
   stop: (callback) ->
-    console.log("i2c::stop") if DEBUG >= 1
+    @_log("stop", "") if DEBUG >= 1
     setup = (done, abort, retry) =>
-      console.log("i2c::stop::setup") if DEBUG >= 2
+      @_log("stop", "setup") if DEBUG >= 2
       @_base.transCommand(
         0x0b  # SDA=L, SCL=L, 即時応答ON
         (result, response) ->
@@ -101,7 +101,7 @@ class Canarium.I2CComm
           done(true)
       )
     sclRelease = (done, abort, retry) =>
-      console.log("i2c::stop::sclRelease") if DEBUG >= 2
+      @_log("stop", "sclRelease") if DEBUG >= 2
       @_base.transCommand(
         0x1b  # SDA=L, SCL=Z, 即時応答ON
         (result, response) ->
@@ -110,7 +110,7 @@ class Canarium.I2CComm
           done(true)
       )
     sdaRelease = (done, abort, retry) =>
-      console.log("i2c::stop::sdaRelease") if DEBUG >= 2
+      @_log("stop", "sdaRelease") if DEBUG >= 2
       @_base.transCommand(
         0x3b  # SDA=Z, SCL=Z, 即時応答ON
         (result, response) ->
@@ -118,8 +118,17 @@ class Canarium.I2CComm
           return retry() unless (response & 0x30) == 0x30
           done(true)
       )
+    restoreState = (done, abort, retry) =>
+      @_log("stop", "restoreState") if DEBUG >= 2
+      return done(true) if @_base.sendImmediate
+      @_base.transCommand(
+        0x39  # SDA=Z, SCL=Z, 即時応答OFF
+        (result, response) ->
+          return abort(false) unless result
+          done(true)
+      )
     _tryActions(
-      [setup, sclRelease, sdaRelease]
+      [setup, sclRelease, sdaRelease, restoreState]
       callback
       I2C_TIMEOUT_MS
     )
@@ -137,26 +146,31 @@ class Canarium.I2CComm
   @return {void}
   ###
   read: (ack, callback) ->
-    console.log("i2c::read") if DEBUG >= 1
+    @_log("read", "") if DEBUG >= 1
     bitNum = 8
     readData = 0x00
     readBits = (done, abort, retry) =>
       bitNum -= 1
-      console.log("i2c::read::readBits[#{bitNum}]") if DEBUG >= 2
+      @_log("read", "readBits[#{bitNum}]") if DEBUG >= 2
       @_readBit((result, bit) ->
         return abort(false) unless result
         readData = (readData << 1) | bit
         done(true)
       )
     sendAck = (done, abort, retry) =>
-      console.log("i2c::read::sendAck") if DEBUG >= 2
+      @_log("read", "sendAck") if DEBUG >= 2
       @_writeBit((if ack then 0 else 1), (result) ->
         return abort(false) unless result
         done(true)
       )
     _tryActions(
       (readBits for [7..0]).concat(sendAck)
-      (result) -> callback(result, if result then readData else null)
+      (result) ->
+        @_log(
+          "read"
+          "result=#{if result then readData.hex(2) else "(failed)"}"
+        ) if DEBUG >= 2
+        callback(result, if result then readData else null)
       I2C_TIMEOUT_MS
     )
     return
@@ -173,27 +187,28 @@ class Canarium.I2CComm
   @return {void}
   ###
   write: (writebyte, callback) ->
-    console.log("i2c::write(#{writebyte.hex(2)})") if DEBUG >= 1
+    @_log("write", "data=#{writebyte.hex(2)}") if DEBUG >= 1
     bitNum = 8
     writeData = 0 + writebyte
     writeBits = (done, abort, retry) =>
       bitNum -= 1
       bit = (writeData >>> 7) & 1
       writeData <<= 1
-      console.log("i2c::write::writeBits[#{bitNum}]") if DEBUG >= 2
+      @_log("write", "writeBits[#{bitNum}]") if DEBUG >= 2
       @_writeBit(bit, (result) ->
         return abort(false) unless result
         done(true)
       )
     recvAck = (done, abort, retry) =>
-      console.log("i2c::write::recvAck") if DEBUG >= 2
+      @_log("write", "recvAck") if DEBUG >= 2
       @_readBit((result, bit) ->
         return abort(false) unless result
         done(true, bit)
       )
     _tryActions(
       (writeBits for [7..0]).concat(recvAck)
-      (result, ack_n) -> callback(result, if result then (ack_n == 0) else null)
+      (result, ack_n) ->
+        callback(result, if result then (ack_n == 0) else null)
       I2C_TIMEOUT_MS
     )
     return
@@ -205,16 +220,32 @@ class Canarium.I2CComm
   ###*
   @private
   @method
+    ログの出力
+  @param {string} func
+    関数名
+  @param {string} msg
+    メッセージ
+  @param {Object} [data]
+    任意のデータ
+  @return {void}
+  ###
+  _log: (func, msg, data) ->
+    Canarium._log("I2CComm", func, msg, data)
+    return
+
+  ###*
+  @private
+  @method
     1ビットリード
     (必ずSCL='L'が先行しているものとする)
   @param {function(boolean,number)} callback
     コールバック関数
   ###
   _readBit: (callback) ->
-    console.log("i2c::_readBit") if DEBUG >= 2
+    @_log("_readBit", "") if DEBUG >= 2
     bit = 0
     setup = (done, abort, retry) =>
-      console.log("i2c::_readBit::setup") if DEBUG >= 3
+      @_log("_readBit", "setup") if DEBUG >= 3
       @_base.transCommand(
         0x3b  # SDA=Z, SCL=Z, 即時応答ON
         (result, response) ->
@@ -224,7 +255,7 @@ class Canarium.I2CComm
           done(true)
       )
     sclLow = (done, abort, retry) =>
-      console.log("i2c::_readBit::sclLow") if DEBUG >= 3
+      @_log("_readBit", "sclLow") if DEBUG >= 3
       @_base.transCommand(
         0x2b  # SDA=Z, SCL=L, 即時応答ON
         (result, response) ->
@@ -234,7 +265,10 @@ class Canarium.I2CComm
     _tryActions(
       [setup, sclLow]
       (result) ->
-        console.log("=> #{if result then bit else "(failed)"}") if DEBUG >= 2
+        @_log(
+          "_readBit"
+          "result=#{if result then bit else "(failed)"}"
+        ) if DEBUG >= 3
         callback(result, if result then bit else null)
       I2C_TIMEOUT_MS
     )
@@ -250,9 +284,9 @@ class Canarium.I2CComm
     コールバック関数
   ###
   _writeBit: (bit, callback) ->
-    console.log("i2c::_writeBit(#{bit})") if DEBUG >= 2
+    @_log("_writeBit", "data=#{bit}") if DEBUG >= 2
     setup = (done, abort, retry) =>
-      console.log("i2c::_writeBit::setup") if DEBUG >= 3
+      @_log("_writeBit", "setup") if DEBUG >= 3
       @_base.transCommand(
         0x0b + ((bit & 1) << 5) # SDA=bit, SCL=L, 即時応答ON
         (result, response) ->
@@ -260,7 +294,7 @@ class Canarium.I2CComm
           done(true)
       )
     sclRelease = (done, abort, retry) =>
-      console.log("i2c::_writeBit::sclRelease") if DEBUG >= 3
+      @_log("_writeBit", "sclRelease") if DEBUG >= 3
       @_base.transCommand(
         0x1b + ((bit & 1) << 5) # SDA=bit, SCL=Z, 即時応答ON
         (result, response) ->
@@ -269,7 +303,7 @@ class Canarium.I2CComm
           done(true)
       )
     sclLow = (done, abort, retry) =>
-      console.log("i2c::_writeBit::sclLow") if DEBUG >= 3
+      @_log("_writeBit", "sclLow") if DEBUG >= 3
       @_base.transCommand(
         0x2b  # SDA=Z, SCL=L, 即時応答ON
         (result, response) ->
@@ -312,7 +346,7 @@ class Canarium.I2CComm
       callback(args...)
     retry = ->
       elapsed = window.performance.now() - startTime
-      console.log("timeout!")
+      @_log("_tryActions", "timeout")
       return abort() if elapsed > timeout
       window.setTimeout(start, period)
     start = => actions[action](done, retry, abort)

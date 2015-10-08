@@ -4,7 +4,7 @@ PERIDOTボードAvalon-STパケット層通信クラス
 @uses Canarium.BaseComm
 ###
 class Canarium.AvsPackets
-  DEBUG = DEBUG? or 0
+  DEBUG = if DEBUG? then DEBUG else 0
 
   #----------------------------------------------------------------
   # Public properties
@@ -49,47 +49,58 @@ class Canarium.AvsPackets
   @return {void}
   ###
   transPacket: (channel, txdata, rxsize, callback) ->
+    pushWithEscape = (array, pos, byte) ->
+      if 0x7a <= byte <= 0x7d
+        array[pos++] = 0x7d
+        array[pos++] = byte ^ 0x20
+        return pos
+      array[pos++] = byte
+      return pos
     channel &= 0xff
     src = new Uint8Array(txdata)
-    dst = new Uint8Array(txdata.byteLength * 2 + 4)
-    dst[0] = 0x7c # Channel
-    dst[1] = channel
-    dst[2] = 0x7a # SOP
-    len = 3
-    for byte in src
-      if 0x7a <= byte <= 0x7d
-        dst[len] = 0x7d # Escape
-        len += 1
-        byte ^= 0x20
-      dst[len] = byte
-      len += 1
-    dst[len] = 0x7b # EOP
-    len += 1
+    dst = new Uint8Array(txdata.byteLength * 2 + 5)
+    len = 0
+    dst[len++] = 0x7c # Channel
+    len = pushWithEscape(dst, len, channel)
+    dst[len++] = 0x7a # SOP
+    header = dst.subarray(0, len)
+    for byte in src.subarray(0, src.length - 1)
+      len = pushWithEscape(dst, len, byte)
+    dst[len++] = 0x7b # EOP
+    len = pushWithEscape(dst, len, src[src.length - 1])
     txdata = dst.buffer.slice(0, len)
-    @_base.transData(txdata, rxsize + 4, (result, rxdata) =>
+    totalRxLen = rxsize + header.length + 1
+    @_log("transPacket", "info:(send)#{new Uint8Array(txdata).hexDump()}") if DEBUG >= 1
+    @_base.transData(txdata, totalRxLen, (result, rxdata) =>
       return callback(false, null) unless result
       src = new Uint8Array(rxdata)
-      dst = new Uint8Array(rxdata.byteLength - 4)
-      unless src[0] == 0x7c and src[1] == channel and src[2] == 0x7a
+      @_log("transPacket", "info:(recv)#{src.hexDump()}") if DEBUG >= 1
+      pos = header.length
+      unless src.subarray(0, pos).join(",") == header.join(",")
+        @_log("transPacket", "error:Illegal packetize control bytes", src.hexDump())
         return callback(false, null)
-      pos = 3
+      dst = new Uint8Array(rxdata.byteLength - 4)
       len = 0
       xor = 0x00
+      eop = false
       while pos < src.byteLength
-        byte = src[pos]
-        pos += 1
+        byte = src[pos++]
         switch byte
           when 0x7a, 0x7c # SOP, Channel
             break
           when 0x7b # EOP
-            return callback(true, dst.buffer.slice(0, len))
+            eop = true
+            continue
           when 0x7d
             xor = 0x20
             continue
-        dst[len] = byte ^ xor
-        len += 1
+        dst[len++] = byte ^ xor
         xor = 0x00
+        continue unless eop
+        break unless pos == src.byteLength
+        return callback(true, dst.buffer.slice(0, len))
 
+      @_log("transPacket", "error:Illegal packetized bytestream", src.hexDump())
       callback(false, null)
     )
     return
@@ -97,4 +108,20 @@ class Canarium.AvsPackets
   #----------------------------------------------------------------
   # Private methods
   #
+
+  ###*
+  @private
+  @method
+    ログの出力
+  @param {string} func
+    関数名
+  @param {string} msg
+    メッセージ
+  @param {Object} [data]
+    任意のデータ
+  @return {void}
+  ###
+  _log: (func, msg, data) ->
+    Canarium._log("AvsPackets", func, msg, data)
+    return
 
