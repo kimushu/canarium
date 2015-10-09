@@ -113,7 +113,7 @@ class Canarium
     Canarium.BaseComm.enumerate(args...)
 
   ###*
-  @method
+  @method constructor
     コンストラクタ
   ###
   constructor: ->

@@ -34,7 +34,7 @@ class Canarium.I2CComm
   #
 
   ###*
-  @method
+  @method constructor
     コンストラクタ
   @param {Canarium.BaseComm} _base
     下位層通信クラスのインスタンス

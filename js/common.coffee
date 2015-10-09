@@ -53,7 +53,7 @@ unless Function.Sequence
     finished: false
 
     ###*
-    @method
+    @method constructor
       コンストラクタ
     @param {function(Function.Sequence)[]} list...
       初期状態で追加するシーケンス要素の関数リスト

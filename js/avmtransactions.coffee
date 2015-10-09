@@ -41,7 +41,7 @@ class Canarium.AvmTransactions
   #
 
   ###*
-  @method
+  @method constructor
     コンストラクタ
   @param {Canarium.AvsPackets} _avs
     Avalon-STパケット層通信クラスのインスタンス

@@ -137,7 +137,7 @@ class Canarium.BaseComm
     return
 
   ###*
-  @method
+  @method constructor
     コンストラクタ
   ###
   constructor: ->
