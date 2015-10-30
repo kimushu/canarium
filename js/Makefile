@@ -1,8 +1,11 @@
 TARGETS = canarium.js canarium.min.js
 SOURCE = common.coffee canarium.coffee \
 			basecomm.coffee i2ccomm.coffee \
-			avspackets.coffee avmtransactions.coffee
-JS_TYPES = ArrayBuffer chrome.serial Uint8Array
+			avspackets.coffee avmtransactions.coffee \
+			hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
+			hostfs.coffee hostnet.coffee
+PREAMBLE = license.js
+JS_TYPES = ArrayBuffer chrome.serial Uint8Array DirectoryEntry
 DOC_DIR = doc
 
 comma := ,
@@ -25,7 +28,11 @@ compile: $(TARGETS)
 .PHONY: doc
 doc: $(firstword $(TARGETS))
 	$(target_backup)
-	jsduck --output $@ --external=$(subst $(space),$(comma),$(JS_TYPES)) $< || ($(target_rollback); false)
+	jsduck \
+		--output $@ \
+		--welcome=welcome.html \
+		--external=$(subst $(space),$(comma),$(JS_TYPES)) $< \
+		|| ($(target_rollback); false)
 	$(target_update)
 	$(target_cleanup)
 
@@ -38,8 +45,10 @@ clean:
 test: compile
 	$(MAKE) -C $@
 
-canarium.js: $(SOURCE)
-	cat $^ | coffee -c -b -s --no-header > $@ || (rm -f $@; false)
+canarium.js: $(SOURCE) $(PREAMBLE)
+	cat /dev/null $(PREAMBLE) > $@ || (rm -f $@; false)
+	cat $(filter %.coffee,$^) | coffee -c -b -s --no-header >> $@ || (rm -f $@; false)
 
-%.min.js: %.js
-	uglifyjs -o $@ $<
+%.min.js: %.js $(PREAMBLE)
+	uglifyjs --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<
+
