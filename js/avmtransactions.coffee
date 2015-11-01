@@ -16,21 +16,20 @@ class Canarium.AvmTransactions
 
   ###*
   @private
-  @property {Canarium.AvsPackets}
+  @property {Canarium.AvsPackets} _avs
     Avalon-STパケット層通信クラスのインスタンス
   ###
-  _avs: null
 
   ###*
   @private
-  @property {number}
+  @property {number} _channel
     Avalon Packets to Transactions Converterのチャネル番号
   ###
-  @_channel: null
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     1回のトランザクションで読み書きできる最大バイト数
   @readonly
   ###
@@ -49,6 +48,7 @@ class Canarium.AvmTransactions
     パケットのチャネル番号
   ###
   constructor: (@_avs, @_channel) ->
+    return
 
   ###*
   @method

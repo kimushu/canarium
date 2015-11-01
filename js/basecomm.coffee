@@ -11,28 +11,39 @@ class Canarium.BaseComm
   #
 
   ###*
-  @property {boolean}
-    接続状態(true:接続済み, false:未接続)
+  @property {boolean} connected
+    接続状態
+
+    - true: 接続済み
+    - false: 未接続
+  @readonly
   ###
-  connected: false
+  @property "connected",
+    get: -> @_connected
 
   ###*
-  @property {string}
+  @property {string} path
     接続しているシリアル通信デバイスのパス
+  @readonly
   ###
-  path: null
+  @property "path",
+    get: -> @_path
 
   ###*
-  @property {number}
+  @property {number} bitrate
     ビットレート(bps)
   ###
-  bitrate: 115200
+  @property "bitrate",
+    get: -> @_bitrate
+    set: (v) -> @_bitrate = parseInt(v)
 
   ###*
-  @property {boolean}
+  @property {boolean} sendImmediate
     即時応答ビットを立てるかどうか
   ###
-  sendImmediate: false
+  @property "sendImmediate",
+    get: -> @_sendImmediate
+    set: (v) -> @_sendImmediate = !!v
 
   #----------------------------------------------------------------
   # Private properties
@@ -40,49 +51,68 @@ class Canarium.BaseComm
 
   ###*
   @private
-  @property {number}
+  @property {boolean} _connected
+  @inheritdoc #connected
+  ###
+
+  ###*
+  @private
+  @property {string} _path
+  @inheritdoc #path
+  ###
+
+  ###*
+  @private
+  @property {number} _bitrate
+  @inheritdoc #bitrate
+  ###
+
+  ###*
+  @private
+  @property {boolean} _sendImmediate
+  @inheritdoc #sendImmediate
+  ###
+
+  ###*
+  @private
+  @property {number} _cid
     シリアル接続ID
   ###
-  _cid: null
 
   ###*
   @private
-  @property {Function}
+  @property {Function} _onReceive
     受信コールバック関数(thisバインド付きの関数オブジェクト)
   ###
-  _onReceive: null
 
   ###*
   @private
-  @property {Function}
+  @property {Function} _onReceiveError
     受信エラーコールバック関数(thisバインド付きの関数オブジェクト)
   ###
-  _onReceiveError: null
 
   ###*
   @private
-  @property {Object[]}
+  @property {Object[]} _rxQueue
     受信待ちキュー
   ###
-  _rxQueue: null
 
   ###*
   @private
-  @property {ArrayBuffer[]}
+  @property {ArrayBuffer[]} _rxBuffers
     受信データバッファの配列
   ###
-  _rxBuffers: null
 
   ###*
   @private
-  @property {number}
+  @property {number} _rxTotalLength
     受信データの合計サイズ
   ###
-  _rxTotalLength: null
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     1回のシリアル送信の最大バイト数
   @readonly
   ###
@@ -90,7 +120,8 @@ class Canarium.BaseComm
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     連続シリアル送信の間隔(ミリ秒)
   @readonly
   ###
@@ -98,7 +129,8 @@ class Canarium.BaseComm
 
   ###*
   @private
-  @property {boolean}
+  @static
+  @cfg {boolean}
     chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
   @readonly
   ###
@@ -141,8 +173,17 @@ class Canarium.BaseComm
     コンストラクタ
   ###
   constructor: ->
+    @_connected = false
+    @_path = null
+    @_bitrate = 115200
+    @_sendImmediate = false
+    @_cid = null
     @_onReceive = (info) => @_onReceiveHandler(info)
     @_onReceiveError = (info) => @_onReceiveErrorHandler(info)
+    @_rxQueue = null
+    @_rxBuffers = null
+    @_rxTotalLength = null
+    return
 
   ###*
   @method
@@ -154,23 +195,23 @@ class Canarium.BaseComm
   @return {void}
   ###
   connect: (path, callback) ->
-    if @connected
+    if @_connected
       callback(false)
       return
-    @connected = true
-    @path = null
+    @_connected = true
+    @_path = null
     chrome.serial.connect(
       path,
-      {bitrate: @bitrate},
+      {bitrate: @_bitrate},
       (connectionInfo) =>
         ###
         Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
         ###
         unless connectionInfo
           chrome.runtime.lastError  # エラー読み捨て
-          @connected = false
+          @_connected = false
           return callback(false)
-        @path = "#{path}"
+        @_path = "#{path}"
         @_cid = connectionInfo.connectionId
         @_rxQueue = []
         @_rxBuffers = []
@@ -189,15 +230,15 @@ class Canarium.BaseComm
   @return {void}
   ###
   disconnect: (callback) ->
-    unless @connected
+    unless @_connected
       callback(false)
       return
     chrome.serial.disconnect(@_cid, (result) =>
       return callback(false) unless result
       chrome.serial.onReceive.removeListener(@_onReceive)
       chrome.serial.onReceiveError.removeListener(@_onReceiveError)
-      @connected = false
-      @path = null
+      @_connected = false
+      @_path = null
       @_cid = null
       @_rxQueue = null
       @_rxBuffers = null
@@ -289,7 +330,7 @@ class Canarium.BaseComm
   @return {void}
   ###
   _transSerial: (txdata, rxsize, callback) ->
-    unless @connected
+    unless @_connected
       callback(false, null)
       return
     @_rxQueue.push({length: rxsize, callback: callback}) if rxsize > 0
@@ -330,7 +371,7 @@ class Canarium.BaseComm
   @return {void}
   ###
   _onReceiveHandler: (info) ->
-    return unless info.connectionId == @_cid and @connected
+    return unless info.connectionId == @_cid and @_connected
     @_addRxBuffer(info.data)
     if SPLIT_EVENT_CONTEXT
       window.setTimeout((=> @_onReceiveHandler2()), 0)
@@ -409,7 +450,7 @@ class Canarium.BaseComm
   @return {void}
   ###
   _onReceiveErrorHandler: (info) ->
-    return unless info.connectionId == @_cid and @connected
+    return unless info.connectionId == @_cid and @_connected
     if SPLIT_EVENT_CONTEXT
       window.setTimeout((=> @_onReceiveErrorHandler2()), 0)
     else

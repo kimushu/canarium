@@ -10,10 +10,11 @@ class Canarium
   #
 
   ###*
-  @property {string}
+  @property {string} version
     ライブラリのバージョン
   ###
-  version: "0.9.9"
+  @property "version",
+    value: "0.9.9"
 
   ###*
   @property {Object}  boardInfo
@@ -25,7 +26,8 @@ class Canarium
   @property {string}  boardInfo.serialcode
     'xxxxxx-yyyyyy-zzzzzz'
   ###
-  boardInfo: null
+  @property "boardInfo",
+    get: -> @_boardInfo
 
   ###*
   @property {number} serialBitrate
@@ -36,32 +38,36 @@ class Canarium
     set: (v) -> @_base.bitrate = v
 
   ###
-  @property {Canarium.Channel[]}
+  @property {Canarium.Channel[]} channels
     チャネル[0～255]
   @readonly
   ###
-  channels: null
+  @property "channels",
+    get: -> @_channels
 
   ###*
-  @property {Canarium.I2CComm}
+  @property {Canarium.I2CComm} i2c
     I2C通信制御クラスのインスタンス
   @readonly
   ###
-  i2c: null
+  @property "i2c",
+    get: -> @_i2c
 
   ###*
-  @property {Canarium.AvsPackets}
+  @property {Canarium.AvsPackets} avs
     Avalon-STパケット層通信クラスのインスタンス
   @readonly
   ###
-  avs: null
+  @property "avs",
+    get: -> @_avs
 
   ###*
-  @property {Canarium.AvmTransactions}
+  @property {Canarium.AvmTransactions} avm
     Avalon-MMトランザクション層通信クラスのインスタンス
   @readonly
   ###
-  avm: null
+  @property "avm",
+    get: -> @_avm
 
   #----------------------------------------------------------------
   # Private properties
@@ -69,14 +75,14 @@ class Canarium
 
   ###*
   @private
-  @property {Canarium.BaseComm}
+  @property {Canarium.BaseComm} _base
     下位層通信クラスのインスタンス
   ###
-  _base: null
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     EEPROMのスレーブアドレス(7-bit表記)
   @readonly
   ###
@@ -84,7 +90,8 @@ class Canarium
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     コンフィグレーション開始のタイムアウト時間(ms)
   @readonly
   ###
@@ -92,7 +99,8 @@ class Canarium
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     Avalon Packets to Transactions Converterのチャネル番号
   @readonly
   ###
@@ -117,10 +125,12 @@ class Canarium
     コンストラクタ
   ###
   constructor: ->
+    @_boardInfo = null
+    @_channels = null
     @_base = new Canarium.BaseComm()
-    @i2c = new Canarium.I2CComm(@_base)
-    @avs = new Canarium.AvsPackets(@_base)
-    @avm = new Canarium.AvmTransactions(@avs, PACKET2TRANS_CHANNEL)
+    @_i2c = new Canarium.I2CComm(@_base)
+    @_avs = new Canarium.AvsPackets(@_base)
+    @_avm = new Canarium.AvmTransactions(@_avs, PACKET2TRANS_CHANNEL)
 
   ###*
   @inheritdoc Canarium.BaseComm#connect

@@ -16,10 +16,9 @@ class Canarium.AvsPackets
 
   ###*
   @private
-  @property {Canarium.BaseComm}
+  @property {Canarium.BaseComm} _base
     下位層通信クラスのインスタンス
   ###
-  _base: null
 
   #----------------------------------------------------------------
   # Public methods
@@ -32,6 +31,7 @@ class Canarium.AvsPackets
     下位層通信クラスのインスタンス
   ###
   constructor: (@_base) ->
+    return
 
   ###*
   @method
