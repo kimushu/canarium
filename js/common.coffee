@@ -18,39 +18,34 @@ unless Function.Sequence
   ###
   class Function.Sequence
     ###*
-    @property {function(Function.Sequence)[]}
-      シーケンスで実行する要素の関数リスト
-    @readonly
-    ###
-    @list: null
-
-    ###*
-    @property {function(Function.Sequence)}
+    @property {function(Function.Sequence)} onFinal
       シーケンス終了時に成功失敗にかかわらず呼び出される関数。
       finalメソッドでも設定可能。
     ###
-    onFinal: null
 
     ###*
-    @property {null/number}
+    @property {null/number} index
       現在実行中の要素番号(シーケンス開始前はnull)
     @readonly
     ###
-    index: null
+    @property "index",
+      get: -> @_index
 
     ###*
-    @property {boolean}
+    @property {boolean} aborted
       異常終了したかどうか
     @readonly
     ###
-    aborted: false
+    @property "aborted",
+      get: -> @_aborted
 
     ###*
-    @property {boolean}
+    @property {boolean} finished
       正常終了したかどうか
     @readonly
     ###
-    finished: false
+    @property "finished",
+      get: -> @_finished
 
     ###*
     @method constructor
@@ -58,7 +53,12 @@ unless Function.Sequence
     @param {function(Function.Sequence)[]} list...
       初期状態で追加するシーケンス要素の関数リスト
     ###
-    constructor: (@list...) ->
+    constructor: (@_list...) ->
+      @onFinal = null
+      @_index = null
+      @_aborted = false
+      @_finished = false
+      return
 
     ###*
     @method
@@ -69,7 +69,7 @@ unless Function.Sequence
     @return {Function.Sequence} this
     ###
     add: (f...) ->
-      @list.push(f...)
+      @_list.push(f...)
       return this
 
     ###*
@@ -90,9 +90,9 @@ unless Function.Sequence
     @return {void}
     ###
     start: ->
-      @index = -1
-      @aborted = false
-      @finished = false
+      @_index = -1
+      @_aborted = false
+      @_finished = false
       @next(true)
       return
 
@@ -104,14 +104,14 @@ unless Function.Sequence
     @return {void}
     ###
     next: (success) ->
-      return if @aborted or @finished or @index == null
+      return if @_aborted or @_finished or @_index == null
       if success == false
-        @aborted = true
+        @_aborted = true
         @onFinal?(this)
         return
-      @index += 1
-      if @index >= @list.length
-        @finished = true
+      @_index += 1
+      if @_index >= @_list.length
+        @_finished = true
         @onFinal?(this)
         return
       @redo()
@@ -123,8 +123,8 @@ unless Function.Sequence
     @return {void}
     ###
     redo: ->
-      return if @aborted or @finished or @index == null
-      @list[@index].call(this, this)
+      return if @_aborted or @_finished or @_index == null
+      @_list[@_index].call(this, this)
       return
 
     ###*
