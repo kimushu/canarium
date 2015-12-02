@@ -101,10 +101,10 @@ class Canarium
   @private
   @static
   @cfg {number}
-    Avalon Packets to Transactions Converterのチャネル番号
+    Avalon-MM 通信レイヤのチャネル番号
   @readonly
   ###
-  PACKET2TRANS_CHANNEL = 0
+  AVM_CHANNEL = 0
 
   #----------------------------------------------------------------
   # Public methods
@@ -130,7 +130,7 @@ class Canarium
     @_base = new Canarium.BaseComm()
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
-    @_avm = new Canarium.AvmTransactions(@_avs, PACKET2TRANS_CHANNEL)
+    @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
 
   ###*
   @inheritdoc Canarium.BaseComm#connect
