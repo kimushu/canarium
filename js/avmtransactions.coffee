@@ -74,7 +74,7 @@ class Canarium.AvmTransactions
   read: (address, bytenum, callback) ->
     return invokeCallback(callback, @read(address, bytenum)) if callback?
     @_log(1, "read", "begin(address=#{hexDump(address)})")
-    return Promise.reject("Device is not configured") unless @_avs._base.configured
+    return Promise.reject("Device is not configured") unless @_avs.base.configured
     dest = new Uint8Array(bytenum)
     return (x for x in [0...bytenum] by AVM_TRANS_MAX_BYTES).reduce(
       (sequence, pos) =>
@@ -110,7 +110,7 @@ class Canarium.AvmTransactions
     return invokeCallback(callback, @write(address, writedata)) if callback?
     src = new Uint8Array(writedata)
     @_log(1, "write", "begin(address=#{hexDump(address)})", src)
-    return Promise.reject("Device is not configured") unless @_avs._base.configured
+    return Promise.reject("Device is not configured") unless @_avs.base.configured
     return (x for x in [0...src.byteLength] by AVM_TRANS_MAX_BYTES).reduce(
       (sequence, pos) =>
         return sequence.then(=>
@@ -139,12 +139,12 @@ class Canarium.AvmTransactions
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト
   @return {ArrayBuffer} return.PromiseValue
-    受信したデータ(リトルエンディアンの32-bit符号無し整数)
+    受信したデータ(リトルエンディアンの32-bit符号有り整数)
   ###
   iord: (address, offset, callback) ->
     return invokeCallback(callback, @iord(address, offset)) if callback?
     @_log(1, "iord", "begin(address=#{hexDump(address)}+#{offset})")
-    return Promise.reject("Device is not configured") unless @_avs._base.configured
+    return Promise.reject("Device is not configured") unless @_avs.base.configured
     return @_trans(
       0x10  # Read, non-incrementing address
       (address & 0xfffffffc) + (offset << 2)
@@ -168,7 +168,7 @@ class Canarium.AvmTransactions
   @param {number} offset
     オフセット(4バイトワード単位)
   @param {number} writedata
-    書き込むデータ(リトルエンディアンの32-bit符号無し整数)
+    書き込むデータ(リトルエンディアン)
   @param {function(boolean,Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
@@ -177,16 +177,16 @@ class Canarium.AvmTransactions
   iowr: (address, offset, writedata, callback) ->
     return invokeCallback(callback, @iowr(address, offset, writedata)) if callback?
     @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset})", writedata)
-    return Promise.reject("Device is not configured") unless @_avs._base.configured
+    return Promise.reject("Device is not configured") unless @_avs.base.configured
     src = new Uint8Array(4)
-    src[0] = (writedata >>> 24) & 0xff
-    src[1] = (writedata >>> 16) & 0xff
-    src[2] = (writedata >>>  8) & 0xff
-    src[3] = (writedata >>>  0) & 0xff
+    src[0] = (writedata >>>  0) & 0xff
+    src[1] = (writedata >>>  8) & 0xff
+    src[2] = (writedata >>> 16) & 0xff
+    src[3] = (writedata >>> 24) & 0xff
     return @_trans(
       0x00  # Write, non-incrementing address
       (address & 0xfffffffc) + (offset << 2)
-      src.buffer
+      src
       undefined
     ).then(=>
       @_log(1, "iowr", "end")
@@ -207,7 +207,7 @@ class Canarium.AvmTransactions
   ###
   option: (option, callback) ->
     return invokeCallback(callback, @option(option)) if callback?
-    return @_avs._base.option(option)
+    return @_avs.base.option(option)
 
   #----------------------------------------------------------------
   # Private methods
