@@ -108,6 +108,14 @@ class Canarium
   EEPROM_SLAVE_ADDR = 0b1010000
 
   ###*
+  @static
+  @cfg {number}
+    EEPROMの最大バーストリード長(バイト数)
+  @readonly
+  ###
+  SPLIT_EEPROM_BURST = 6
+
+  ###*
   @private
   @static
   @cfg {number}
@@ -423,7 +431,24 @@ class Canarium
   ###
   _eepromRead: (startaddr, readbytes) ->
     array = new Uint8Array(readbytes)
-    index = -1
+    if SPLIT_EEPROM_BURST? and readbytes > SPLIT_EEPROM_BURST
+      # This is a workaround for Microchip's buggy 24AAxx chips
+      # Reading over 6 bytes will be split into several reads
+      return (x for x in [0...readbytes] by SPLIT_EEPROM_BURST).reduce(
+        (sequence, offset) =>
+          return sequence.then(=>
+            return @_eepromRead(
+              startaddr + offset
+              Math.min(SPLIT_EEPROM_BURST, readbytes - offset)
+            )
+          ).then((partialData) =>
+            array.set(new Uint8Array(partialData), offset)
+            return
+          ) # return sequence.then()...
+        Promise.resolve()
+      ).then(=>
+        return array.buffer # Last PromiseValue
+      ) # return (...).reduce()...
     lastError = null
     return Promise.resolve(
     ).then(=>
