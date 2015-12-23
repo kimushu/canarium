@@ -15,2099 +15,2547 @@
   </script>
 </head>
 <body onload="prettyPrint(); highlight();">
-  <pre class="prettyprint lang-js">/*
-全モジュールのDEBUGレベルをセット
+  <pre class="prettyprint lang-js">// ******************************************************************* //
+// PERIDOT Chrome Apps driver - &#39;Canarium&#39; (version 0.9.9)             //
+// Copyright (C) 2015 @kimu_shu and @s_osafune                         //
+// ------------------------------------------------------------------- //
+// The original version of Canarium (below version 0.9.7) is written   //
+// by @s_osafune and distributed under the following license:          //
+//                                                                     //
+//     Copyright (C) 2014, J-7SYSTEM Works.  All rights Reserved.      //
+//                                                                     //
+// * This module is a free sourcecode and there is NO WARRANTY.        //
+// * No restriction on use. You can use, modify and redistribute it    //
+//   for personal, non-profit or commercial products UNDER YOUR        //
+//   RESPONSIBILITY.                                                   //
+// * Redistributions of source code must retain the above copyright    //
+//   notice.                                                           //
+//                                                                     //
+//         PERIDOT Project - https://github.com/osafune/peridot        //
+// ******************************************************************* //
+/*
+canarium.jsの先頭に配置されるスクリプト。
+共通関数定義を行う。
  */
-var Canarium,
-  slice = [].slice;
 
-if (!Function.prototype.property) {
+(function() {
+  var Canarium, TimeLimit, finallyPromise, hexDump, invokeCallback, oldProperty, tryPromise, waitPromise;
+
+  oldProperty = Function.prototype.property;
+
 
   /*
-  Object.definePropertyによるプロパティ定義メソッド
+  @private
+  @method
+    Object.definePropertyによるプロパティ定義メソッド
+  @param {string} prop
+    プロパティの名前
+  @param {Object} desc
+    プロパティのディスクリプタ
    */
+
   Function.prototype.property = function(prop, desc) {
     return Object.defineProperty(this.prototype, prop, desc);
   };
-}
 
-if (!Function.Sequence) {
 
-<span id='Function-Sequence'>  /**
+<span id='global-method-hexDump'>  /**
 </span>  @private
-  @class
-    非同期関数を用いたシーケンス実行クラス
+  @method hexDump
+    16進ダンプ表示の文字列に変換
+  @param {number/number[]/ArrayBuffer/Uint8Array} data
+    変換するデータ
+  @param {number} [maxBytes]
+    最長バイト数(省略時無制限)
+  @return {string}
+    変換後の文字列
    */
-  Function.Sequence = (function() {
 
-<span id='Function-Sequence-property-list'>    /**
-</span>    @property {function(Function.Sequence)[]}
-      シーケンスで実行する要素の関数リスト
-    @readonly
-     */
-    Sequence.list = null;
-
-
-<span id='Function-Sequence-property-onFinal'>    /**
-</span>    @property {function(Function.Sequence)}
-      シーケンス終了時に成功失敗にかかわらず呼び出される関数。
-      finalメソッドでも設定可能。
-     */
-
-    Sequence.prototype.onFinal = null;
-
-
-<span id='Function-Sequence-property-index'>    /**
-</span>    @property {null/number}
-      現在実行中の要素番号(シーケンス開始前はnull)
-    @readonly
-     */
-
-    Sequence.prototype.index = null;
-
-
-<span id='Function-Sequence-property-aborted'>    /**
-</span>    @property {boolean}
-      異常終了したかどうか
-    @readonly
-     */
-
-    Sequence.prototype.aborted = false;
-
-
-<span id='Function-Sequence-property-finished'>    /**
-</span>    @property {boolean}
-      正常終了したかどうか
-    @readonly
-     */
-
-    Sequence.prototype.finished = false;
+  hexDump = function(data, maxBytes) {
+    var brace, hex, i, len, r;
+    brace = true;
+    if (typeof data === &quot;number&quot;) {
+      brace = false;
+      data = [data];
+    } else if (data instanceof ArrayBuffer) {
+      data = new Uint8Array(data);
+    } else if (data instanceof Uint8Array) {
+      null;
+    } else if (data instanceof Array) {
+      null;
+    } else {
+      throw Error(&quot;Unsupported data type: &quot; + data);
+    }
+    len = data.length;
+    if (maxBytes != null) {
+      len = Math.min(len, maxBytes);
+    }
+    hex = function(v) {
+      return &quot;0x&quot; + (v &lt; 16 ? &quot;0&quot; : &quot;&quot;) + ((v != null ? typeof v.toString === &quot;function&quot; ? v.toString(16) : void 0 : void 0) || &quot;??&quot;);
+    };
+    r = ((function() {
+      var j, ref, results;
+      results = [];
+      for (i = j = 0, ref = len; 0 &lt;= ref ? j &lt; ref : j &gt; ref; i = 0 &lt;= ref ? ++j : --j) {
+        results.push(hex(data[i]));
+      }
+      return results;
+    })()).join(&quot;,&quot;);
+    if (data.length &gt; len) {
+      r += &quot;...&quot;;
+    }
+    if (brace) {
+      r = &quot;[&quot; + r + &quot;]&quot;;
+    }
+    return r;
+  };
 
 
-<span id='Function-Sequence-method-Sequence'>    /**
-</span>    @method
+<span id='global-method-invokeCallback'>  /**
+</span>  @private
+  @method
+    Promiseオブジェクトからcallbackを呼び出し
+  @param {function(boolean,Object)/undefined} callback
+    呼び出し先コールバック関数。省略時は引数promiseをそのまま返すだけの動作となる。
+    第1引数はPromiseオブジェクトの実行成否(true/false)を示す。
+    第2引数はthen節/catch節の引数をそのまま渡す。
+  @param {Promise} promise
+    実行するPromiseオブジェクト
+  @return {undefined/Promise}
+    Promiseオブジェクト(callbackがundefinedの場合のみ)
+   */
+
+  invokeCallback = function(callback, promise) {
+    if (!callback) {
+      return promise;
+    }
+    promise.then(function(value) {
+      callback(true, value);
+    })[&quot;catch&quot;](function(reason) {
+      callback(false, reason);
+    });
+  };
+
+
+<span id='global-method-waitPromise'>  /**
+</span>  @private
+  @method
+    指定時間待機するPromiseオブジェクトを生成
+  @param {number} dulation
+    待機時間(ミリ秒単位)
+  @param {Object} [value]
+    成功時にPromiseValueとして渡されるオブジェクト
+  @return {Promise}
+    Promiseオブジェクト
+   */
+
+  waitPromise = function(dulation, value) {
+    return new Promise(function(resolve) {
+      return window.setTimeout((function() {
+        return resolve(value);
+      }), dulation);
+    });
+  };
+
+
+<span id='global-method-global'>  /**
+</span>  @private
+  @method global#tryPromise
+    成功するまで繰り返すPromiseオブジェクトを生成
+  @param {number} timeout
+    最大待機時間(ミリ秒単位)
+  @param {function():Promise} promiser
+    繰り返す動作のPromiseを生成する関数
+  @param {number} [maxTries]
+    最大繰り返し回数(省略時：無制限)
+  @return {Promise}
+    生成されたPromiseオブジェクト
+   */
+
+  tryPromise = function(timeout, promiser, maxTries) {
+    var count;
+    count = 0;
+    return new Promise(function(resolve, reject) {
+      var lastReason, next;
+      lastReason = void 0;
+      window.setTimeout(function() {
+        return reject(lastReason || Error(&quot;Operation timed out after &quot; + count + &quot; tries&quot;));
+      }, timeout);
+      next = function() {
+        return promiser().then(function(value) {
+          return resolve(value);
+        }, function(reason) {
+          lastReason = reason;
+          count++;
+          if ((maxTries != null) &amp;&amp; count &gt;= maxTries) {
+            return reject(lastReason);
+          }
+          return next();
+        });
+      };
+      return next();
+    });
+  };
+
+
+<span id='global-method-finallyPromise'>  /**
+</span>  @private
+  @method
+    Promiseの成功失敗にかかわらず実行する関数のペアを生成
+  @return {Function[]}
+    成功(fulfilled)と失敗(rejected)の関数ペア。
+    promise.then(finallyPromise(-&gt; 中身)...) として用いる。...を忘れないこと。
+   */
+
+  finallyPromise = function(action) {
+    return [
+      function(value) {
+        action();
+        return value;
+      }, function(error) {
+        action();
+        return Promise.reject(error);
+      }
+    ];
+  };
+
+
+<span id='TimeLimit'>  /**
+</span>  @private
+  @class TimeLimit
+    タイムアウト検出クラス
+   */
+
+  TimeLimit = (function() {
+
+<span id='TimeLimit-method-constructor'>    /**
+</span>    @method constructor
       コンストラクタ
-    @param {function(Function.Sequence)[]} list...
-      初期状態で追加するシーケンス要素の関数リスト
+    @param {number} timeout
+      タイムアウト時間(ms)
      */
-
-    function Sequence() {
-      var list;
-      list = 1 &lt;= arguments.length ? slice.call(arguments, 0) : [];
-      this.list = list;
+    function TimeLimit(timeout1) {
+      this.timeout = timeout1;
+      this.start = this.now;
+      return;
     }
 
 
-<span id='Function-Sequence-method-add'>    /**
-</span>    @method
-      シーケンス要素を末尾に追加する
-    @param {function(Function.Sequence)[]} f...
-      追加するシーケンス要素の関数(複数可)
-    @chainable
-    @return {Function.Sequence} this
+<span id='TimeLimit-property-now'>    /**
+</span>    @property {number} now
+      現在時刻(残り時間ではない)
+    @readonly
      */
 
-    Sequence.prototype.add = function() {
-      var f, ref;
-      f = 1 &lt;= arguments.length ? slice.call(arguments, 0) : [];
-      (ref = this.list).push.apply(ref, f);
-      return this;
-    };
-
-
-<span id='Function-Sequence-method-final'>    /**
-</span>    @method
-      シーケンス終了時に成功失敗にかかわらず呼び出される関数を登録する
-    @param {function(Function.Sequence)} f
-      登録する関数
-    @chainable
-    @return {Function.Sequence} this
-     */
-
-    Sequence.prototype.final = function(f) {
-      this.onFinal = f;
-      return this;
-    };
-
-
-<span id='Function-Sequence-method-start'>    /**
-</span>    @method
-      シーケンスを開始する
-    @return {void}
-     */
-
-    Sequence.prototype.start = function() {
-      this.index = -1;
-      this.aborted = false;
-      this.finished = false;
-      this.next(true);
-    };
-
-
-<span id='Function-Sequence-method-next'>    /**
-</span>    @method
-      シーケンスを一つ次へ進める(次が無ければ正常終了する)。または異常終了する。
-    @param {boolean} [success]
-      現在の要素が正常終了したかどうか(省略時true)。falseを指定するとシーケンスを異常終了する。
-    @return {void}
-     */
-
-    Sequence.prototype.next = function(success) {
-      if (this.aborted || this.finished || this.index === null) {
-        return;
+    TimeLimit.property(&quot;now&quot;, {
+      get: function() {
+        return window.performance.now();
       }
-      if (success === false) {
-        this.aborted = true;
-        if (typeof this.onFinal === &quot;function&quot;) {
-          this.onFinal(this);
-        }
-        return;
-      }
-      this.index += 1;
-      if (this.index &gt;= this.list.length) {
-        this.finished = true;
-        if (typeof this.onFinal === &quot;function&quot;) {
-          this.onFinal(this);
-        }
-        return;
-      }
-      this.redo();
-    };
+    });
 
 
-<span id='Function-Sequence-method-redo'>    /**
-</span>    @method
-      シーケンスを次に進めずに、現在の要素をもう一度繰り返す。
-    @return {void}
+<span id='TimeLimit-property-left'>    /**
+</span>    @property {number} left
+      残り時間(ms)
+    @readonly
      */
 
-    Sequence.prototype.redo = function() {
-      if (this.aborted || this.finished || this.index === null) {
-        return;
+    TimeLimit.property(&quot;left&quot;, {
+      get: function() {
+        return Math.max(0, this.timeout - parseInt(this.now - this.start));
       }
-      this.list[this.index].call(this, this);
-    };
+    });
 
-
-<span id='Function-Sequence-method-abort'>    /**
-</span>    @method
-      シーケンスを異常終了させる。next(false)に同じ。
-    @return {void}
-     */
-
-    Sequence.prototype.abort = function() {
-      this.next(false);
-    };
-
-    return Sequence;
+    return TimeLimit;
 
   })();
-}
 
 
-/*
-プレフィックス付き固定長16進数文字列への変換メソッド(デバッグ用)
- */
-
-Number.prototype.hex = function(digits) {
-  var s;
-  s = this.toString(16);
-  while (s.length &lt; digits) {
-    s = &quot;0&quot; + s;
-  }
-  return &quot;0x&quot; + s;
-};
-
-
-/*
-16進ダンプ(デバッグ用)
- */
-
-Uint8Array.prototype.hexDump = function(maxLength) {
-  var r, v;
-  maxLength || (maxLength = this.length);
-  r = (function() {
-    var j, len1, ref, results;
-    ref = this.subarray(0, maxLength);
-    results = [];
-    for (j = 0, len1 = ref.length; j &lt; len1; j++) {
-      v = ref[j];
-      results.push(v.hex(2));
-    }
-    return results;
-  }).call(this);
-  if (this.length &gt; maxLength) {
-    r.push(&quot;...&quot;);
-  }
-  return &quot;[&quot; + (r.join(&quot;,&quot;)) + &quot;]&quot;;
-};
-
-
-<span id='Canarium'>/**
-</span>@class Canarium
-PERIDOTボードドライバ
- */
-
-Canarium = (function() {
-  var CONFIG_TIMEOUT_MS, DEBUG, EEPROM_SLAVE_ADDR;
-
-  DEBUG = (DEBUG != null) || 0;
-
-
-<span id='Canarium-property-version'>  /**
-</span>  @property {string}
-    ライブラリのバージョン
+<span id='Canarium'>  /**
+</span>  @class Canarium
+    PERIDOTボードドライバ
    */
 
-  Canarium.prototype.version = &quot;0.9.9&quot;;
+  Canarium = (function() {
+    var AVM_CHANNEL, CONFIG_TIMEOUT_MS, EEPROM_SLAVE_ADDR, SPLIT_EEPROM_BURST;
+
+    null;
 
 
-<span id='Canarium-property-boardInfo'>  /**
-</span>  @property {Object}  boardInfo
-    接続しているボードの情報
-  
-  @property {string}  boardInfo.id
-    &#39;J72A&#39; (J-7SYSTEM Works / PERIDOT board)
-  
-  @property {string}  boardInfo.serialcode
-    &#39;xxxxxx-yyyyyy-zzzzzz&#39;
-   */
+<span id='Canarium-property-version'>    /**
+</span>    @property {string} version
+      ライブラリのバージョン
+     */
 
-  Canarium.prototype.boardInfo = null;
+    Canarium.property(&quot;version&quot;, {
+      value: &quot;0.9.9&quot;
+    });
 
 
-<span id='Canarium-property-serialBitrate'>  /**
-</span>  @property {number} serialBitrate
-    デフォルトのビットレート({@link Canarium.BaseComm#bitrate}のアクセサとして定義)
-   */
+<span id='Canarium-property-boardInfo'>    /**
+</span>    @property {Object}  boardInfo
+      接続しているボードの情報
+    
+    @property {string}  boardInfo.id
+      &#39;J72A&#39; (J-7SYSTEM Works / PERIDOT board)
+    
+    @property {string}  boardInfo.serialcode
+      &#39;xxxxxx-yyyyyy-zzzzzz&#39;
+     */
 
-  Canarium.property(&quot;serialBitrate&quot;, {
-    get: function() {
-      return this._base.bitrate;
-    },
-    set: function(v) {
-      return this._base.bitrate = v;
-    }
-  });
-
-
-  /*
-  @property {Canarium.Channel[]}
-    チャネル[0～255]
-  @readonly
-   */
-
-  Canarium.prototype.channels = null;
+    Canarium.property(&quot;boardInfo&quot;, {
+      get: function() {
+        return this._boardInfo;
+      }
+    });
 
 
-<span id='Canarium-property-i2c'>  /**
-</span>  @property {Canarium.I2CComm}
-    I2C通信制御クラスのインスタンス
-  @readonly
-   */
+<span id='Canarium-property-serialBitrate'>    /**
+</span>    @property {number} serialBitrate
+      デフォルトのビットレート({@link Canarium.BaseComm#bitrate}のアクセサとして定義)
+     */
 
-  Canarium.prototype.i2c = null;
-
-
-<span id='Canarium-property-avs'>  /**
-</span>  @property {Canarium.AvsPackets}
-    Avalon-STパケット層通信クラスのインスタンス
-  @readonly
-   */
-
-  Canarium.prototype.avs = null;
+    Canarium.property(&quot;serialBitrate&quot;, {
+      get: function() {
+        return this._base.bitrate;
+      },
+      set: function(v) {
+        return this._base.bitrate = v;
+      }
+    });
 
 
-<span id='Canarium-property-avm'>  /**
-</span>  @property {Canarium.AvmTransactions}
-    Avalon-MMトランザクション層通信クラスのインスタンス
-  @readonly
-   */
+    /*
+    @property {Canarium.Channel[]} channels
+      チャネル[0～255]
+    @readonly
+     */
 
-  Canarium.prototype.avm = null;
-
-
-<span id='Canarium-property-_base'>  /**
-</span>  @private
-  @property {Canarium.BaseComm}
-    下位層通信クラスのインスタンス
-   */
-
-  Canarium.prototype._base = null;
+    Canarium.property(&quot;channels&quot;, {
+      get: function() {
+        return this._channels;
+      }
+    });
 
 
-<span id='Canarium-property-EEPROM_SLAVE_ADDR'>  /**
-</span>  @private
-  @property {number}
-    EEPROMのスレーブアドレス(7-bit表記)
-  @readonly
-   */
+<span id='Canarium-property-i2c'>    /**
+</span>    @property {Canarium.I2CComm} i2c
+      I2C通信制御クラスのインスタンス
+    @readonly
+     */
 
-  EEPROM_SLAVE_ADDR = 0x50;
-
-
-<span id='Canarium-property-CONFIG_TIMEOUT_MS'>  /**
-</span>  @private
-  @property {number}
-    コンフィグレーション開始のタイムアウト時間(ms)
-  @readonly
-   */
-
-  CONFIG_TIMEOUT_MS = 3000;
+    Canarium.property(&quot;i2c&quot;, {
+      get: function() {
+        return this._i2c;
+      }
+    });
 
 
-<span id='Canarium-static-method-enumerate'>  /**
-</span>  @static
-  @method
-  @inheritdoc Canarium.BaseComm#enumerate
-  @localdoc
-    {@link Canarium.BaseComm#enumerate}に転送されます
-   */
+<span id='Canarium-property-avs'>    /**
+</span>    @property {Canarium.AvsPackets} avs
+      Avalon-STパケット層通信クラスのインスタンス
+    @readonly
+     */
 
-  Canarium.enumerate = function() {
-    var args, ref;
-    args = 1 &lt;= arguments.length ? slice.call(arguments, 0) : [];
-    return (ref = Canarium.BaseComm).enumerate.apply(ref, args);
-  };
+    Canarium.property(&quot;avs&quot;, {
+      get: function() {
+        return this._avs;
+      }
+    });
 
 
-<span id='Canarium-method-Canarium'>  /**
-</span>  @method
-    コンストラクタ
-   */
+<span id='Canarium-property-avm'>    /**
+</span>    @property {Canarium.AvmTransactions} avm
+      Avalon-MMトランザクション層通信クラスのインスタンス
+    @readonly
+     */
 
-  function Canarium() {
-    this._base = new Canarium.BaseComm();
-    this.i2c = new Canarium.I2CComm(this._base);
-    this.avs = new Canarium.AvsPackets(this._base);
-    this.avm = new Canarium.AvmTransactions(this.avs);
-  }
+    Canarium.property(&quot;avm&quot;, {
+      get: function() {
+        return this._avm;
+      }
+    });
 
 
-<span id='Canarium-method-open'>  /**
-</span>  @inheritdoc Canarium.BaseComm#connect
-   */
+<span id='Canarium-static-property-verbosity'>    /**
+</span>    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
 
-  Canarium.prototype.open = function(portname, callback) {
-    if (this._base.connected) {
-      callback(false);
+    Canarium.verbosity = 0;
+
+
+<span id='Canarium-property-_base'>    /**
+</span>    @private
+    @property {Canarium.BaseComm} _base
+      下位層通信クラスのインスタンス
+     */
+
+
+<span id='Canarium-property-_configBarrier'>    /**
+</span>    @private
+    @property {boolean} _configBarrier
+      コンフィグレーション中を示すフラグ(再帰実行禁止用)
+     */
+
+
+<span id='Canarium-property-_resetBarrier'>    /**
+</span>    @private
+    @property {boolean} _resetBarrier
+      リセット中を示すフラグ(再帰実行禁止用)
+     */
+
+
+<span id='Canarium-static-cfg-EEPROM_SLAVE_ADDR'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      EEPROMのスレーブアドレス(7-bit表記)
+    @readonly
+     */
+
+    EEPROM_SLAVE_ADDR = 0x50;
+
+
+<span id='Canarium-static-cfg-SPLIT_EEPROM_BURST'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      EEPROMの最大バーストリード長(バイト数)
+    @readonly
+     */
+
+    SPLIT_EEPROM_BURST = 6;
+
+
+<span id='Canarium-static-cfg-CONFIG_TIMEOUT_MS'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      コンフィグレーション開始のタイムアウト時間(ms)
+    @readonly
+     */
+
+    CONFIG_TIMEOUT_MS = 3000;
+
+
+<span id='Canarium-static-cfg-AVM_CHANNEL'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      Avalon-MM 通信レイヤのチャネル番号
+    @readonly
+     */
+
+    AVM_CHANNEL = 0;
+
+
+<span id='Canarium-static-method-enumerate'>    /**
+</span>    @static
+    @method
+      接続対象デバイスを列挙する
+      (PERIDOTでないデバイスも列挙される可能性があることに注意)
+    @param {function(boolean,Object[]/Error)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+    @return {Object[]} return.PromiseValue
+      デバイスの配列(各要素は次のメンバを持つ)
+    
+      - name : UI向け名称(COMxxなど)
+      - path : 内部管理向けパス
+     */
+
+    Canarium.enumerate = function(callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.enumerate());
+      }
+      return Canarium.BaseComm.enumerate();
+    };
+
+
+<span id='Canarium-method-constructor'>    /**
+</span>    @method constructor
+      コンストラクタ
+     */
+
+    function Canarium() {
+      this._boardInfo = null;
+      this._channels = null;
+      this._base = new Canarium.BaseComm();
+      this._i2c = new Canarium.I2CComm(this._base);
+      this._avs = new Canarium.AvsPackets(this._base);
+      this._avm = new Canarium.AvmTransactions(this._avs, AVM_CHANNEL);
+      this._configBarrier = false;
+      this._resetBarrier = false;
       return;
     }
-    this.boardInfo = null;
-    new Function.Sequence((function(_this) {
-      return function(seq) {
-        return _this._base.connect(portname, function(result) {
-          return seq.next(result);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        return _this._eepromRead(0x00, 4, function(result, readData) {
-          var header;
-          if (!result) {
-            return seq.abort();
-          }
-          header = new Uint8Array(readData);
-          if (header[0] === 0x4a &amp;&amp; header[1] === 0x37 &amp;&amp; header[2] === 0x57) {
-            if (DEBUG &gt;= 1) {
-              console.log(&quot;Canarium#connect::version(&quot; + header[3] + &quot;)&quot;);
+
+
+<span id='Canarium-method-open'>    /**
+</span>    @method
+      ボードに接続する
+    @param {string} path
+      接続先パス(enumerateが返すpath)
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+     */
+
+    Canarium.prototype.open = function(portname, callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.open(portname));
+      }
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          return _this._base.connect(portname);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return Promise.resolve().then(function() {
+            _this._boardInfo = null;
+            _this._base.configured = false;
+            return _this._eepromRead(0x00, 4);
+          }).then(function(readData) {
+            var header;
+            header = new Uint8Array(readData);
+            if (!(header[0] === 0x4a &amp;&amp; header[1] === 0x37 &amp;&amp; header[2] === 0x57)) {
+              return Promise.reject(Error(&quot;EEPROM header is invalid&quot;));
             }
-            _this.boardInfo = {
+            _this._log(1, &quot;open&quot;, &quot;done(version=&quot; + (hexDump(header[3])) + &quot;)&quot;);
+            _this._boardInfo = {
               version: header[3]
             };
-            seq.next();
-          }
-          return seq.abort();
-        });
-      };
-    })(this)).final((function(_this) {
-      return function(seq) {
-        if (seq.aborted) {
-          return _this._base.disconnect(function() {
-            return callback(false);
-          });
-        }
-        return callback(true);
-      };
-    })(this)).start();
-  };
-
-
-<span id='Canarium-method-close'>  /**
-</span>  @method
-    PERIDOTデバイスポートのクローズ
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  Canarium.prototype.close = function(callback) {
-    if (!this._base.connected) {
-      callback(false);
-      return;
-    }
-    this._base.disconnect((function(_this) {
-      return function(result) {
-        _this.boardInfo = null;
-        return callback(result);
-      };
-    })(this));
-  };
-
-
-<span id='Canarium-method-config'>  /**
-</span>  @method
-    ボードのFPGAコンフィグレーション
-  @param {Object/null}  boardInfo
-    ボード情報(ボードIDやシリアル番号を限定したい場合)
-  @param {string/null}  boardInfo.id
-    ボードID
-  @param {string/null}  boardInfo.serialCode
-    シリアル番号
-  @param {ArrayBuffer}  rbfdata
-    rbfまたはrpdのデータ
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  Canarium.prototype.config = function(boardInfo, rbfdata, callback) {
-    var seq, startTime;
-    if (!this._base.connected) {
-      return callback(false);
-    }
-    startTime = null;
-    seq = new Function.Sequence();
-    if (boardInfo) {
-      if (!(this.boardInfo.id &amp;&amp; this.boardInfo.serialcode)) {
-        seq.add((function(_this) {
-          return function() {
-            return _this.getinfo(function(result) {
-              return seq.next(result);
+          })[&quot;catch&quot;](function(error) {
+            return _this._base.disconnect()[&quot;catch&quot;](function() {}).then(function() {
+              return Promise.reject(error);
             });
-          };
-        })(this));
+          });
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-method-close'>    /**
+</span>    @method
+      PERIDOTデバイスポートのクローズ
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+     */
+
+    Canarium.prototype.close = function(callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.close());
       }
-      seq.add((function(_this) {
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          return _this._base.disconnect();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._boardInfo = null;
+          _this._base.configured = false;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-method-config'>    /**
+</span>    @method
+      ボードのFPGAコンフィグレーション
+    @param {Object/null}  boardInfo
+      ボード情報(ボードIDやシリアル番号を限定したい場合)
+    @param {string/null}  boardInfo.id
+      ボードID
+    @param {string/null}  boardInfo.serialCode
+      シリアル番号
+    @param {ArrayBuffer}  rbfdata
+      rbfまたはrpdのデータ
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+     */
+
+    Canarium.prototype.config = function(boardInfo, rbfdata, callback) {
+      var ref, timeLimit;
+      if (callback != null) {
+        return invokeCallback(callback, this.config(boardInfo, rbfdata));
+      }
+      if (this._configBarrier) {
+        return Promise.reject(Error(&quot;Configuration is now in progress&quot;));
+      }
+      this._configBarrier = true;
+      timeLimit = void 0;
+      return (ref = Promise.resolve().then((function(_this) {
+        return function() {
+          if (boardInfo || (_this.boardInfo.id &amp;&amp; _this.boardInfo.serialcode)) {
+            return;
+          }
+          return _this.getinfo();
+        };
+      })(this)).then((function(_this) {
         return function() {
           var mismatch;
           mismatch = function(a, b) {
             return a &amp;&amp; a !== b;
           };
-          if (mismatch(boardInfo.id, _this.boardInfo.id)) {
-            return seq.abort();
+          if (mismatch(boardInfo != null ? boardInfo.id : void 0, _this.boardInfo.id)) {
+            return Promise.reject(Error(&quot;Board ID mismatch&quot;));
           }
-          if (mismatch(boardInfo.serialcode, _this.boardInfo.serialcode)) {
-            return seq.abort();
+          if (mismatch(boardInfo != null ? boardInfo.serialcode : void 0, _this.boardInfo.serialcode)) {
+            return Promise.reject(Error(&quot;Board serial code mismatch&quot;));
           }
-          return seq.next();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x3b);
+        };
+      })(this)).then((function(_this) {
+        return function(response) {
+          if ((response &amp; 0x01) !== 0x00) {
+            return Promise.reject(Error(&quot;Not PS mode&quot;));
+          }
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return timeLimit = new TimeLimit(CONFIG_TIMEOUT_MS);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x32).then(function(response) {
+              if ((response &amp; 0x06) !== 0x00) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x33).then(function(response) {
+              if ((response &amp; 0x06) !== 0x02) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transData(rbfdata, 0);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x33);
+        };
+      })(this)).then((function(_this) {
+        return function(response) {
+          if ((response &amp; 0x06) !== 0x06) {
+            return Promise.reject(Error(&quot;FPGA configuration failed&quot;));
+          }
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x39);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._base.configured = true;
+        };
+      })(this))).then.apply(ref, finallyPromise((function(_this) {
+        return function() {
+          return _this._configBarrier = false;
+        };
+      })(this)));
+    };
+
+
+<span id='Canarium-method-reset'>    /**
+</span>    @method
+      ボードのマニュアルリセット
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+     */
+
+    Canarium.prototype.reset = function(callback) {
+      var ref;
+      if (callback != null) {
+        return invokeCallback(callback, this.reset());
+      }
+      if (this._resetBarrier) {
+        return Promise.reject(Error(&quot;Reset is now in progress&quot;));
+      }
+      this._resetBarrier = true;
+      return (ref = Promise.resolve().then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x31);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return waitPromise(100);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x39);
+        };
+      })(this)).then((function(_this) {
+        return function() {};
+      })(this))).then.apply(ref, finallyPromise((function(_this) {
+        return function() {
+          return _this._resetBarrier = false;
+        };
+      })(this)));
+    };
+
+
+<span id='Canarium-method-getinfo'>    /**
+</span>    @method
+      ボード情報の取得
+    @param {function(boolean,Object/Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+    @return {Object} return.PromiseValue
+      ボード情報
+    @return {string} return.PromiseValue.id
+      ボードID
+    @return {string} return.PromiseValue.serialCode
+      シリアル番号
+     */
+
+    Canarium.prototype.getinfo = function(callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.getinfo());
+      }
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          var ref;
+          switch ((ref = _this._boardInfo) != null ? ref.version : void 0) {
+            case void 0:
+              return Promise.reject(Error(&quot;Boardinfo not loaded&quot;));
+            case 1:
+              return _this._eepromRead(0x04, 8).then(function(readData) {
+                var info, mid, pid, s, sid;
+                info = new Uint8Array(readData);
+                _this._log(1, &quot;getinfo&quot;, &quot;ver1&quot;, info);
+                mid = (info[0] &lt;&lt; 8) | (info[1] &lt;&lt; 0);
+                pid = (info[2] &lt;&lt; 8) | (info[3] &lt;&lt; 0);
+                sid = (info[4] &lt;&lt; 24) | (info[5] &lt;&lt; 16) | (info[6] &lt;&lt; 8) | (info[7] &lt;&lt; 0);
+                if (mid === 0x0072) {
+                  s = &quot;&quot; + (pid.hex(4)) + (sid.hex(8));
+                  _this._boardInfo.id = &quot;J72A&quot;;
+                  return _this._boardInfo.serialcode = (s.substr(0, 6)) + &quot;-&quot; + (s.substr(6, 6)) + &quot;-000000&quot;;
+                }
+              });
+            case 2:
+              return _this._eepromRead(0x04, 22).then(function(readData) {
+                var bid, i, info, j, k, s;
+                info = new Uint8Array(readData);
+                _this._log(1, &quot;getinfo&quot;, &quot;ver2&quot;, info);
+                bid = &quot;&quot;;
+                for (i = j = 0; j &lt; 4; i = ++j) {
+                  bid += String.fromCharCode(info[i]);
+                }
+                s = &quot;&quot;;
+                for (i = k = 4; k &lt; 22; i = ++k) {
+                  s += String.fromCharCode(info[i]);
+                }
+                _this._boardInfo.id = &quot;&quot; + bid;
+                return _this._boardInfo.serialcode = (s.substr(0, 6)) + &quot;-&quot; + (s.substr(6, 6)) + &quot;-&quot; + (s.substr(12, 6));
+              });
+            default:
+              return Promise.reject(Error(&quot;Unknown boardinfo version&quot;));
+          }
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.boardInfo;
         };
       })(this));
-    }
-    seq.add((function(_this) {
-      return function() {
-        return _this._base.transCommand(0x3b, function(result, response) {
-          if (!result) {
-            return seq.abort();
-          }
-          if ((response &amp; 0x01) === 0x00) {
-            return seq.next();
-          }
-          return seq.abort();
-        });
-      };
-    })(this));
-    seq.add(function() {
-      startTime = window.performance.now();
-      return seq.next();
-    });
-    seq.add((function(_this) {
-      return function() {
-        return _this._base.transCommand(0x32, function(result, response) {
-          var dulation;
-          if (!result) {
-            return seq.abort();
-          }
-          if ((response &amp; 0x06) === 0x00) {
-            return seq.next();
-          }
-          dulation = parseInt(window.performance.now() - startTime);
-          if (dulation &gt; CONFIG_TIMEOUT_MS) {
-            return seq.abort();
-          }
-          return seq.redo();
-        });
-      };
-    })(this));
-    seq.add((function(_this) {
-      return function() {
-        return _this._base.transCommand(0x33, function(result, response) {
-          var dulation;
-          if (!result) {
-            return seq.abort();
-          }
-          if ((response &amp; 0x06) === 0x02) {
-            return seq.next();
-          }
-          dulation = parseInt(window.performance.now() - startTime);
-          if (dulation &gt; CONFIG_TIMEOUT_MS) {
-            return seq.abort();
-          }
-          return seq.redo();
-        });
-      };
-    })(this));
-    seq.add((function(_this) {
-      return function() {
-        return _this._base.transData(rbfdata, 0, function(result) {
-          return seq.next(result);
-        });
-      };
-    })(this));
-    seq.add((function(_this) {
-      return function() {
-        return _this._base.transCommand(0x33, function(result, response) {
-          if (!result) {
-            return seq.abort();
-          }
-          if ((response &amp; 0x06) === 0x06) {
-            return seq.next();
-          }
-          return seq.abort();
-        });
-      };
-    })(this));
-    seq.add((function(_this) {
-      return function() {
-        return _this._base.transCommand(0x39, function(result, response) {
-          return seq.next(result);
-        });
-      };
-    })(this));
-    seq.final(function() {
-      if (seq.aborted) {
-        return callback(false);
+    };
+
+
+<span id='Canarium-method-option'>    /**
+</span>    @method
+      オプション設定
+    @param {Object} option
+      オプション
+    @param {boolean}  option.forceConfigured
+      コンフィグレーション済みとして扱うかどうか
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+     */
+
+    Canarium.prototype.option = function(option, callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.option(option));
       }
-    }).start();
-  };
+      return this._base.option(option);
+    };
 
 
-<span id='Canarium-method-reset'>  /**
-</span>  @method
-    ボードのマニュアルリセット
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
+<span id='Canarium-method-_eepromRead'>    /**
+</span>    @private
+    @method
+      EEPROMの読み出し
+    @param {number} startaddr
+      読み出し開始アドレス
+    @param {number} readbytes
+      読み出しバイト数
+    @return {Promise}
+      Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      読み出し結果
+     */
 
-  Canarium.prototype.reset = function(callback) {
-    if (!this._base.connected) {
-      return callback(false);
-    }
-    new Function.Sequence((function(_this) {
-      return function(seq) {
-        return _this._base.transCommand(0x31, function(result, response) {
-          if (!result) {
-            return seq.abort();
+    Canarium.prototype._eepromRead = function(startaddr, readbytes) {
+      var array, lastError, x;
+      array = new Uint8Array(readbytes);
+      if ((SPLIT_EEPROM_BURST != null) &amp;&amp; readbytes &gt; SPLIT_EEPROM_BURST) {
+        return ((function() {
+          var j, ref, ref1, results;
+          results = [];
+          for (x = j = 0, ref = readbytes, ref1 = SPLIT_EEPROM_BURST; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
+            results.push(x);
           }
-          return window.setTimeout((function() {
-            return seq.next();
-          }), 100);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        return _this._base.transCommand(0x39, function(result, response) {
-          if (!result) {
-            return seq.abort();
-          }
-          return seq.next();
-        });
-      };
-    })(this)).final(function(seq) {
-      return callback(seq.finished);
-    }).start();
-  };
-
-
-<span id='Canarium-method-getinfo'>  /**
-</span>  @method
-    ボード情報の取得
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  Canarium.prototype.getinfo = function(callback) {
-    var ref, seq;
-    if (!(this._base.connected &amp;&amp; ((ref = this.boardInfo) != null ? ref.version : void 0))) {
-      console.log(this._base);
-      console.log(this.boardInfo);
-      callback(false);
-      return;
-    }
-    seq = new Function.Sequence();
-    switch (this.boardInfo.version) {
-      case 1:
-        seq.add((function(_this) {
-          return function(seq) {
-            return _this._eepromRead(0x04, 8, function(result, readData) {
-              var info, mid, pid, s, sid;
-              if (!result) {
-                return seq.abort();
-              }
-              info = new Uint8Array(readData);
-              if (DEBUG &gt;= 2) {
-                console.log(&quot;getinfo::ver1::read(&quot; + (info.hexDump()) + &quot;)&quot;);
-              }
-              mid = (info[0] &lt;&lt; 8) | (info[1] &lt;&lt; 0);
-              pid = (info[2] &lt;&lt; 8) | (info[3] &lt;&lt; 0);
-              sid = (info[4] &lt;&lt; 24) | (info[5] &lt;&lt; 16) | (info[6] &lt;&lt; 8) | (info[7] &lt;&lt; 0);
-              if (mid === 0x0072) {
-                s = &quot;&quot; + (pid.hex(4)) + (sid.hex(8));
-                _this.boardInfo.id = &quot;J72A&quot;;
-                _this.boardInfo.serialcode = (s.substr(0, 6)) + &quot;-&quot; + (s.substr(6, 6)) + &quot;-000000&quot;;
-              }
-              return seq.next();
+          return results;
+        })()).reduce((function(_this) {
+          return function(sequence, offset) {
+            return sequence.then(function() {
+              return _this._eepromRead(startaddr + offset, Math.min(SPLIT_EEPROM_BURST, readbytes - offset));
+            }).then(function(partialData) {
+              array.set(new Uint8Array(partialData), offset);
             });
           };
-        })(this));
-        break;
-      case 2:
-        seq.add((function(_this) {
-          return function(seq) {
-            return _this._eepromRead(0x04, 22, function(result, readData) {
-              var bid, i, info, j, k, s;
-              if (!result) {
-                return seq.abort();
-              }
-              info = new Uint8Array(readData);
-              if (DEBUG &gt;= 2) {
-                console.log(&quot;getinfo::ver2::read(&quot; + (info.hexDump()) + &quot;)&quot;);
-              }
-              bid = &quot;&quot;;
-              for (i = j = 0; j &lt; 4; i = ++j) {
-                bid += String.fromCharCode(info[i]);
-              }
-              s = &quot;&quot;;
-              for (i = k = 4; k &lt; 22; i = ++k) {
-                s += String.fromCharCode(info[i]);
-              }
-              _this.boardInfo.id = bid;
-              _this.boardInfo.serialcode = (s.substr(0, 6)) + &quot;-&quot; + (s.substr(6, 6)) + &quot;-&quot; + (s.substr(12, 6));
-              return seq.next();
-            });
+        })(this), Promise.resolve()).then((function(_this) {
+          return function() {
+            return array.buffer;
           };
         })(this));
-        break;
-      default:
-        if (DEBUG &gt;= 1) {
-          console.log(&quot;getinfo::unknown_version&quot;);
-        }
-        callback(false);
+      }
+      lastError = null;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          _this._log(1, &quot;_eepromRead&quot;, &quot;begin(addr=&quot; + (hexDump(startaddr)) + &quot;,bytes=&quot; + (hexDump(readbytes)) + &quot;)&quot;);
+          return _this.i2c.start();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.i2c.write(EEPROM_SLAVE_ADDR &lt;&lt; 1).then(function(ack) {
+            if (!ack) {
+              return Promise.reject(Error(&quot;EEPROM is not found.&quot;));
+            }
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.i2c.write(startaddr &amp; 0xff).then(function(ack) {
+            if (!ack) {
+              return Promise.reject(Error(&quot;Cannot write address in EEPROM&quot;));
+            }
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.i2c.start();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.i2c.write((EEPROM_SLAVE_ADDR &lt;&lt; 1) + 1).then(function(ack) {
+            if (!ack) {
+              return Promise.reject(Error(&quot;EEPROM is not found.&quot;));
+            }
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          var j, lastIndex, results;
+          lastIndex = readbytes - 1;
+          return (function() {
+            results = [];
+            for (var j = 0; 0 &lt;= lastIndex ? j &lt;= lastIndex : j &gt;= lastIndex; 0 &lt;= lastIndex ? j++ : j--){ results.push(j); }
+            return results;
+          }).apply(this).reduce(function(promise, index) {
+            return promise.then(function() {
+              return _this.i2c.read(index !== lastIndex);
+            }).then(function(byte) {
+              return array[index] = byte;
+            });
+          }, Promise.resolve());
+        };
+      })(this))[&quot;catch&quot;]((function(_this) {
+        return function(error) {
+          lastError = error;
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this.i2c.stop();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          if (lastError) {
+            return Promise.reject(lastError);
+          }
+          _this._log(1, &quot;_eepromRead&quot;, &quot;end&quot;, array);
+          return array.buffer;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-static-method-_log'>    /**
+</span>    @private
+    @static
+    @method
+      ログの出力(全クラス共通)
+    @param {string} cls
+      クラス名
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
+
+    Canarium._log = function(cls, func, msg, data) {
+      var obj, out, time;
+      if ((typeof SUPPRESS_ALL_LOGS !== &quot;undefined&quot; &amp;&amp; SUPPRESS_ALL_LOGS !== null) &amp;&amp; SUPPRESS_ALL_LOGS) {
         return;
-    }
-    seq.final(function(seq) {
-      return callback(seq.finished);
-    }).start();
-  };
-
-
-<span id='Canarium-method-_eepromRead'>  /**
-</span>  @private
-  @method
-    EEPROMの読み出し
-  @param {number} startaddr
-    読み出し開始アドレス
-  @param {number} readbytes
-    読み出しバイト数
-  @param {function(boolean,ArrayBuffer)} callback
-    コールバック関数
-   */
-
-  Canarium.prototype._eepromRead = function(startaddr, readbytes, callback) {
-    var array, index;
-    array = new Uint8Array(readbytes);
-    index = -1;
-    return new Function.Sequence((function(_this) {
-      return function(seq) {
-        return _this.i2c.start(function(result) {
-          return seq.next(result);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        return _this.i2c.write(EEPROM_SLAVE_ADDR &lt;&lt; 1, function(result, ack) {
-          return seq.next(result &amp;&amp; ack);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        return _this.i2c.write(startaddr &amp; 0xff, function(result, ack) {
-          return seq.next(result &amp;&amp; ack);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        return _this.i2c.start(function(result) {
-          return seq.next(result);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        return _this.i2c.write((EEPROM_SLAVE_ADDR &lt;&lt; 1) + 1, function(result, ack) {
-          return seq.next(result &amp;&amp; ack);
-        });
-      };
-    })(this), (function(_this) {
-      return function(seq) {
-        if (readbytes === 0) {
-          return seq.next();
-        }
-        return _this.i2c.read(readbytes &gt; 1, function(result, readdata) {
-          if (!result) {
-            return seq.abort();
-          }
-          array[index += 1] = readdata;
-          readbytes -= 1;
-          return seq.redo();
-        });
-      };
-    })(this)).final((function(_this) {
-      return function(seq) {
-        return _this.i2c.stop(function(result) {
-          if (seq.aborted || !result) {
-            return callback(false, null);
-          }
-          return callback(true, array.buffer);
-        });
-      };
-    })(this)).start();
-  };
-
-
-<span id='Canarium-method-_err'>  /**
-</span>  @method
-    開発者向けのエラーログを出力する
-  @param {Object} data
-    出力メッセージ等のデータ(型は自由)
-  @return {void}
-  @private
-   */
-
-  Canarium.prototype._err = function(data) {
-    console.log({
-      &quot;error&quot;: data,
-      &quot;stack&quot;: new Error().stack,
-      &quot;canarium&quot;: this
-    });
-  };
-
-  return Canarium;
-
-})();
-
-
-<span id='Canarium-BaseComm'>/**
-</span>@class Canarium.BaseComm
-PERIDOTボード下位層通信クラス
-@uses chrome.serial
- */
-
-Canarium.BaseComm = (function() {
-  var DEBUG, SPLIT_EVENT_CONTEXT;
-
-  DEBUG = (DEBUG != null) || 0;
-
-
-<span id='Canarium-BaseComm-property-connected'>  /**
-</span>  @property {boolean}
-    接続状態(true:接続済み, false:未接続)
-   */
-
-  BaseComm.prototype.connected = false;
-
-
-<span id='Canarium-BaseComm-property-path'>  /**
-</span>  @property {string}
-    接続しているシリアル通信デバイスのパス
-   */
-
-  BaseComm.prototype.path = null;
-
-
-<span id='Canarium-BaseComm-property-bitrate'>  /**
-</span>  @property {number}
-    ビットレート(bps)
-   */
-
-  BaseComm.prototype.bitrate = 115200;
-
-
-<span id='Canarium-BaseComm-property-_cid'>  /**
-</span>  @private
-  @property {number}
-    シリアル接続ID
-   */
-
-  BaseComm.prototype._cid = null;
-
-
-<span id='Canarium-BaseComm-property-_onReceive'>  /**
-</span>  @private
-  @property {Function}
-    受信コールバック関数(thisバインド付きの関数オブジェクト)
-   */
-
-  BaseComm.prototype._onReceive = null;
-
-
-<span id='Canarium-BaseComm-property-_onReceiveError'>  /**
-</span>  @private
-  @property {Function}
-    受信エラーコールバック関数(thisバインド付きの関数オブジェクト)
-   */
-
-  BaseComm.prototype._onReceiveError = null;
-
-
-<span id='Canarium-BaseComm-property-_rxQueue'>  /**
-</span>  @private
-  @property {Object[]}
-    受信待ちキュー
-   */
-
-  BaseComm.prototype._rxQueue = null;
-
-
-<span id='Canarium-BaseComm-property-_rxBuffers'>  /**
-</span>  @private
-  @property {ArrayBuffer[]}
-    受信データバッファの配列
-   */
-
-  BaseComm.prototype._rxBuffers = null;
-
-
-<span id='Canarium-BaseComm-property-_rxTotalLength'>  /**
-</span>  @private
-  @property {number}
-    受信データの合計サイズ
-   */
-
-  BaseComm.prototype._rxTotalLength = null;
-
-
-<span id='Canarium-BaseComm-property-SPLIT_EVENT_CONTEXT'>  /**
-</span>  @private
-  @property {boolean}
-    chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
-  @readonly
-   */
-
-  SPLIT_EVENT_CONTEXT = false;
-
-
-<span id='Canarium-BaseComm-static-method-enumerate'>  /**
-</span>  @static
-  @method
-    接続対象デバイスを列挙する
-    (PERIDOTでないデバイスも列挙される可能性があることに注意)
-  @param {function(boolean,Object[]):void}  callback
-    コールバック関数(配列の各要素は次のメンバを持つ)
-  
-    - name : UI向け名称(COMxxなど)
-    - path : 内部管理向けパス
-  @return {void}
-   */
-
-  BaseComm.enumerate = function(callback) {
-    chrome.serial.getDevices(function(ports) {
-      var devices, j, len1, port;
-      devices = [];
-      for (j = 0, len1 = ports.length; j &lt; len1; j++) {
-        port = ports[j];
-        devices.push({
-          path: &quot;&quot; + port.path,
-          name: &quot;&quot; + (port.displayName || port.path)
-        });
       }
-      return callback(true, devices);
-    });
-  };
-
-
-<span id='Canarium-BaseComm-method-BaseComm'>  /**
-</span>  @method
-    コンストラクタ
-   */
-
-  function BaseComm() {
-    this._onReceive = (function(_this) {
-      return function(info) {
-        return _this._onReceiveHandler(info);
-      };
-    })(this);
-    this._onReceiveError = (function(_this) {
-      return function(info) {
-        return _this._onReceiveErrorHandler(info);
-      };
-    })(this);
-  }
-
-
-<span id='Canarium-BaseComm-method-connect'>  /**
-</span>  @method
-    ボードに接続する
-  @param {string} path
-    接続先パス(enumerateが返すpath)
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  BaseComm.prototype.connect = function(path, callback) {
-    if (this.connected) {
-      callback(false);
-      return;
-    }
-    this.connected = true;
-    this.path = null;
-    chrome.serial.connect(path, {
-      bitrate: this.bitrate
-    }, (function(_this) {
-      return function(connectionInfo) {
-
-        /*
-        Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
-         */
-        if (!connectionInfo) {
-          chrome.runtime.lastError;
-          _this.connected = false;
-          return callback(false);
-        }
-        _this.path = &quot;&quot; + path;
-        _this._cid = connectionInfo.connectionId;
-        _this._rxQueue = [];
-        _this._rxBuffers = [];
-        _this._rxTotalLength = 0;
-        chrome.serial.onReceive.addListener(_this._onReceive);
-        chrome.serial.onReceiveError.addListener(_this._onReceiveError);
-        return callback(true);
-      };
-    })(this));
-  };
-
-
-<span id='Canarium-BaseComm-method-disconnect'>  /**
-</span>  @method
-    ボードから切断する
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  BaseComm.prototype.disconnect = function(callback) {
-    if (!this.connected) {
-      callback(false);
-      return;
-    }
-    chrome.serial.disconnect(this._cid, (function(_this) {
-      return function(result) {
-        if (!result) {
-          return callback(false);
-        }
-        chrome.serial.onReceive.removeListener(_this._onReceive);
-        chrome.serial.onReceiveError.removeListener(_this._onReceiveError);
-        _this.connected = false;
-        _this.path = null;
-        _this._cid = null;
-        _this._rxQueue = null;
-        _this._rxBuffers = null;
-        _this._rxTotalLength = null;
-        return callback(true);
-      };
-    })(this));
-  };
-
-
-<span id='Canarium-BaseComm-method-transCommand'>  /**
-</span>  @method
-    制御コマンドの送受信を行う
-  @param {number} command
-    コマンドバイト
-  @param {function(boolean,number):void}  callback
-    コールバック関数
-  @return {void}
-   */
-
-  BaseComm.prototype.transCommand = function(command, callback) {
-    var txarray;
-    txarray = new Uint8Array(2);
-    txarray[0] = 0x3a;
-    txarray[1] = command;
-    this._transSerial(txarray.buffer, 1, function(result, rxdata) {
-      var rxArray;
-      if (!result) {
-        return callback(false, null);
+      time = window.performance.now().toFixed(3);
+      out = (
+        obj = {
+          time: time
+        },
+        obj[cls + &quot;#&quot; + func] = msg,
+        obj.stack = new Error().stack.split(&quot;\n    &quot;).slice(1),
+        obj
+      );
+      if (data) {
+        out.data = data;
       }
-      rxArray = new Uint8Array(rxdata);
-      return callback(true, rxArray[0]);
-    });
-  };
+      console.log(out);
+    };
 
 
-<span id='Canarium-BaseComm-method-transData'>  /**
-</span>  @method
-    データの送受信を行う
-  @param {ArrayBuffer/null} txdata
-    送信するデータ(制御バイトは自動的にエスケープされる。nullの場合は受信のみ)
-  @param {number} rxsize
-    受信するバイト数
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
-   */
+<span id='Canarium-method-_log'>    /**
+</span>    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
 
-  BaseComm.prototype.transData = function(txdata, rxsize, callback) {
-    var byte, dst, j, len, len1, src;
-    if (txdata) {
-      src = new Uint8Array(txdata);
-      dst = new Uint8Array(txdata.byteLength * 2);
-      len = 0;
-      for (j = 0, len1 = src.length; j &lt; len1; j++) {
-        byte = src[j];
-        if (byte === 0x3a || byte === 0x3d) {
-          dst[len] = 0x3d;
-          len += 1;
-          byte ^= 0x20;
-        }
-        dst[len] = byte;
-        len += 1;
+    Canarium.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity &gt;= lvl) {
+        Canarium._log(&quot;Canarium&quot;, func, msg, data);
       }
-      txdata = dst.buffer.slice(0, len);
-    }
-    this._transSerial(txdata, rxsize, callback);
-  };
+    };
+
+    return Canarium;
+
+  })();
 
 
-<span id='Canarium-BaseComm-method-_transSerial'>  /**
-</span>  @private
-  @method
-    シリアル通信の送受信を行う
-  @param {ArrayBuffer/null} txdata
-    送信するデータ(nullの場合は受信のみ)
-  @param {number} rxsize
-    受信するバイト数
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
+<span id='Canarium-BaseComm'>  /**
+</span>  @class Canarium.BaseComm
+    PERIDOTボード下位層通信クラス
+  @uses chrome.serial
    */
 
-  BaseComm.prototype._transSerial = function(txdata, rxsize, callback) {
-    if (!this.connected) {
-      callback(false, null);
-      return;
-    }
-    this._rxQueue.push({
-      length: rxsize,
-      callback: callback
+  Canarium.BaseComm = (function() {
+    var SERIAL_TX_MAX_LENGTH, SPLIT_EVENT_CONTEXT, SUCCESSIVE_TX_WAIT_MS;
+
+    null;
+
+
+<span id='Canarium-BaseComm-property-connected'>    /**
+</span>    @property {boolean} connected
+      接続状態
+    
+      - true: 接続済み
+      - false: 未接続
+    @readonly
+     */
+
+    BaseComm.property(&quot;connected&quot;, {
+      get: function() {
+        return this._connected;
+      }
     });
-    if (!txdata) {
-      return;
-    }
-    if (DEBUG &gt;= 1) {
-      console.log({
-        &quot;BaseComm::(send)&quot;: new Uint8Array(txdata).hexDump()
-      });
-    }
-    chrome.serial.send(this._cid, txdata, function() {
-      return null;
+
+
+<span id='Canarium-BaseComm-property-path'>    /**
+</span>    @property {string} path
+      接続しているシリアル通信デバイスのパス
+    @readonly
+     */
+
+    BaseComm.property(&quot;path&quot;, {
+      get: function() {
+        return this._path;
+      }
     });
-  };
 
 
-<span id='Canarium-BaseComm-method-_onReceiveHandler'>  /**
-</span>  @private
-  @method
-    シリアル受信時の処理を行う
-  @param {Object} info
-    受信情報
-  @param {number} info.connectionId
-    接続ID
-  @param {ArrayBuffer} info.data
-    受信データ
-  @return {void}
-   */
+<span id='Canarium-BaseComm-property-bitrate'>    /**
+</span>    @property {number} bitrate
+      ビットレート(bps)
+     */
 
-  BaseComm.prototype._onReceiveHandler = function(info) {
-    if (!(info.connectionId === this._cid &amp;&amp; this.connected)) {
-      return;
-    }
-    this._addRxBuffer(info.data);
-    if (SPLIT_EVENT_CONTEXT) {
-      window.setTimeout(((function(_this) {
-        return function() {
-          return _this._onReceiveHandler2();
+    BaseComm.property(&quot;bitrate&quot;, {
+      get: function() {
+        return this._bitrate;
+      },
+      set: function(v) {
+        return this._bitrate = parseInt(v);
+      }
+    });
+
+
+<span id='Canarium-BaseComm-property-sendImmediate'>    /**
+</span>    @property {boolean} sendImmediate
+      即時応答ビットを立てるかどうか
+     */
+
+    BaseComm.property(&quot;sendImmediate&quot;, {
+      get: function() {
+        return this._sendImmediate;
+      },
+      set: function(v) {
+        return this._sendImmediate = !!v;
+      }
+    });
+
+
+<span id='Canarium-BaseComm-property-configured'>    /**
+</span>    @property {boolean} configured
+      コンフィグレーション済みかどうか
+     */
+
+    BaseComm.property(&quot;configured&quot;, {
+      get: function() {
+        return this._configured;
+      },
+      set: function(v) {
+        return this._configured = !!v;
+      }
+    });
+
+
+<span id='Canarium-BaseComm-static-property-verbosity'>    /**
+</span>    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
+
+    BaseComm.verbosity = 0;
+
+
+<span id='Canarium-BaseComm-property-_connected'>    /**
+</span>    @private
+    @property {boolean} _connected
+    @inheritdoc #connected
+     */
+
+
+<span id='Canarium-BaseComm-property-_path'>    /**
+</span>    @private
+    @property {string} _path
+    @inheritdoc #path
+     */
+
+
+<span id='Canarium-BaseComm-property-_bitrate'>    /**
+</span>    @private
+    @property {number} _bitrate
+    @inheritdoc #bitrate
+     */
+
+
+<span id='Canarium-BaseComm-property-_sendImmediate'>    /**
+</span>    @private
+    @property {boolean} _sendImmediate
+    @inheritdoc #sendImmediate
+     */
+
+
+<span id='Canarium-BaseComm-property-_cid'>    /**
+</span>    @private
+    @property {number} _cid
+      シリアル接続ID
+     */
+
+
+<span id='Canarium-BaseComm-property-_onReceive'>    /**
+</span>    @private
+    @property {Function} _onReceive
+      受信コールバック関数(thisバインド付きの関数オブジェクト)
+     */
+
+
+<span id='Canarium-BaseComm-property-_onReceiveError'>    /**
+</span>    @private
+    @property {Function} _onReceiveError
+      受信エラーコールバック関数(thisバインド付きの関数オブジェクト)
+     */
+
+
+<span id='Canarium-BaseComm-property-_rxQueue'>    /**
+</span>    @private
+    @property {Object[]} _rxQueue
+      受信待ちキュー
+     */
+
+
+<span id='Canarium-BaseComm-property-_rxBuffers'>    /**
+</span>    @private
+    @property {ArrayBuffer[]} _rxBuffers
+      受信データバッファの配列
+     */
+
+
+<span id='Canarium-BaseComm-property-_rxTotalLength'>    /**
+</span>    @private
+    @property {number} _rxTotalLength
+      受信データの合計サイズ
+     */
+
+
+<span id='Canarium-BaseComm-static-cfg-SERIAL_TX_MAX_LENGTH'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      1回のシリアル送信の最大バイト数
+    @readonly
+     */
+
+    SERIAL_TX_MAX_LENGTH = 1024;
+
+
+<span id='Canarium-BaseComm-static-cfg-SUCCESSIVE_TX_WAIT_MS'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      連続シリアル送信の間隔(ミリ秒)
+    @readonly
+     */
+
+    SUCCESSIVE_TX_WAIT_MS = null;
+
+
+<span id='Canarium-BaseComm-static-cfg-SPLIT_EVENT_CONTEXT'>    /**
+</span>    @private
+    @static
+    @cfg {boolean}
+      chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
+    @readonly
+     */
+
+    SPLIT_EVENT_CONTEXT = false;
+
+
+<span id='Canarium-BaseComm-static-method-enumerate'>    /**
+</span>    @static
+    @method
+      接続対象デバイスを列挙する
+      (PERIDOTでないデバイスも列挙される可能性があることに注意)
+    @return {Promise}
+      Promiseオブジェクト
+    @return {Object[]} return.PromiseValue
+      デバイスの配列(各要素は次のメンバを持つ)
+    
+      - name : UI向け名称(COMxxなど)
+      - path : 内部管理向けパス
+     */
+
+    BaseComm.enumerate = function() {
+      var getName;
+      getName = function(port) {
+        var name, path;
+        name = port.displayName;
+        path = port.path;
+        if (name) {
+          return name + &quot; (&quot; + path + &quot;)&quot;;
+        }
+        return &quot;&quot; + path;
+      };
+      return new Promise((function(_this) {
+        return function(resolve) {
+          return chrome.serial.getDevices(function(ports) {
+            var devices, j, len1, port;
+            devices = [];
+            for (j = 0, len1 = ports.length; j &lt; len1; j++) {
+              port = ports[j];
+              devices.push({
+                path: &quot;&quot; + port.path,
+                name: getName(port)
+              });
+            }
+            return resolve(devices);
+          });
         };
-      })(this)), 0);
-    } else {
-      this._onReceiveHandler2();
-    }
-  };
-
-  BaseComm.prototype._onReceiveHandler2 = function() {
-    var buffer, length, queue;
-    while (this._rxQueue.length &gt; 0) {
-      length = this._rxQueue[0].length;
-      if (length &gt; this._rxTotalLength) {
-        break;
-      }
-      queue = this._rxQueue.shift();
-      buffer = this._sliceRxBuffer(length);
-      if (DEBUG &gt;= 1) {
-        console.log({
-          &quot;BaseComm::(recv)&quot;: new Uint8Array(buffer).hexDump()
-        });
-      }
-      queue.callback.call(void 0, true, buffer);
-    }
-  };
+      })(this));
+    };
 
 
-<span id='Canarium-BaseComm-method-_addRxBuffer'>  /**
-</span>  @private
-  @method
-    受信データバッファの末尾にデータを追加する
-  @param {ArrayBuffer} data
-    受信データ
-  @return {void}
-   */
+<span id='Canarium-BaseComm-method-constructor'>    /**
+</span>    @method constructor
+      コンストラクタ
+     */
 
-  BaseComm.prototype._addRxBuffer = function(data) {
-    this._rxBuffers.push(data.slice(0));
-    this._rxTotalLength += data.byteLength;
-  };
-
-
-<span id='Canarium-BaseComm-method-_sliceRxBuffer'>  /**
-</span>  @private
-  @method
-    受信データバッファの先頭からデータを取り出す
-  @param {number} length
-    取り出すバイト数
-  @return {ArrayBuffer/null}
-    取り出したデータ(バッファ不足時はnull)
-   */
-
-  BaseComm.prototype._sliceRxBuffer = function(length) {
-    var array, partBuf, partLen, pos, rem;
-    if (length &gt; this._rxTotalLength) {
-      return null;
-    }
-    array = new Uint8Array(length);
-    pos = 0;
-    rem = length;
-    while (rem &gt; 0) {
-      partBuf = this._rxBuffers[0];
-      partLen = partBuf.byteLength;
-      if (partLen &lt;= rem) {
-        this._rxBuffers.shift();
-      } else {
-        array = new Uint8Array(partLen - rem);
-        array.set(new Uint8Array(partBuf, rem));
-        this._rxBuffers[0] = array.buffer;
-        partLen = rem;
-      }
-      array.set(new Uint8Array(partBuf, 0, partLen), pos);
-      pos += partLen;
-      rem -= partLen;
-    }
-    this._rxTotalLength -= length;
-    return array.buffer;
-  };
-
-
-<span id='Canarium-BaseComm-method-_onReceiveErrorHandler'>  /**
-</span>  @private
-  @method
-    受信エラーハンドラ
-  @param {Object} info
-    エラー情報
-  @param {number} info.connectionId
-    接続ID
-  @param {&quot;disconnected&quot;/&quot;timeout&quot;/&quot;device_lost&quot;/&quot;break&quot;/
-          &quot;frame_error&quot;/&quot;overrun&quot;/&quot;buffer_overflow&quot;/
-          &quot;parity_error&quot;/&quot;system_error&quot;} info.error
-    エラー種別を示す文字列
-  @return {void}
-   */
-
-  BaseComm.prototype._onReceiveErrorHandler = function(info) {
-    if (!(info.connectionId === this._cid &amp;&amp; this.connected)) {
+    function BaseComm() {
+      this._connected = false;
+      this._path = null;
+      this._bitrate = 115200;
+      this._sendImmediate = false;
+      this._configured = false;
+      this._cid = null;
+      this._onReceive = (function(_this) {
+        return function(info) {
+          return _this._onReceiveHandler(info);
+        };
+      })(this);
+      this._onReceiveError = (function(_this) {
+        return function(info) {
+          return _this._onReceiveErrorHandler(info);
+        };
+      })(this);
+      this._rxQueue = null;
+      this._rxBuffers = null;
+      this._rxTotalLength = null;
       return;
     }
-    if (SPLIT_EVENT_CONTEXT) {
-      window.setTimeout(((function(_this) {
-        return function() {
-          return _this._onReceiveErrorHandler2();
+
+
+<span id='Canarium-BaseComm-method-connect'>    /**
+</span>    @method
+      ボードに接続する
+    @param {string} path
+      接続先パス(enumerateが返すpath)
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    BaseComm.prototype.connect = function(path) {
+      if (this._connected) {
+        return Promise.reject(Error(&quot;Already connected&quot;));
+      }
+      this._connected = true;
+      this._path = null;
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          return chrome.serial.connect(path, {
+            bitrate: _this._bitrate
+          }, function(connectionInfo) {
+
+            /*
+            Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
+             */
+            if (!connectionInfo) {
+              _this._connected = false;
+              return reject(Error(chrome.runtime.lastError));
+            }
+            _this._path = &quot;&quot; + path;
+            _this._cid = connectionInfo.connectionId;
+            _this._rxQueue = [];
+            _this._rxBuffers = [];
+            _this._rxTotalLength = 0;
+            chrome.serial.onReceive.addListener(_this._onReceive);
+            chrome.serial.onReceiveError.addListener(_this._onReceiveError);
+            return resolve();
+          });
         };
-      })(this)), 0);
-    } else {
-      this._onReceiveErrorHandler2();
-    }
-  };
-
-  BaseComm.prototype._onReceiveErrorHandler2 = function() {
-    var queue;
-    this.disconnect(function() {});
-    this._rxBuffers = [];
-    this._rxTotalLength = 0;
-    while (queue = this._rxQueue.shift()) {
-      queue.callback.call(void 0, false, null);
-    }
-  };
-
-  return BaseComm;
-
-})();
-
-
-<span id='Canarium-I2CComm'>/**
-</span>@class Canarium.I2CComm
-PERIDOTボードI2C通信クラス
-@uses Canarium.BaseComm
- */
-
-Canarium.I2CComm = (function() {
-  var DEBUG, I2C_TIMEOUT_MS, _tryActions;
-
-  DEBUG = (DEBUG != null) || 0;
-
-
-<span id='Canarium-I2CComm-property-_base'>  /**
-</span>  @private
-  @property {Canarium.BaseComm}
-    下位層通信クラスのインスタンス
-   */
-
-  I2CComm.prototype._base = null;
-
-
-<span id='Canarium-I2CComm-property-I2C_TIMEOUT_MS'>  /**
-</span>  @private
-  @property {number}
-    I2C通信のタイムアウト時間
-  @readonly
-   */
-
-  I2C_TIMEOUT_MS = 100;
-
-
-<span id='Canarium-I2CComm-method-I2CComm'>  /**
-</span>  @method
-    コンストラクタ
-  @param {Canarium.BaseComm} _base
-    下位層通信クラスのインスタンス
-   */
-
-  function I2CComm(_base) {
-    this._base = _base;
-  }
-
-
-<span id='Canarium-I2CComm-method-start'>  /**
-</span>  @method
-    スタートコンディションの送信
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  I2CComm.prototype.start = function(callback) {
-    var sclLow, sdaLow, setup;
-    if (DEBUG &gt;= 1) {
-      console.log(&quot;i2c::start&quot;);
-    }
-    setup = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::start::setup&quot;);
-        }
-        return _this._base.transCommand(0x3b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          if ((response &amp; 0x30) !== 0x30) {
-            return retry();
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sdaLow = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::start::sdaLow&quot;);
-        }
-        return _this._base.transCommand(0x1b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sclLow = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::start::sclLow&quot;);
-        }
-        return _this._base.transCommand(0x0b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    _tryActions([setup, sdaLow, sclLow], callback, I2C_TIMEOUT_MS);
-  };
-
-
-<span id='Canarium-I2CComm-method-stop'>  /**
-</span>  @method
-    ストップコンディションの送信
-    (必ずSCL=&#39;L&#39;が先行しているものとする)
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  I2CComm.prototype.stop = function(callback) {
-    var sclRelease, sdaRelease, setup;
-    if (DEBUG &gt;= 1) {
-      console.log(&quot;i2c::stop&quot;);
-    }
-    setup = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::stop::setup&quot;);
-        }
-        return _this._base.transCommand(0x0b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sclRelease = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::stop::sclRelease&quot;);
-        }
-        return _this._base.transCommand(0x1b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          if ((response &amp; 0x30) !== 0x10) {
-            return retry();
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sdaRelease = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::stop::sdaRelease&quot;);
-        }
-        return _this._base.transCommand(0x3b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          if ((response &amp; 0x30) !== 0x30) {
-            return retry();
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    _tryActions([setup, sclRelease, sdaRelease], callback, I2C_TIMEOUT_MS);
-  };
-
-
-<span id='Canarium-I2CComm-method-read'>  /**
-</span>  @method
-    バイトリード
-    (必ずSCL=&#39;L&#39;が先行しているものとする)
-  @param {boolean}  ack
-    ACK返却の有無(true:ACK, false:NAK)
-  @param {function(boolean, Number):void} callback
-    コールバック関数
-    function(boolean:通信成否, Number:読み込みデータ(0～255))
-  @return {void}
-   */
-
-  I2CComm.prototype.read = function(ack, callback) {
-    var bitNum, readBits, readData, sendAck;
-    if (DEBUG &gt;= 1) {
-      console.log(&quot;i2c::read&quot;);
-    }
-    bitNum = 8;
-    readData = 0x00;
-    readBits = (function(_this) {
-      return function(done, abort, retry) {
-        bitNum -= 1;
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::read::readBits[&quot; + bitNum + &quot;]&quot;);
-        }
-        return _this._readBit(function(result, bit) {
-          if (!result) {
-            return abort(false);
-          }
-          readData = (readData &lt;&lt; 1) | bit;
-          return done(true);
-        });
-      };
-    })(this);
-    sendAck = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::read::sendAck&quot;);
-        }
-        return _this._writeBit((ack ? 0 : 1), function(result) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    _tryActions(((function() {
-      var j, results;
-      results = [];
-      for (j = 7; j &gt;= 0; j--) {
-        results.push(readBits);
-      }
-      return results;
-    })()).concat(sendAck), function(result) {
-      return callback(result, result ? readData : null);
-    }, I2C_TIMEOUT_MS);
-  };
-
-
-<span id='Canarium-I2CComm-method-write'>  /**
-</span>  @method
-    バイトライト
-    (必ずSCL=&#39;L&#39;が先行しているものとする)
-  @param {number} writebyte
-    書き込むデータ(0～255)
-  @param {function(boolean, boolean):void} callback
-    コールバック関数
-    function(boolean:通信成否, boolean:ACK受信有無)
-  @return {void}
-   */
-
-  I2CComm.prototype.write = function(writebyte, callback) {
-    var bitNum, recvAck, writeBits, writeData;
-    if (DEBUG &gt;= 1) {
-      console.log(&quot;i2c::write(&quot; + (writebyte.hex(2)) + &quot;)&quot;);
-    }
-    bitNum = 8;
-    writeData = 0 + writebyte;
-    writeBits = (function(_this) {
-      return function(done, abort, retry) {
-        var bit;
-        bitNum -= 1;
-        bit = (writeData &gt;&gt;&gt; 7) &amp; 1;
-        writeData &lt;&lt;= 1;
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::write::writeBits[&quot; + bitNum + &quot;]&quot;);
-        }
-        return _this._writeBit(bit, function(result) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    recvAck = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 2) {
-          console.log(&quot;i2c::write::recvAck&quot;);
-        }
-        return _this._readBit(function(result, bit) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true, bit);
-        });
-      };
-    })(this);
-    _tryActions(((function() {
-      var j, results;
-      results = [];
-      for (j = 7; j &gt;= 0; j--) {
-        results.push(writeBits);
-      }
-      return results;
-    })()).concat(recvAck), function(result, ack_n) {
-      return callback(result, result ? ack_n === 0 : null);
-    }, I2C_TIMEOUT_MS);
-  };
-
-
-<span id='Canarium-I2CComm-method-_readBit'>  /**
-</span>  @private
-  @method
-    1ビットリード
-    (必ずSCL=&#39;L&#39;が先行しているものとする)
-  @param {function(boolean,number)} callback
-    コールバック関数
-   */
-
-  I2CComm.prototype._readBit = function(callback) {
-    var bit, sclLow, setup;
-    if (DEBUG &gt;= 2) {
-      console.log(&quot;i2c::_readBit&quot;);
-    }
-    bit = 0;
-    setup = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 3) {
-          console.log(&quot;i2c::_readBit::setup&quot;);
-        }
-        return _this._base.transCommand(0x3b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          if ((response &amp; 0x10) !== 0x10) {
-            return retry();
-          }
-          if ((response &amp; 0x20) === 0x20) {
-            bit = 1;
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sclLow = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 3) {
-          console.log(&quot;i2c::_readBit::sclLow&quot;);
-        }
-        return _this._base.transCommand(0x2b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    _tryActions([setup, sclLow], function(result) {
-      if (DEBUG &gt;= 2) {
-        console.log(&quot;=&gt; &quot; + (result ? bit : &quot;(failed)&quot;));
-      }
-      return callback(result, result ? bit : null);
-    }, I2C_TIMEOUT_MS);
-  };
-
-
-<span id='Canarium-I2CComm-method-_writeBit'>  /**
-</span>  @private
-  @method
-    1ビットライト
-    (必ずSCL=&#39;L&#39;が先行しているものとする)
-  @param {0/1}  bit
-  @param {function(boolean)}  callback
-    コールバック関数
-   */
-
-  I2CComm.prototype._writeBit = function(bit, callback) {
-    var sclLow, sclRelease, setup;
-    if (DEBUG &gt;= 2) {
-      console.log(&quot;i2c::_writeBit(&quot; + bit + &quot;)&quot;);
-    }
-    setup = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 3) {
-          console.log(&quot;i2c::_writeBit::setup&quot;);
-        }
-        return _this._base.transCommand(0x0b + ((bit &amp; 1) &lt;&lt; 5), function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sclRelease = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 3) {
-          console.log(&quot;i2c::_writeBit::sclRelease&quot;);
-        }
-        return _this._base.transCommand(0x1b + ((bit &amp; 1) &lt;&lt; 5), function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          if ((response &amp; 0x10) !== 0x10) {
-            return retry();
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    sclLow = (function(_this) {
-      return function(done, abort, retry) {
-        if (DEBUG &gt;= 3) {
-          console.log(&quot;i2c::_writeBit::sclLow&quot;);
-        }
-        return _this._base.transCommand(0x2b, function(result, response) {
-          if (!result) {
-            return abort(false);
-          }
-          return done(true);
-        });
-      };
-    })(this);
-    _tryActions([setup, sclRelease, sclLow], callback, I2C_TIMEOUT_MS);
-  };
-
-
-<span id='Canarium-I2CComm-static-method-_tryActions'>  /**
-</span>  @static
-  @private
-  @method
-    タイムアウト付きで非同期アクション(複数可)を試行する
-  @param {Function[]} actions
-    実行するアクションの配列(完了,中止,リトライの3つのコールバック関数を引数とする)
-  @param {function(boolean)} callback
-    すべてのアクションが完了したときのコールバック関数
-  @param {number} timeout
-    1アクション当たりのタイムアウト時間
-    (window.performance.nowにより経過時間で計測される)
-  @param {number} [period]
-    リトライ周期(省略時は0ms…最小待ち)
-  @return {void}
-   */
-
-  _tryActions = function(actions, callback, timeout, period) {
-    var abort, action, done, retry, start, startTime;
-    if (!(actions instanceof Array)) {
-      actions = [actions];
-    }
-    period || (period = 0);
-    action = 0;
-    startTime = window.performance.now();
-    done = function() {
-      var args;
-      args = 1 &lt;= arguments.length ? slice.call(arguments, 0) : [];
-      action += 1;
-      if (action &lt; actions.length) {
-        return start();
-      }
-      return callback.apply(null, args);
+      })(this));
     };
-    abort = function() {
-      var args;
-      args = 1 &lt;= arguments.length ? slice.call(arguments, 0) : [];
-      return callback.apply(null, args);
+
+
+<span id='Canarium-BaseComm-method-option'>    /**
+</span>    @method
+      オプション設定
+    @param {Object} option
+      オプション
+    @param {boolean} option.forceConfigured
+      コンフィグレーション済みとして扱うかどうか
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    BaseComm.prototype.option = function(option) {
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          var value;
+          if ((value = option.fastAcknowledge) == null) {
+            return;
+          }
+          _this._sendImmediate = value;
+          return _this.transCommand(0x39 | (value ? 0x02 : 0x00));
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          var value;
+          if ((value = option.forceConfigured) == null) {
+            return;
+          }
+          return _this._configured = value;
+        };
+      })(this)).then((function(_this) {
+        return function() {};
+      })(this));
     };
-    retry = function() {
-      var elapsed;
-      elapsed = window.performance.now() - startTime;
-      console.log(&quot;timeout!&quot;);
-      if (elapsed &gt; timeout) {
-        return abort();
+
+
+<span id='Canarium-BaseComm-method-disconnect'>    /**
+</span>    @method
+      ボードから切断する
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    BaseComm.prototype.disconnect = function() {
+      if (!this._connected) {
+        return Promise.reject(Error(&quot;Not connected&quot;));
       }
-      return window.setTimeout(start, period);
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          return chrome.serial.disconnect(_this._cid, function(result) {
+            if (!result) {
+              return reject(Error(chrome.runtime.lastError));
+            }
+            chrome.serial.onReceive.removeListener(_this._onReceive);
+            chrome.serial.onReceiveError.removeListener(_this._onReceiveError);
+            _this._connected = false;
+            _this._path = null;
+            _this._cid = null;
+            _this._rxQueue = null;
+            _this._rxBuffers = null;
+            _this._rxTotalLength = null;
+            return resolve();
+          });
+        };
+      })(this));
     };
-    start = (function(_this) {
-      return function() {
-        return actions[action](done, retry, abort);
-      };
-    })(this);
-    start();
-  };
-
-  return I2CComm;
-
-})();
 
 
-<span id='Canarium-AvsPackets'>/**
-</span>@class Canarium.AvsPackets
-PERIDOTボードAvalon-STパケット層通信クラス
-@uses Canarium.BaseComm
- */
+<span id='Canarium-BaseComm-method-transCommand'>    /**
+</span>    @method
+      制御コマンドの送受信を行う
+    @param {number} command
+      コマンドバイト
+    @return {Promise}
+      Promiseオブジェクト
+    @return {number} return.PromiseValue
+      受信コマンド
+     */
 
-Canarium.AvsPackets = (function() {
-  var DEBUG;
-
-  DEBUG = (DEBUG != null) || 0;
-
-
-<span id='Canarium-AvsPackets-property-_base'>  /**
-</span>  @private
-  @property {Canarium.BaseComm}
-    下位層通信クラスのインスタンス
-   */
-
-  AvsPackets.prototype._base = null;
-
-
-<span id='Canarium-AvsPackets-method-AvsPackets'>  /**
-</span>  @method
-    コンストラクタ
-  @param {Canarium.BaseComm} _base
-    下位層通信クラスのインスタンス
-   */
-
-  function AvsPackets(_base) {
-    this._base = _base;
-  }
+    BaseComm.prototype.transCommand = function(command) {
+      var txarray;
+      txarray = new Uint8Array(2);
+      txarray[0] = 0x3a;
+      txarray[1] = command;
+      return this._transSerial(txarray.buffer, 1).then((function(_this) {
+        return function(rxdata) {
+          var rxArray;
+          rxArray = new Uint8Array(rxdata);
+          return rxArray[0];
+        };
+      })(this));
+    };
 
 
-<span id='Canarium-AvsPackets-method-transPacket'>  /**
-</span>  @method
-    Avalon-STパケットを送受信する。
-    チャネル選択およびSOP/EOPは自動的に付加される。
-    現時点では、受信データに複数のチャネルがインタリーブすることは認めない。
-  @param {number} channel
-    チャネル番号(0～255)
-  @param {ArrayBuffer}  txdata
-    送信するパケットデータ
-  @param {number} rxsize
-    受信するパケットのバイト数
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
+<span id='Canarium-BaseComm-method-transData'>    /**
+</span>    @method
+      データの送受信を行う
+    @param {ArrayBuffer/null} txdata
+      送信するデータ(制御バイトは自動的にエスケープされる。nullの場合は受信のみ)
+    @param {number} rxsize
+      受信するバイト数
+    @return {Promise}
+      Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      受信データ
+     */
 
-  AvsPackets.prototype.transPacket = function(channel, txdata, rxsize, callback) {
-    var byte, dst, j, len, len1, src;
-    channel &amp;= 0xff;
-    src = new Uint8Array(txdata);
-    dst = new Uint8Array(txdata.byteLength * 2 + 4);
-    dst[0] = 0x7c;
-    dst[1] = channel;
-    dst[2] = 0x7a;
-    len = 3;
-    for (j = 0, len1 = src.length; j &lt; len1; j++) {
-      byte = src[j];
-      if ((0x7a &lt;= byte &amp;&amp; byte &lt;= 0x7d)) {
-        dst[len] = 0x7d;
-        len += 1;
-        byte ^= 0x20;
-      }
-      dst[len] = byte;
-      len += 1;
-    }
-    dst[len] = 0x7b;
-    len += 1;
-    txdata = dst.buffer.slice(0, len);
-    this._base.transData(txdata, rxsize + 4, (function(_this) {
-      return function(result, rxdata) {
-        var pos, xor;
-        if (!result) {
-          return callback(false, null);
-        }
-        src = new Uint8Array(rxdata);
-        dst = new Uint8Array(rxdata.byteLength - 4);
-        if (!(src[0] === 0x7c &amp;&amp; src[1] === channel &amp;&amp; src[2] === 0x7a)) {
-          return callback(false, null);
-        }
-        pos = 3;
+    BaseComm.prototype.transData = function(txdata, rxsize) {
+      var byte, dst, j, len, len1, src;
+      if (txdata) {
+        src = new Uint8Array(txdata);
+        dst = new Uint8Array(txdata.byteLength * 2);
         len = 0;
-        xor = 0x00;
-        while (pos &lt; src.byteLength) {
-          byte = src[pos];
-          pos += 1;
-          switch (byte) {
-            case 0x7a:
-            case 0x7c:
-              break;
-            case 0x7b:
-              return callback(true, dst.buffer.slice(0, len));
-            case 0x7d:
-              xor = 0x20;
-              continue;
+        for (j = 0, len1 = src.length; j &lt; len1; j++) {
+          byte = src[j];
+          if (byte === 0x3a || byte === 0x3d) {
+            dst[len] = 0x3d;
+            len += 1;
+            byte ^= 0x20;
           }
-          dst[len] = byte ^ xor;
+          dst[len] = byte;
           len += 1;
-          xor = 0x00;
         }
-        return callback(false, null);
+        txdata = dst.buffer.slice(0, len);
+      }
+      return this._transSerial(txdata, rxsize);
+    };
+
+
+<span id='Canarium-BaseComm-method-_log'>    /**
+</span>    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
+
+    BaseComm.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity &gt;= lvl) {
+        Canarium._log(&quot;BaseComm&quot;, func, msg, data);
+      }
+    };
+
+
+<span id='Canarium-BaseComm-method-_transSerial'>    /**
+</span>    @private
+    @method
+      シリアル通信の送受信を行う
+    @param {ArrayBuffer/null} txdata
+      送信するデータ(nullの場合は受信のみ)
+    @param {number} rxsize
+      受信するバイト数
+    @return {Promise}
+      シリアル送受信動作のPromiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      受信データ
+     */
+
+    BaseComm.prototype._transSerial = function(txdata, rxsize) {
+      var pos, txsize, x;
+      if (!this._connected) {
+        return Promise.reject(Error(&quot;Not connected&quot;));
+      }
+      pos = 0;
+      txsize = (txdata != null ? txdata.byteLength : void 0) || 0;
+      return ((function() {
+        var j, ref, ref1, results;
+        results = [];
+        for (x = j = 0, ref = txsize, ref1 = SERIAL_TX_MAX_LENGTH; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
+          results.push(x);
+        }
+        return results;
+      })()).reduce((function(_this) {
+        return function(sequence, pos) {
+          return sequence.then(function() {
+            return new Promise(function(resolve, reject) {
+              var data, size;
+              data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH);
+              size = data.byteLength;
+              return chrome.serial.send(_this._cid, data, function(writeInfo) {
+                var b, e;
+                e = writeInfo.error;
+                if (e != null) {
+                  return reject(Error(e));
+                }
+                b = writeInfo.bytesSent;
+                if (b !== size) {
+                  return reject(Error(&quot;bytesSent(&quot; + b + &quot;) != bytesRequested(&quot; + size + &quot;)&quot;));
+                }
+                _this._log(1, &quot;_transSerial&quot;, &quot;sent&quot;, new Uint8Array(data));
+                if (!(SUCCESSIVE_TX_WAIT_MS &gt; 0)) {
+                  return resolve();
+                }
+                return window.setTimeout(resolve, SUCCESSIVE_TX_WAIT_MS);
+              });
+            });
+          });
+        };
+      })(this), Promise.resolve()).then((function(_this) {
+        return function() {
+          var promise;
+          promise = new Promise(function(resolve, reject) {
+            if (rxsize === 0) {
+              return resolve(new ArrayBuffer());
+            }
+            _this._rxQueue.push({
+              length: rxsize,
+              resolve: resolve,
+              reject: reject
+            });
+            return _this._onReceiveProcess();
+          });
+          _this._log(1, &quot;_transSerial&quot;, &quot;wait&quot;, promise);
+          return promise;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-BaseComm-method-_onReceiveHandler'>    /**
+</span>    @private
+    @method
+      シリアル受信時のデータ格納と処理予約を行う
+    @param {Object} info
+      受信情報
+    @param {number} info.connectionId
+      接続ID
+    @param {ArrayBuffer} info.data
+      受信データ
+    @return {undefined}
+     */
+
+    BaseComm.prototype._onReceiveHandler = function(info) {
+      if (!(info.connectionId === this._cid &amp;&amp; this._connected)) {
+        return;
+      }
+      this._addRxBuffer(info.data);
+      if (SPLIT_EVENT_CONTEXT) {
+        window.setTimeout(((function(_this) {
+          return function() {
+            return _this._onReceiveProcess();
+          };
+        })(this)), 0);
+      } else {
+        this._onReceiveProcess();
+      }
+    };
+
+
+<span id='Canarium-BaseComm-method-_onReceiveProcess'>    /**
+</span>    @private
+    @method
+      シリアル受信後のデータ分割およびPromiseの遷移を行う
+    return {undefined}
+     */
+
+    BaseComm.prototype._onReceiveProcess = function() {
+      var buffer, length, queue;
+      while (this._rxQueue.length &gt; 0) {
+        length = this._rxQueue[0].length;
+        if (length &gt; this._rxTotalLength) {
+          break;
+        }
+        queue = this._rxQueue.shift();
+        buffer = this._sliceRxBuffer(length);
+        this._log(1, &quot;_onReceiveProcess&quot;, &quot;recv&quot;, new Uint8Array(buffer));
+        queue.resolve.call(void 0, buffer);
+      }
+    };
+
+
+<span id='Canarium-BaseComm-method-_addRxBuffer'>    /**
+</span>    @private
+    @method
+      受信データバッファの末尾にデータを追加する
+    @param {ArrayBuffer} data
+      受信データ
+    @return {undefined}
+     */
+
+    BaseComm.prototype._addRxBuffer = function(data) {
+      this._rxBuffers.push(data.slice(0));
+      this._rxTotalLength += data.byteLength;
+    };
+
+
+<span id='Canarium-BaseComm-method-_sliceRxBuffer'>    /**
+</span>    @private
+    @method
+      受信データバッファの先頭からデータを取り出す
+    @param {number} length
+      取り出すバイト数
+    @return {ArrayBuffer/null}
+      取り出したデータ(バッファ不足時はnull)
+     */
+
+    BaseComm.prototype._sliceRxBuffer = function(length) {
+      var array, partArray, partBuf, partLen, pos, rem;
+      if (length &gt; this._rxTotalLength) {
+        return null;
+      }
+      array = new Uint8Array(length);
+      pos = 0;
+      rem = length;
+      while (rem &gt; 0) {
+        partBuf = this._rxBuffers[0];
+        partLen = partBuf.byteLength;
+        if (partLen &lt;= rem) {
+          this._rxBuffers.shift();
+        } else {
+          partArray = new Uint8Array(partLen - rem);
+          partArray.set(new Uint8Array(partBuf, rem));
+          this._rxBuffers[0] = partArray.buffer;
+          partLen = rem;
+        }
+        array.set(new Uint8Array(partBuf, 0, partLen), pos);
+        pos += partLen;
+        rem -= partLen;
+      }
+      this._rxTotalLength -= length;
+      return array.buffer;
+    };
+
+
+<span id='Canarium-BaseComm-method-_onReceiveErrorHandler'>    /**
+</span>    @private
+    @method
+      受信エラーハンドラ
+    @param {Object} info
+      エラー情報
+    @param {number} info.connectionId
+      接続ID
+    @param {&quot;disconnected&quot;/&quot;timeout&quot;/&quot;device_lost&quot;/&quot;break&quot;/
+            &quot;frame_error&quot;/&quot;overrun&quot;/&quot;buffer_overflow&quot;/
+            &quot;parity_error&quot;/&quot;system_error&quot;} info.error
+      エラー種別を示す文字列
+    @return {undefined}
+     */
+
+    BaseComm.prototype._onReceiveErrorHandler = function(info) {
+      var error;
+      if (!(info.connectionId === this._cid &amp;&amp; this._connected)) {
+        return;
+      }
+      error = &quot;&quot; + info.error;
+      if (SPLIT_EVENT_CONTEXT) {
+        window.setTimeout(((function(_this) {
+          return function() {
+            return _this._onReceiveErrorProcess(error);
+          };
+        })(this)), 0);
+      } else {
+        this._onReceiveErrorProcess(error);
+      }
+    };
+
+
+<span id='Canarium-BaseComm-method-_onReceiveErrorProcess'>    /**
+</span>    @private
+    @method
+      受信エラー発生時の処置およびPromiseの遷移を行う
+    @param {string} error
+      エラー名称
+    @return {undefined}
+     */
+
+    BaseComm.prototype._onReceiveErrorProcess = function(error) {
+      var queue;
+      this.disconnect();
+      this._rxBuffers = [];
+      this._rxTotalLength = 0;
+      while (queue = this._rxQueue.shift()) {
+        queue.reject.call(void 0, Error(&quot;Disconnected because of &quot; + error));
+      }
+    };
+
+    return BaseComm;
+
+  })();
+
+
+<span id='Canarium-I2CComm'>  /**
+</span>  @class Canarium.I2CComm
+    PERIDOTボードI2C通信クラス
+  @uses Canarium.BaseComm
+   */
+
+  Canarium.I2CComm = (function() {
+    var I2C_TIMEOUT_MS;
+
+    null;
+
+
+<span id='Canarium-I2CComm-static-property-verbosity'>    /**
+</span>    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
+
+    I2CComm.verbosity = 0;
+
+
+<span id='Canarium-I2CComm-property-_base'>    /**
+</span>    @private
+    @property {Canarium.BaseComm} _base
+      下位層通信クラスのインスタンス
+     */
+
+
+<span id='Canarium-I2CComm-static-cfg-I2C_TIMEOUT_MS'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      I2C通信のタイムアウト時間
+    @readonly
+     */
+
+    I2C_TIMEOUT_MS = 1000;
+
+
+<span id='Canarium-I2CComm-method-constructor'>    /**
+</span>    @method constructor
+      コンストラクタ
+    @param {Canarium.BaseComm} _base
+      下位層通信クラスのインスタンス
+     */
+
+    function I2CComm(_base) {
+      this._base = _base;
+      return;
+    }
+
+
+<span id='Canarium-I2CComm-method-start'>    /**
+</span>    @method
+      スタートコンディションの送信
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+     */
+
+    I2CComm.prototype.start = function(callback) {
+      var timeLimit;
+      if (callback != null) {
+        return invokeCallback(callback, this.start());
+      }
+      timeLimit = void 0;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          _this._log(1, &quot;start&quot;, &quot;(start condition)&quot;);
+          timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x3b).then(function(response) {
+              if ((response &amp; 0x30) !== 0x30) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x1b);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return _this._base.transCommand(0x0b);
+        };
+      })(this)).then((function(_this) {
+        return function() {};
+      })(this));
+    };
+
+
+<span id='Canarium-I2CComm-method-stop'>    /**
+</span>    @method
+      ストップコンディションの送信
+      (必ずSCL=&#39;L&#39;が先行しているものとする)
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+     */
+
+    I2CComm.prototype.stop = function(callback) {
+      var timeLimit;
+      if (callback != null) {
+        return invokeCallback(callback, this.stop());
+      }
+      timeLimit = void 0;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          _this._log(1, &quot;stop&quot;, &quot;(stop condition)&quot;);
+          timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+          return _this._base.transCommand(0x0b);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x1b).then(function(response) {
+              if ((response &amp; 0x30) !== 0x10) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x3b).then(function(response) {
+              if ((response &amp; 0x30) !== 0x30) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          if (_this._base.sendImmediate) {
+            return;
+          }
+          return _this._base.transCommand(0x39);
+        };
+      })(this)).then((function(_this) {
+        return function() {};
+      })(this));
+    };
+
+
+<span id='Canarium-I2CComm-method-read'>    /**
+</span>    @method
+      バイトリード
+      (必ずSCL=&#39;L&#39;が先行しているものとする)
+    @param {boolean} ack
+      ACK返却の有無(true:ACK, false:NAK)
+    @param {function(boolean,number/Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+    @return {number} return.PromiseValue
+      読み込みデータ(0～255)
+     */
+
+    I2CComm.prototype.read = function(ack, callback) {
+      var readData, timeLimit;
+      if (callback != null) {
+        return invokeCallback(callback, this.read(ack));
+      }
+      ack = !!ack;
+      timeLimit = void 0;
+      readData = 0x00;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+          return [7, 6, 5, 4, 3, 2, 1, 0].reduce(function(promise, bitNum) {
+            return promise.then(function() {
+              return tryPromise(timeLimit.left, function() {
+                return _this._readBit();
+              }, 1);
+            }).then(function(bit) {
+              _this._log(2, &quot;read&quot;, &quot;bit#&quot; + bitNum + &quot;=&quot; + bit);
+              return readData |= bit &lt;&lt; bitNum;
+            });
+          }, Promise.resolve());
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            _this._log(2, &quot;read&quot;, ack ? &quot;ACK&quot; : &quot;NAK&quot;);
+            return _this._writeBit(ack ? 0 : 1);
+          }, 1);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._log(1, &quot;read&quot;, &quot;data=0x&quot; + (readData.toString(16)));
+          return readData;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-I2CComm-method-write'>    /**
+</span>    @method
+      バイトライト
+      (必ずSCL=&#39;L&#39;が先行しているものとする)
+    @param {number} writebyte
+      書き込むデータ(0～255)
+    @param {function(boolean,number/Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+    @return {boolean} return.PromiseValue
+      ACK受信の有無(true:ACK, false:NAK)
+     */
+
+    I2CComm.prototype.write = function(writebyte, callback) {
+      var timeLimit;
+      if (callback != null) {
+        return invokeCallback(callback, this.write(writebyte));
+      }
+      writebyte = parseInt(writebyte);
+      timeLimit = void 0;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          _this._log(1, &quot;write&quot;, &quot;data=0x&quot; + (writebyte.toString(16)));
+          timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+          return [7, 6, 5, 4, 3, 2, 1, 0].reduce(function(sequence, bitNum) {
+            var bit;
+            bit = (writebyte &gt;&gt;&gt; bitNum) &amp; 1;
+            return sequence.then(function() {
+              _this._log(2, &quot;write&quot;, &quot;bit#&quot; + bitNum + &quot;=&quot; + bit);
+              return tryPromise(timeLimit.left, function() {
+                return _this._writeBit(bit);
+              }, 1);
+            });
+          }, Promise.resolve());
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._readBit();
+          }, 1);
+        };
+      })(this)).then((function(_this) {
+        return function(bit) {
+          var ack;
+          ack = bit === 0;
+          _this._log(2, &quot;write&quot;, ack ? &quot;ACK&quot; : &quot;NAK&quot;);
+          return ack;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-I2CComm-method-_log'>    /**
+</span>    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {void}
+     */
+
+    I2CComm.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity &gt;= lvl) {
+        Canarium._log(&quot;I2CComm&quot;, func, msg, data);
+      }
+    };
+
+
+<span id='Canarium-I2CComm-method-_readBit'>    /**
+</span>    @private
+    @method
+      1ビットリード
+      (必ずSCL=&#39;L&#39;が先行しているものとする)
+    @return {Promise}
+      Promiseオブジェクト
+    @return {0/1} return.PromiseValue
+      読み出しビット値
+     */
+
+    I2CComm.prototype._readBit = function() {
+      var bit, timeLimit;
+      timeLimit = void 0;
+      bit = 0;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+          _this._log(3, &quot;_readBit&quot;, &quot;setup,SCL-&gt;HiZ&quot;);
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x3b).then(function(response) {
+              if ((response &amp; 0x10) !== 0x10) {
+                return Promise.reject();
+              }
+              if ((response &amp; 0x20) === 0x20) {
+                return bit = 1;
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._log(3, &quot;_readBit&quot;, &quot;SCL-&gt;L&quot;);
+          return _this._base.transCommand(0x2b);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return bit;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-I2CComm-method-_writeBit'>    /**
+</span>    @private
+    @method
+      1ビットライト
+      (必ずSCL=&#39;L&#39;が先行しているものとする)
+    @return {0/1} bit
+      書き込みビット値
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    I2CComm.prototype._writeBit = function(bit) {
+      var timeLimit;
+      timeLimit = void 0;
+      bit = (bit !== 0 ? 1 : 0) &lt;&lt; 5;
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+          _this._log(3, &quot;_writeBit&quot;, &quot;setup&quot;);
+          return _this._base.transCommand(0x0b | bit);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._log(3, &quot;_writeBit&quot;, &quot;SCL-&gt;HiZ&quot;);
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x1b | bit).then(function(response) {
+              if ((response &amp; 0x10) !== 0x10) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._log(3, &quot;_writeBit&quot;, &quot;SCL-&gt;L&quot;);
+          return _this._base.transCommand(0x2b);
+        };
+      })(this)).then((function(_this) {
+        return function() {};
+      })(this));
+    };
+
+    return I2CComm;
+
+  })();
+
+
+<span id='Canarium-AvsPackets'>  /**
+</span>  @class Canarium.AvsPackets
+    PERIDOTボードAvalon-STパケット層通信クラス
+  @uses Canarium.BaseComm
+   */
+
+  Canarium.AvsPackets = (function() {
+    null;
+
+
+<span id='Canarium-AvsPackets-property-base'>    /**
+</span>    @property base
+    @inheritdoc #_base
+    @readonly
+     */
+
+    AvsPackets.property(&quot;base&quot;, {
+      get: function() {
+        return this._base;
+      }
+    });
+
+
+<span id='Canarium-AvsPackets-static-property-verbosity'>    /**
+</span>    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
+
+    AvsPackets.verbosity = 0;
+
+
+<span id='Canarium-AvsPackets-property-_base'>    /**
+</span>    @private
+    @property {Canarium.BaseComm} _base
+      下位層通信クラスのインスタンス
+     */
+
+
+<span id='Canarium-AvsPackets-method-constructor'>    /**
+</span>    @method constructor
+      コンストラクタ
+    @param {Canarium.BaseComm} _base
+      下位層通信クラスのインスタンス
+     */
+
+    function AvsPackets(_base) {
+      this._base = _base;
+      return;
+    }
+
+
+<span id='Canarium-AvsPackets-method-transPacket'>    /**
+</span>    @method
+      Avalon-STパケットを送受信する。
+      チャネル選択およびSOP/EOPは自動的に付加される。
+      現時点では、受信データに複数のチャネルがインタリーブすることは認めない。
+    @param {number} channel
+      チャネル番号(0～255)
+    @param {ArrayBuffer}  txdata
+      送信するパケットデータ
+    @param {number} rxsize
+      受信するパケットのバイト数
+    @return {Promise}
+      Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      受信したデータ
+     */
+
+    AvsPackets.prototype.transPacket = function(channel, txdata, rxsize) {
+      var byte, dst, header, j, len, len1, pushWithEscape, ref, src, totalRxLen;
+      pushWithEscape = function(array, pos, byte) {
+        if ((0x7a &lt;= byte &amp;&amp; byte &lt;= 0x7d)) {
+          array[pos++] = 0x7d;
+          array[pos++] = byte ^ 0x20;
+          return pos;
+        }
+        array[pos++] = byte;
+        return pos;
       };
-    })(this));
-  };
+      channel &amp;= 0xff;
+      src = new Uint8Array(txdata);
+      dst = new Uint8Array(txdata.byteLength * 2 + 5);
+      len = 0;
+      dst[len++] = 0x7c;
+      len = pushWithEscape(dst, len, channel);
+      dst[len++] = 0x7a;
+      header = dst.subarray(0, len);
+      ref = src.subarray(0, src.length - 1);
+      for (j = 0, len1 = ref.length; j &lt; len1; j++) {
+        byte = ref[j];
+        len = pushWithEscape(dst, len, byte);
+      }
+      dst[len++] = 0x7b;
+      len = pushWithEscape(dst, len, src[src.length - 1]);
+      txdata = dst.buffer.slice(0, len);
+      totalRxLen = rxsize + header.length + 1;
+      this._log(1, &quot;transPacket&quot;, &quot;begin&quot;, {
+        data: src,
+        encoded: new Uint8Array(txdata)
+      });
+      return this._base.transData(txdata, totalRxLen).then((function(_this) {
+        return function(rxdata) {
+          var data, eop, pos, xor;
+          src = new Uint8Array(rxdata);
+          _this._log(1, &quot;transPacket&quot;, &quot;recv&quot;, {
+            data: src
+          });
+          pos = header.length;
+          if (src.subarray(0, pos).join(&quot;,&quot;) !== header.join(&quot;,&quot;)) {
+            return Promise.reject(Error(&quot;Illegal packetize control bytes&quot;));
+          }
+          dst = new Uint8Array(rxdata.byteLength - 4);
+          len = 0;
+          xor = 0x00;
+          eop = false;
+          while (pos &lt; src.byteLength) {
+            byte = src[pos++];
+            switch (byte) {
+              case 0x7a:
+              case 0x7c:
+                break;
+              case 0x7b:
+                eop = true;
+                continue;
+              case 0x7d:
+                xor = 0x20;
+                continue;
+            }
+            dst[len++] = byte ^ xor;
+            xor = 0x00;
+            if (!eop) {
+              continue;
+            }
+            if (pos === src.byteLength) {
+              break;
+            }
+            return Promise.reject(Error(&quot;Illegal packetized bytestream&quot;));
+          }
+          data = dst.buffer.slice(0, len);
+          _this._log(1, &quot;transPacket&quot;, &quot;end&quot;, {
+            data: new Uint8Array(data)
+          });
+          return data;
+        };
+      })(this));
+    };
 
-  return AvsPackets;
 
-})();
+<span id='Canarium-AvsPackets-method-_log'>    /**
+</span>    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
+
+    AvsPackets.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity &gt;= lvl) {
+        Canarium._log(&quot;AvsPackets&quot;, func, msg, data);
+      }
+    };
+
+    return AvsPackets;
+
+  })();
 
 
-<span id='Canarium-AvmTransactions'>/**
-</span>@class Canarium.AvmTransactions
-PERIDOTボードAvalon-MMトランザクション層通信クラス
-@uses Canarium.AvsPackets
- */
-
-Canarium.AvmTransactions = (function() {
-  var AVM_TRANS_MAX_BYTES, DEBUG;
-
-  DEBUG = (DEBUG != null) || 0;
-
-
-<span id='Canarium-AvmTransactions-property-_avs'>  /**
-</span>  @private
-  @property {Canarium.AvsPackets}
-    Avalon-STパケット層通信クラスのインスタンス
+<span id='Canarium-AvmTransactions'>  /**
+</span>  @class Canarium.AvmTransactions
+    PERIDOTボードAvalon-MMトランザクション層通信クラス
+  @uses Canarium.AvsPackets
    */
 
-  AvmTransactions.prototype._avs = null;
+  Canarium.AvmTransactions = (function() {
+    var AVM_TRANS_MAX_BYTES;
+
+    null;
 
 
-<span id='Canarium-AvmTransactions-property-_channel'>  /**
-</span>  @private
-  @property {number}
-    パケットのチャネル番号
+<span id='Canarium-AvmTransactions-static-property-verbosity'>    /**
+</span>    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
+
+    AvmTransactions.verbosity = 0;
+
+
+<span id='Canarium-AvmTransactions-property-_avs'>    /**
+</span>    @private
+    @property {Canarium.AvsPackets} _avs
+      Avalon-STパケット層通信クラスのインスタンス
+     */
+
+
+<span id='Canarium-AvmTransactions-property-_channel'>    /**
+</span>    @private
+    @property {number} _channel
+      Avalon Packets to Transactions Converterのチャネル番号
+     */
+
+
+<span id='Canarium-AvmTransactions-static-cfg-AVM_TRANS_MAX_BYTES'>    /**
+</span>    @private
+    @static
+    @cfg {number}
+      1回のトランザクションで読み書きできる最大バイト数
+    @readonly
+     */
+
+    AVM_TRANS_MAX_BYTES = 32768;
+
+
+<span id='Canarium-AvmTransactions-method-constructor'>    /**
+</span>    @method constructor
+      コンストラクタ
+    @param {Canarium.AvsPackets} _avs
+      Avalon-STパケット層通信クラスのインスタンス
+    @param {number} _channel
+      パケットのチャネル番号
+     */
+
+    function AvmTransactions(_avs, _channel) {
+      this._avs = _avs;
+      this._channel = _channel;
+      return;
+    }
+
+
+<span id='Canarium-AvmTransactions-method-read'>    /**
+</span>    @method
+      AvalonMMメモリリード(IORD_DIRECT)
+    @param {number} address
+      読み込み元アドレス(バイト単位)
+    @param {number} bytenum
+      読み込むバイト数
+    @param {function(boolean,ArrayBuffer)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      受信したデータ
+     */
+
+    AvmTransactions.prototype.read = function(address, bytenum, callback) {
+      var dest, x;
+      if (callback != null) {
+        return invokeCallback(callback, this.read(address, bytenum));
+      }
+      this._log(1, &quot;read&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;)&quot;);
+      if (!this._avs._base.configured) {
+        return Promise.reject(&quot;Device is not configured&quot;);
+      }
+      dest = new Uint8Array(bytenum);
+      return ((function() {
+        var j, ref, ref1, results;
+        results = [];
+        for (x = j = 0, ref = bytenum, ref1 = AVM_TRANS_MAX_BYTES; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
+          results.push(x);
+        }
+        return results;
+      })()).reduce((function(_this) {
+        return function(sequence, pos) {
+          return sequence.then(function() {
+            return _this._trans(0x14, address + pos, void 0, len).then(function(partialData) {
+              return dest.set(new Uint8Array(partialData), pos);
+            });
+          });
+        };
+      })(this), Promise.resolve()).then((function(_this) {
+        return function() {
+          _this._log(1, &quot;read&quot;, &quot;end&quot;, dest);
+          return dest.buffer;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-AvmTransactions-method-write'>    /**
+</span>    @method
+      AvalonMMメモリライト(IOWR_DIRECT)
+    @param {number} address
+      書き込み先アドレス(バイト単位)
+    @param {ArrayBuffer} writedata
+      書き込むデータ
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+     */
+
+    AvmTransactions.prototype.write = function(address, writedata, callback) {
+      var src, x;
+      if (callback != null) {
+        return invokeCallback(callback, this.write(address, writedata));
+      }
+      src = new Uint8Array(writedata);
+      this._log(1, &quot;write&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;)&quot;, src);
+      if (!this._avs._base.configured) {
+        return Promise.reject(&quot;Device is not configured&quot;);
+      }
+      return ((function() {
+        var j, ref, ref1, results;
+        results = [];
+        for (x = j = 0, ref = src.byteLength, ref1 = AVM_TRANS_MAX_BYTES; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
+          results.push(x);
+        }
+        return results;
+      })()).reduce((function(_this) {
+        return function(sequence, pos) {
+          return sequence.then(function() {
+            return _this._trans(0x04, address + pos, src.subarray(pos, AVM_TRANS_MAX_BYTES), void 0);
+          });
+        };
+      })(this), Promise.resolve()).then((function(_this) {
+        return function() {
+          _this._log(1, &quot;write&quot;, &quot;end&quot;);
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-AvmTransactions-method-iord'>    /**
+</span>    @method
+      AvalonMMペリフェラルリード(IORD)
+    @param {number} address
+      読み込み元ベースアドレス(バイト単位。ただし自動的に4バイトの倍数に切り捨てられる)
+    @param {number} offset
+      オフセット(4バイトワード単位)
+    @param {function(boolean,number/Error)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      受信したデータ(リトルエンディアンの32-bit符号有り整数)
+     */
+
+    AvmTransactions.prototype.iord = function(address, offset, callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.iord(address, offset));
+      }
+      this._log(1, &quot;iord&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;+&quot; + offset + &quot;)&quot;);
+      if (!this._avs._base.configured) {
+        return Promise.reject(&quot;Device is not configured&quot;);
+      }
+      return this._trans(0x10, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), void 0, 4).then((function(_this) {
+        return function(rxdata) {
+          var readData, src;
+          src = new Uint8Array(rxdata);
+          readData = (src[3] &lt;&lt; 24) | (src[2] &lt;&lt; 16) | (src[1] &lt;&lt; 8) | (src[0] &lt;&lt; 0);
+          _this._log(1, &quot;iord&quot;, &quot;end&quot;, readData);
+          return readData;
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-AvmTransactions-method-iowr'>    /**
+</span>    @method
+      AvalonMMペリフェラルライト(IOWR)
+    @param {number} address
+      書き込み先ベースアドレス(バイト単位。ただし自動的に4バイトの倍数に切り捨てられる)
+    @param {number} offset
+      オフセット(4バイトワード単位)
+    @param {number} writedata
+      書き込むデータ(リトルエンディアン)
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+     */
+
+    AvmTransactions.prototype.iowr = function(address, offset, writedata, callback) {
+      var src;
+      if (callback != null) {
+        return invokeCallback(callback, this.iowr(address, offset, writedata));
+      }
+      this._log(1, &quot;iowr&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;+&quot; + offset + &quot;)&quot;, writedata);
+      if (!this._avs._base.configured) {
+        return Promise.reject(&quot;Device is not configured&quot;);
+      }
+      src = new Uint8Array(4);
+      src[0] = (writedata &gt;&gt;&gt; 24) &amp; 0xff;
+      src[1] = (writedata &gt;&gt;&gt; 16) &amp; 0xff;
+      src[2] = (writedata &gt;&gt;&gt; 8) &amp; 0xff;
+      src[3] = (writedata &gt;&gt;&gt; 0) &amp; 0xff;
+      return this._trans(0x00, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), src.buffer, void 0).then((function(_this) {
+        return function() {
+          _this._log(1, &quot;iowr&quot;, &quot;end&quot;);
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-AvmTransactions-method-option'>    /**
+</span>    @method
+      AvalonMMオプション設定
+    @param {Object} option
+      オプション
+    @param {boolean}  option.fastAcknowledge
+      即時応答ビットを立てるかどうか
+    @param {function(boolean,Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト
+     */
+
+    AvmTransactions.prototype.option = function(option, callback) {
+      if (callback != null) {
+        return invokeCallback(callback, this.option(option));
+      }
+      return this._avs._base.option(option);
+    };
+
+
+<span id='Canarium-AvmTransactions-method-_log'>    /**
+</span>    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
+
+    AvmTransactions.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity &gt;= lvl) {
+        Canarium._log(&quot;AvmTransactions&quot;, func, msg, data);
+      }
+    };
+
+
+<span id='Canarium-AvmTransactions-method-_trans'>    /**
+</span>    @private
+    @method
+      トランザクションの発行
+    @param {number} transCode
+      トランザクションコード
+    @param {number} address
+      アドレス
+    @param {Uint8Array/undefined} txdata
+      送信パケットに付加するデータ(受信時はundefined)
+    @param {undefined/number}  rxsize
+      受信するバイト数(送信時はundefined)
+    @return {Promise}
+      Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      受信したデータ
+     */
+
+    AvmTransactions.prototype._trans = function(transCode, address, txdata, rxsize) {
+      var len, pkt;
+      len = (txdata != null ? txdata.byteLength : void 0) || rxsize;
+      pkt = new Uint8Array(8 + ((txdata != null ? txdata.byteLength : void 0) || 0));
+      pkt[0] = transCode;
+      pkt[1] = 0x00;
+      pkt[2] = (len &gt;&gt;&gt; 8) &amp; 0xff;
+      pkt[3] = (len &gt;&gt;&gt; 0) &amp; 0xff;
+      pkt[4] = (address &gt;&gt;&gt; 24) &amp; 0xff;
+      pkt[5] = (address &gt;&gt;&gt; 16) &amp; 0xff;
+      pkt[6] = (address &gt;&gt;&gt; 8) &amp; 0xff;
+      pkt[7] = (address &gt;&gt;&gt; 0) &amp; 0xff;
+      if (txdata) {
+        pkt.set(txdata, 8);
+      }
+      this._log(2, &quot;_trans&quot;, &quot;send&quot;, pkt);
+      return this._avs.transPacket(this._channel, pkt.buffer, rxsize || 4).then((function(_this) {
+        return function(rxdata) {
+          var res;
+          _this._log(2, &quot;_trans&quot;, &quot;recv&quot;, new Uint8Array(rxdata));
+          if (rxsize) {
+            if (rxdata.byteLength !== rxsize) {
+              return Promise.reject(Error(&quot;Received data length does not match&quot;));
+            }
+            return rxdata;
+          }
+          res = new Uint8Array(rxdata);
+          if (!(res[0] === pkt[0] ^ 0x80 &amp;&amp; res[2] === pkt[2] &amp;&amp; res[3] === pkt[3])) {
+            return Promise.reject(Error(&quot;Illegal write response&quot;));
+          }
+        };
+      })(this));
+    };
+
+    return AvmTransactions;
+
+  })();
+
+
+  /*
+  canarium.jsの末端に配置されるスクリプト。
+  ロードの最終処理や後始末などを記述する。
    */
 
-  AvmTransactions._channel = null;
-
-
-<span id='Canarium-AvmTransactions-property-AVM_TRANS_MAX_BYTES'>  /**
-</span>  @private
-  @property {number}
-    1回のトランザクションで読み書きできる最大バイト数
-  @readonly
-   */
-
-  AVM_TRANS_MAX_BYTES = 32768;
-
-
-<span id='Canarium-AvmTransactions-method-AvmTransactions'>  /**
-</span>  @method
-    コンストラクタ
-  @param {Canarium.AvsPackets} _avs
-    Avalon-STパケット層通信クラスのインスタンス
-  @param {number} _channel
-    パケットのチャネル番号
-   */
-
-  function AvmTransactions(_avs, _channel) {
-    this._avs = _avs;
-    this._channel = _channel;
+  if (oldProperty != null) {
+    Function.prototype.property = oldProperty;
+  } else {
+    delete Function.prototype.property;
   }
 
+  this.Canarium = Canarium;
 
-<span id='Canarium-AvmTransactions-method-read'>  /**
-</span>  @method
-    AvalonMMメモリリード(IORD_DIRECT)
-  @param {number} address
-    読み込み元アドレス(バイト単位)
-  @param {number} bytenum
-    読み込むバイト数
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  AvmTransactions.prototype.read = function(address, bytenum, callback) {
-    var byteOffset, dst, remainder;
-    dst = new Uint8Array(bytenum);
-    byteOffset = 0;
-    remainder = bytenum;
-    new Function.Sequence((function(_this) {
-      return function(seq) {
-        var len;
-        len = Math.min(remainder, AVM_TRANS_MAX_BYTES);
-        return _this._trans(0x14, address + byteOffset, null, len, function(result, partialData) {
-          if (!result) {
-            return seq.abort();
-          }
-          dst.set(new Uint8Array(partialData), byteOffset);
-          byteOffset += len;
-          remainder -= len;
-          if (remainder &gt; 0) {
-            return seq.redo();
-          }
-          return seq.next();
-        });
-      };
-    })(this)).final((function(_this) {
-      return function(seq) {
-        if (seq.aborted) {
-          return callback(false, null);
-        }
-        return callback(true, dst.buffer);
-      };
-    })(this)).start();
-  };
-
-
-<span id='Canarium-AvmTransactions-method-write'>  /**
-</span>  @method
-    AvalonMMメモリライト(IOWR_DIRECT)
-  @param {number} address
-    書き込み先アドレス(バイト単位)
-  @param {ArrayBuffer} writedata
-    書き込むデータ
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  AvmTransactions.prototype.write = function(address, writedata, callback) {
-    var byteOffset, remainder, src;
-    src = new Uint8Array(writedata);
-    byteOffset = 0;
-    remainder = writedata.byteLength;
-    new Function.Sequence((function(_this) {
-      return function(seq) {
-        var len;
-        len = Math.min(remainder, AVM_TRANS_MAX_BYTES);
-        return _this._trans(0x04, address + byteOffset, src.subarray(byteOffset, len), null, function(result) {
-          if (!result) {
-            return seq.abort();
-          }
-          byteOffset += len;
-          remainder -= len;
-          if (remainder &gt; 0) {
-            return seq.redo();
-          }
-          return seq.next();
-        });
-      };
-    })(this)).final((function(_this) {
-      return function(seq) {
-        return callback(seq.finished);
-      };
-    })(this)).start();
-  };
-
-
-<span id='Canarium-AvmTransactions-method-iord'>  /**
-</span>  @method
-    AvalonMMペリフェラルリード(IORD)
-  @param {number} address
-    読み込み元ベースアドレス(バイト単位。ただし自動的に4バイトの倍数に切り捨てられる)
-  @param {number} offset
-    オフセット(4バイトワード単位)
-  @param {function(boolean,number):void}  callback
-    コールバック関数
-  @return {void}
-   */
-
-  AvmTransactions.prototype.iord = function(address, offset, callback) {
-    this._trans(0x10, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), null, 4, function(result, rxdata) {
-      var readData, src;
-      if (!result) {
-        return callback(false, null);
-      }
-      src = new Uint8Array(rxdata);
-      readData = (src[3] &lt;&lt; 24) | (src[2] &lt;&lt; 16) | (src[1] &lt;&lt; 8) | (src[0] &lt;&lt; 0);
-      return callback(true, readData);
-    });
-  };
-
-
-<span id='Canarium-AvmTransactions-method-iowr'>  /**
-</span>  @method
-    AvalonMMペリフェラルライト(IOWR)
-  @param {number} address
-    書き込み先ベースアドレス(バイト単位。ただし自動的に4バイトの倍数に切り捨てられる)
-  @param {number} offset
-    オフセット(4バイトワード単位)
-  @param {number} writedata
-    書き込むデータ
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  AvmTransactions.prototype.iowr = function(address, offset, writedata, callback) {
-    var src;
-    src = new Uint8Array(4);
-    src[0] = (writedata &gt;&gt;&gt; 24) &amp; 0xff;
-    src[1] = (writedata &gt;&gt;&gt; 16) &amp; 0xff;
-    src[2] = (writedata &gt;&gt;&gt; 8) &amp; 0xff;
-    src[3] = (writedata &gt;&gt;&gt; 0) &amp; 0xff;
-    this._trans(0x00, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), src, 4, function(result) {
-      return callback(result);
-    });
-  };
-
-
-<span id='Canarium-AvmTransactions-method-option'>  /**
-</span>  @method
-    AvalonMMオプション設定 
-  @param {Object} option
-    オプション
-  @param {boolean}  option.fastAcknowledge
-    即時応答ビットを立てるかどうか
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  AvmTransactions.prototype.option = function(option, callback) {};
-
-
-<span id='Canarium-AvmTransactions-method-_trans'>  /**
-</span>  @private
-  @method
-    トランザクションの発行
-  @param {number} transCode
-    トランザクションコード
-  @param {number} address
-    アドレス
-  @param {Uint8Array/null} txdata
-    送信パケットに付加するデータ(受信時はnull)
-  @param {null/number}  rxsize
-    受信するバイト数(送信時はnull)
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
-   */
-
-  AvmTransactions.prototype._trans = function(transCode, address, txdata, rxsize, callback) {
-    var len, pkt;
-    len = (txdata != null ? txdata.byteLength : void 0) || rxsize;
-    pkt = new Uint8Array(8 + ((txdata != null ? txdata.byteLength : void 0) || 0));
-    pkt[0] = transCode;
-    pkt[1] = 0x00;
-    pkt[2] = (len &gt;&gt;&gt; 8) &amp; 0xff;
-    pkt[3] = (len &gt;&gt;&gt; 0) &amp; 0xff;
-    pkt[4] = (address &gt;&gt;&gt; 24) &amp; 0xff;
-    pkt[5] = (address &gt;&gt;&gt; 16) &amp; 0xff;
-    pkt[6] = (address &gt;&gt;&gt; 8) &amp; 0xff;
-    pkt[7] = (address &gt;&gt;&gt; 0) &amp; 0xff;
-    if (txdata) {
-      pkt.set(txdata, 8);
-    }
-    this._avs.transPacket(this._channel, pkt.buffer, (rxsize || 0) + 4, (function(_this) {
-      return function(result, rxdata) {
-        var src;
-        if (!result) {
-          return callback(false, null);
-        }
-        src = new Uint8Array(rxdata);
-        if (!(src[0] === pkt[0] ^ 0x80 &amp;&amp; src[2] === pkt[2] &amp;&amp; src[3] === pkt[3])) {
-          return callback(false, null);
-        }
-        return callback(true, rxdata.buffer(4));
-      };
-    })(this));
-  };
-
-  return AvmTransactions;
-
-})();
+}).call(this);
 </pre>
 </body>
 </html>
