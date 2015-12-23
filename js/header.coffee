@@ -78,40 +78,6 @@ invokeCallback = (callback, promise) ->
 
 ###*
 @private
-@class TimeLimit
-  タイムアウト検出クラス
-###
-class TimeLimit
-  ###*
-  @method constructor
-    コンストラクタ
-  @param {number} timeout
-    タイムアウト時間(ms)
-  ###
-  constructor: (@timeout) ->
-    @start = @now
-    return
-
-  ###*
-  @property {number} now
-    現在時刻(残り時間ではない)
-  @readonly
-  ###
-  @property("now", get: ->
-    return window.performance.now()
-  )
-
-  ###*
-  @property {number} left
-    残り時間(ms)
-  @readonly
-  ###
-  @property("left", get: ->
-    return Math.max(0, @timeout - parseInt(@now - @start))
-  )
-
-###*
-@private
 @method
   指定時間待機するPromiseオブジェクトを生成
 @param {number} dulation
@@ -188,6 +154,7 @@ tryPromise = (timeout, promiser, maxTries) ->
   ) # return new Promise()
 
 ###*
+@private
 @method
   Promiseの成功失敗にかかわらず実行する関数のペアを生成
 @return {Function[]}
@@ -203,4 +170,38 @@ finallyPromise = (action) ->
       action()
       return Promise.reject(error)
   ] # return []
+
+###*
+@private
+@class TimeLimit
+  タイムアウト検出クラス
+###
+class TimeLimit
+  ###*
+  @method constructor
+    コンストラクタ
+  @param {number} timeout
+    タイムアウト時間(ms)
+  ###
+  constructor: (@timeout) ->
+    @start = @now
+    return
+
+  ###*
+  @property {number} now
+    現在時刻(残り時間ではない)
+  @readonly
+  ###
+  @property("now", get: ->
+    return window.performance.now()
+  )
+
+  ###*
+  @property {number} left
+    残り時間(ms)
+  @readonly
+  ###
+  @property("left", get: ->
+    return Math.max(0, @timeout - parseInt(@now - @start))
+  )
 
