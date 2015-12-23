@@ -238,9 +238,11 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       )
   )
   rbf = null
-  RBF_PATH = "testsuite.rbf"
-  SYSID_BASE = 0x10000000
-  SYSID_ID = 0xa0140807
+  RBF_PATH      = "testsuite.rbf"
+  SYSID_BASE    = 0x10000000
+  SYSID_ID      = 0xa0140807
+  IPL_MEM_BASE  = 0x0f000000
+  IPL_MEM_SIZE  = 16384
   @add(
     category: "コンフィグ(正常系)"
     description: "RBFファイルを用いてコンフィグレーション実行(ボード制限無し)"
@@ -280,30 +282,6 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       c.config({id: binfo.id, serialcode: "#{binfo.serialcode}X"}, rbf, (result) =>
         callback(if result then @FAIL else @PASS)
       )
-  @add(
-    category: "AVM通信(正常系)"
-    description: "AVM経由でsysidを読み取り"
-    setup: (callback) ->
-      callback(if c then @PASS else @FAIL)
-    body: (callback) ->
-      c.avm.iord(SYSID_BASE, 0).then((id) =>
-        @print("sysid.id = 0x#{(id | 0x100000000).toString(16)[-8..-1]}")
-        mask = 0xffffffff
-        callback(if (id & mask) == (SYSID_ID & mask) then @PASS else @FAIL)
-      ).catch(=>
-        callback(@FAIL)
-      )
-    )
-  )
-  @add(
-    category: "リセット(正常系)"
-    description: "リセット実行"
-    setup: (callback) ->
-      callback(if c then @PASS else @FAIL)
-    body: (callback) ->
-      c.reset((result) =>
-        callback(if result then @PASS else @FAIL)
-      )
   )
   @add(
     category: "コンフィグ(正常系)"
@@ -333,6 +311,60 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     body: (callback) ->
       c.config({id: binfo.id, serialcode: binfo.serialcode}, rbf, (result) =>
         callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "AVM通信(正常系)"
+    description: "sysidを読み取り(IORD)"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.avm.iord(SYSID_BASE, 0).then((id) =>
+        @print("sysid.id = 0x#{(id+0x100000000).toString(16)[-8..-1]}")
+        callback(if (id|0) == (SYSID_ID|0) then @PASS else @FAIL)
+      ).catch(=>
+        callback(@FAIL)
+      )
+  )
+  SCRATCH_BASE  = (IPL_MEM_BASE + IPL_MEM_SIZE - 4)
+  SCRATCH_MAGIC = 0xcafebabe
+  @add(
+    category: "AVM通信(正常系)"
+    description: "スクラッチ領域を書き込み(IOWR) & ベリファイ(IORD)"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.avm.iowr(SCRATCH_BASE, 0, SCRATCH_MAGIC).then(=>
+        return c.avm.iord(SCRATCH_BASE, 0)
+      ).then((compare) =>
+        @print("scratch = 0x#{(compare+0x100000000).toString(16)[-8..-1]}")
+        callback(if (compare|0) == (SCRATCH_MAGIC|0) then @PASS else @FAIL)
+      ).catch(=>
+        callback(@FAIL)
+      )
+  )
+  @add(
+    category: "リセット(正常系)"
+    description: "リセット実行"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.reset((result, response) =>
+        @print("response = 0x#{response.toString(16)}") if result
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "AVM通信(正常系)"
+    description: "スクラッチ領域読み込み(IORD)によるリセット動作確認"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.avm.iord(SCRATCH_BASE, 0).then((compare) =>
+        @print("scratch = 0x#{(compare|0x100000000).toString(16)[-8..-1]}")
+        callback(if (compare|0) != (SCRATCH_MAGIC|0) then @PASS else @FAIL)
+      ).catch(=>
+        callback(@FAIL)
       )
   )
   @add(
