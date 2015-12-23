@@ -1,14 +1,21 @@
 ###*
 @class Canarium.AvsPackets
-PERIDOTボードAvalon-STパケット層通信クラス
+  PERIDOTボードAvalon-STパケット層通信クラス
 @uses Canarium.BaseComm
 ###
 class Canarium.AvsPackets
-  DEBUG = if DEBUG? then DEBUG else 0
+  null
 
   #----------------------------------------------------------------
   # Public properties
   #
+
+  ###*
+  @static
+  @property {number}
+    デバッグ出力の細かさ(0で出力無し)
+  ###
+  @verbosity: 1
 
   #----------------------------------------------------------------
   # Private properties
@@ -44,11 +51,12 @@ class Canarium.AvsPackets
     送信するパケットデータ
   @param {number} rxsize
     受信するパケットのバイト数
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @return {Promise}
+    Promiseオブジェクト
+  @return {ArrayBuffer} return.PromiseValue
+    受信したデータ
   ###
-  transPacket: (channel, txdata, rxsize, callback) ->
+  transPacket: (channel, txdata, rxsize) ->
     pushWithEscape = (array, pos, byte) ->
       if 0x7a <= byte <= 0x7d
         array[pos++] = 0x7d
@@ -70,15 +78,13 @@ class Canarium.AvsPackets
     len = pushWithEscape(dst, len, src[src.length - 1])
     txdata = dst.buffer.slice(0, len)
     totalRxLen = rxsize + header.length + 1
-    @_log("transPacket", "info:(send)#{new Uint8Array(txdata).hexDump()}") if DEBUG >= 1
-    @_base.transData(txdata, totalRxLen, (result, rxdata) =>
-      return callback(false, null) unless result
+    @_log(1, "transPacket", "begin", {data: src, encoded: new Uint8Array(txdata)})
+    return @_base.transData(txdata, totalRxLen).then((rxdata) =>
       src = new Uint8Array(rxdata)
-      @_log("transPacket", "info:(recv)#{src.hexDump()}") if DEBUG >= 1
+      @_log(1, "transPacket", "recv", {data: src})
       pos = header.length
       unless src.subarray(0, pos).join(",") == header.join(",")
-        @_log("transPacket", "error:Illegal packetize control bytes", src.hexDump())
-        return callback(false, null)
+        return Promise.reject(Error("Illegal packetize control bytes"))
       dst = new Uint8Array(rxdata.byteLength - 4)
       len = 0
       xor = 0x00
@@ -97,13 +103,12 @@ class Canarium.AvsPackets
         dst[len++] = byte ^ xor
         xor = 0x00
         continue unless eop
-        break unless pos == src.byteLength
-        return callback(true, dst.buffer.slice(0, len))
-
-      @_log("transPacket", "error:Illegal packetized bytestream", src.hexDump())
-      callback(false, null)
-    )
-    return
+        break if pos == src.byteLength
+        return Promise.reject(Error("Illegal packetized bytestream"))
+      data = dst.buffer.slice(0, len)
+      @_log(1, "transPacket", "end", {data: new Uint8Array(data)})
+      return data # Last PromiseValue
+    ) # return @_base.transData().then()
 
   #----------------------------------------------------------------
   # Private methods
@@ -113,15 +118,17 @@ class Canarium.AvsPackets
   @private
   @method
     ログの出力
+  @param {number} lvl
+    詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
   @param {string} func
     関数名
   @param {string} msg
     メッセージ
   @param {Object} [data]
     任意のデータ
-  @return {void}
+  @return {undefined}
   ###
-  _log: (func, msg, data) ->
-    Canarium._log("AvsPackets", func, msg, data)
+  _log: (lvl, func, msg, data) ->
+    Canarium._log("AvsPackets", func, msg, data) if @constructor.verbosity >= lvl
     return
 

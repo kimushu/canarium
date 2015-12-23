@@ -1,11 +1,14 @@
 TARGETS = canarium.js canarium.min.js
-SOURCE = common.coffee canarium.coffee \
-			basecomm.coffee i2ccomm.coffee \
-			avspackets.coffee avmtransactions.coffee \
-			hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
-			hostfs.coffee hostnet.coffee
+SOURCE = \
+	header.coffee \
+	canarium.coffee \
+	basecomm.coffee i2ccomm.coffee \
+	avspackets.coffee avmtransactions.coffee \
+	footer.coffee
+	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
+	# hostfs.coffee hostnet.coffee
 PREAMBLE = license.js
-JS_TYPES = ArrayBuffer chrome.serial Uint8Array DirectoryEntry
+JS_TYPES = ArrayBuffer chrome.serial Uint8Array DirectoryEntry Promise
 DOC_DIR = doc
 
 comma := ,
@@ -47,7 +50,7 @@ test: compile
 
 canarium.js: $(SOURCE) $(PREAMBLE)
 	cat /dev/null $(PREAMBLE) > $@ || (rm -f $@; false)
-	cat $(filter %.coffee,$^) | coffee -c -b -s --no-header >> $@ || (rm -f $@; false)
+	cat $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
 
 %.min.js: %.js $(PREAMBLE)
 	uglifyjs --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<

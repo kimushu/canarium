@@ -1,14 +1,21 @@
 ###*
 @class Canarium.I2CComm
-PERIDOTボードI2C通信クラス
+  PERIDOTボードI2C通信クラス
 @uses Canarium.BaseComm
 ###
 class Canarium.I2CComm
-  DEBUG = DEBUG? or 0
+  null
 
   #----------------------------------------------------------------
   # Public properties
   #
+
+  ###*
+  @static
+  @property {number}
+    デバッグ出力の細かさ(0で出力無し)
+  ###
+  @verbosity: 3
 
   #----------------------------------------------------------------
   # Private properties
@@ -16,18 +23,18 @@ class Canarium.I2CComm
 
   ###*
   @private
-  @property {Canarium.BaseComm}
+  @property {Canarium.BaseComm} _base
     下位層通信クラスのインスタンス
   ###
-  _base: null
 
   ###*
   @private
-  @property {number}
+  @static
+  @cfg {number}
     I2C通信のタイムアウト時間
   @readonly
   ###
-  I2C_TIMEOUT_MS = 100
+  I2C_TIMEOUT_MS = 100 * 10
 
   #----------------------------------------------------------------
   # Public methods
@@ -40,140 +47,137 @@ class Canarium.I2CComm
     下位層通信クラスのインスタンス
   ###
   constructor: (@_base) ->
+    return
 
   ###*
   @method
     スタートコンディションの送信
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
   start: (callback) ->
-    @_log("start", "") if DEBUG >= 1
-    setup = (done, abort, retry) =>
-      @_log("start", "setup") if DEBUG >= 2
-      @_base.transCommand(
-        0x3b  # SDA=Z, SCL=Z, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          return retry() unless (response & 0x30) == 0x30
-          done(true)
-      )
-    sdaLow = (done, abort, retry) =>
-      @_log("start", "sdaLow") if DEBUG >= 2
-      @_base.transCommand(
-        0x1b  # SDA=L, SCL=Z, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
-      )
-    sclLow = (done, abort, retry) =>
-      @_log("start", "sclLow") if DEBUG >= 2
-      @_base.transCommand(
-        0x0b  # SDA=L, SCL=L, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
-      )
-    _tryActions(
-      [setup, sdaLow, sclLow]
-      callback
-      I2C_TIMEOUT_MS
-    )
-    return
+    return invokeCallback(callback, @start()) if callback?
+    timeLimit = undefined
+    return Promise.resolve(
+    ).then(=>
+      @_log(1, "start", "(start condition)")
+      timeLimit = new TimeLimit(I2C_TIMEOUT_MS)
+      # Setup
+      return tryPromise(timeLimit.left, =>
+        # (コマンド：SDA=Z, SCL=Z, 即時応答ON)
+        return @_base.transCommand(0x3b).then((response) =>
+          unless (response & 0x30) == 0x30
+            return Promise.reject()
+          return
+        )
+      ) # return tryPromise()
+    ).then(=>
+      # SDA -> L
+      # (コマンド：SDA=L, SCL=Z, 即時応答ON)
+      return @_base.transCommand(0x1b)
+    ).then(=>
+      # SCL -> L
+      # (コマンド：SDA=L, SCL=L, 即時応答ON)
+      return @_base.transCommand(0x0b)
+    ).then(=>
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
     ストップコンディションの送信
     (必ずSCL='L'が先行しているものとする)
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
   stop: (callback) ->
-    @_log("stop", "") if DEBUG >= 1
-    setup = (done, abort, retry) =>
-      @_log("stop", "setup") if DEBUG >= 2
-      @_base.transCommand(
-        0x0b  # SDA=L, SCL=L, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
+    return invokeCallback(callback, @stop()) if callback?
+    timeLimit = undefined
+    return Promise.resolve(
+    ).then(=>
+      @_log(1, "stop", "(stop condition)")
+      timeLimit = new TimeLimit(I2C_TIMEOUT_MS)
+      # Setup
+      # (コマンド：SDA=L, SCL=L, 即時応答ON)
+      return @_base.transCommand(0x0b)
+    ).then(=>
+      # SCL -> HiZ(H)
+      # (コマンド：SDA=L, SCL=Z, 即時応答ON)
+      return tryPromise(timeLimit.left, =>
+        return @_base.transCommand(0x1b).then((response) =>
+          return Promise.reject() unless (response & 0x30) == 0x10
+        )
       )
-    sclRelease = (done, abort, retry) =>
-      @_log("stop", "sclRelease") if DEBUG >= 2
-      @_base.transCommand(
-        0x1b  # SDA=L, SCL=Z, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          return retry() unless (response & 0x30) == 0x10
-          done(true)
+    ).then(=>
+      # SDA -> HiZ(H)
+      # (コマンド：SDA=Z, SCL=Z, 即時応答ON)
+      return tryPromise(timeLimit.left, =>
+        return @_base.transCommand(0x3b).then((response) =>
+          return Promise.reject() unless (response & 0x30) == 0x30
+        )
       )
-    sdaRelease = (done, abort, retry) =>
-      @_log("stop", "sdaRelease") if DEBUG >= 2
-      @_base.transCommand(
-        0x3b  # SDA=Z, SCL=Z, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          return retry() unless (response & 0x30) == 0x30
-          done(true)
-      )
-    restoreState = (done, abort, retry) =>
-      @_log("stop", "restoreState") if DEBUG >= 2
-      return done(true) if @_base.sendImmediate
-      @_base.transCommand(
-        0x39  # SDA=Z, SCL=Z, 即時応答OFF
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
-      )
-    _tryActions(
-      [setup, sclRelease, sdaRelease, restoreState]
-      callback
-      I2C_TIMEOUT_MS
-    )
-    return
+    ).then(=>
+      # 即時応答OFF設定の復旧
+      return if @_base.sendImmediate
+      # (コマンド：SDA=Z, SCL=Z, 即時応答OFF)
+      return @_base.transCommand(0x39)
+    ).then(=>
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
     バイトリード
     (必ずSCL='L'が先行しているものとする)
-  @param {boolean}  ack
+  @param {boolean} ack
     ACK返却の有無(true:ACK, false:NAK)
-  @param {function(boolean, Number):void} callback
-    コールバック関数
-    function(boolean:通信成否, Number:読み込みデータ(0～255))
-  @return {void}
+  @param {function(boolean,number/Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+  @return {number} return.PromiseValue
+    読み込みデータ(0～255)
   ###
   read: (ack, callback) ->
-    @_log("read", "") if DEBUG >= 1
-    bitNum = 8
+    return invokeCallback(callback, @read(ack)) if callback?
+    ack = !!ack
+    timeLimit = undefined
     readData = 0x00
-    readBits = (done, abort, retry) =>
-      bitNum -= 1
-      @_log("read", "readBits[#{bitNum}]") if DEBUG >= 2
-      @_readBit((result, bit) ->
-        return abort(false) unless result
-        readData = (readData << 1) | bit
-        done(true)
+    return Promise.resolve(
+    ).then(=>
+      # Read bits
+      timeLimit = new TimeLimit(I2C_TIMEOUT_MS)
+      return [7..0].reduce(
+        (promise, bitNum) =>
+          return promise.then(=>
+            return tryPromise(
+              timeLimit.left
+              => @_readBit()
+              1
+            )
+          ).then((bit) =>
+            @_log(2, "read", "bit##{bitNum}=#{bit}")
+            readData |= (bit << bitNum)
+          )
+        Promise.resolve()
       )
-    sendAck = (done, abort, retry) =>
-      @_log("read", "sendAck") if DEBUG >= 2
-      @_writeBit((if ack then 0 else 1), (result) ->
-        return abort(false) unless result
-        done(true)
+    ).then(=>
+      # Send ACK/NAK
+      return tryPromise(
+        timeLimit.left
+        =>
+          @_log(2, "read", if ack then "ACK" else "NAK")
+          @_writeBit(if ack then 0 else 1)
+        1
       )
-    _tryActions(
-      (readBits for [7..0]).concat(sendAck)
-      (result) ->
-        @_log(
-          "read"
-          "result=#{if result then readData.hex(2) else "(failed)"}"
-        ) if DEBUG >= 2
-        callback(result, if result then readData else null)
-      I2C_TIMEOUT_MS
-    )
-    return
+    ).then(=>
+      @_log(1, "read", "data=0x#{readData.toString(16)}")
+      return readData # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
@@ -181,37 +185,47 @@ class Canarium.I2CComm
     (必ずSCL='L'が先行しているものとする)
   @param {number} writebyte
     書き込むデータ(0～255)
-  @param {function(boolean, boolean):void} callback
-    コールバック関数
-    function(boolean:通信成否, boolean:ACK受信有無)
-  @return {void}
+  @param {function(boolean,number/Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+  @return {boolean} return.PromiseValue
+    ACK受信の有無(true:ACK, false:NAK)
   ###
   write: (writebyte, callback) ->
-    @_log("write", "data=#{writebyte.hex(2)}") if DEBUG >= 1
-    bitNum = 8
-    writeData = 0 + writebyte
-    writeBits = (done, abort, retry) =>
-      bitNum -= 1
-      bit = (writeData >>> 7) & 1
-      writeData <<= 1
-      @_log("write", "writeBits[#{bitNum}]") if DEBUG >= 2
-      @_writeBit(bit, (result) ->
-        return abort(false) unless result
-        done(true)
+    return invokeCallback(callback, @write(writebyte)) if callback?
+    writebyte = parseInt(writebyte)
+    timeLimit = undefined
+    return Promise.resolve(
+    ).then(=>
+      # Write bits
+      @_log(1, "write", "data=0x#{writebyte.toString(16)}")
+      timeLimit = new TimeLimit(I2C_TIMEOUT_MS)
+      return [7..0].reduce(
+        (sequence, bitNum) =>
+          bit = (writebyte >>> bitNum) & 1
+          return sequence.then(=>
+            @_log(2, "write", "bit##{bitNum}=#{bit}")
+            return tryPromise(
+              timeLimit.left
+              => @_writeBit(bit)
+              1
+            )
+          ) # return sequence.then()
+        Promise.resolve()
+      ) # return [...].reduce()...
+    ).then(=>
+      # Receive ACK/NAK
+      return tryPromise(
+        timeLimit.left
+        => @_readBit()
+        1
       )
-    recvAck = (done, abort, retry) =>
-      @_log("write", "recvAck") if DEBUG >= 2
-      @_readBit((result, bit) ->
-        return abort(false) unless result
-        done(true, bit)
-      )
-    _tryActions(
-      (writeBits for [7..0]).concat(recvAck)
-      (result, ack_n) ->
-        callback(result, if result then (ack_n == 0) else null)
-      I2C_TIMEOUT_MS
-    )
-    return
+    ).then((bit) =>
+      ack = (bit == 0)
+      @_log(2, "write", if ack then "ACK" else "NAK")
+      return ack  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   #----------------------------------------------------------------
   # Private methods
@@ -221,6 +235,8 @@ class Canarium.I2CComm
   @private
   @method
     ログの出力
+  @param {number} lvl
+    詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
   @param {string} func
     関数名
   @param {string} msg
@@ -229,8 +245,8 @@ class Canarium.I2CComm
     任意のデータ
   @return {void}
   ###
-  _log: (func, msg, data) ->
-    Canarium._log("I2CComm", func, msg, data)
+  _log: (lvl, func, msg, data) ->
+    Canarium._log("I2CComm", func, msg, data) if @constructor.verbosity >= lvl
     return
 
   ###*
@@ -238,118 +254,70 @@ class Canarium.I2CComm
   @method
     1ビットリード
     (必ずSCL='L'が先行しているものとする)
-  @param {function(boolean,number)} callback
-    コールバック関数
+  @return {Promise}
+    Promiseオブジェクト
+  @return {0/1} return.PromiseValue
+    読み出しビット値
   ###
-  _readBit: (callback) ->
-    @_log("_readBit", "") if DEBUG >= 2
+  _readBit: ->
+    timeLimit = undefined
     bit = 0
-    setup = (done, abort, retry) =>
-      @_log("_readBit", "setup") if DEBUG >= 3
-      @_base.transCommand(
-        0x3b  # SDA=Z, SCL=Z, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          return retry() unless (response & 0x10) == 0x10
+    return Promise.resolve(
+    ).then(=>
+      timeLimit = new TimeLimit(I2C_TIMEOUT_MS)
+      # Setup
+      # (コマンド：SDA=Z, SCL=Z, 即時応答ON)
+      @_log(3, "_readBit", "setup,SCL->HiZ")
+      return tryPromise(timeLimit.left, =>
+        return @_base.transCommand(0x3b).then((response) =>
+          return Promise.reject() unless (response & 0x10) == 0x10
           bit = 1 if (response & 0x20) == 0x20
-          done(true)
+        )
       )
-    sclLow = (done, abort, retry) =>
-      @_log("_readBit", "sclLow") if DEBUG >= 3
-      @_base.transCommand(
-        0x2b  # SDA=Z, SCL=L, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
-      )
-    _tryActions(
-      [setup, sclLow]
-      (result) ->
-        @_log(
-          "_readBit"
-          "result=#{if result then bit else "(failed)"}"
-        ) if DEBUG >= 3
-        callback(result, if result then bit else null)
-      I2C_TIMEOUT_MS
-    )
-    return
+    ).then(=>
+      # SCL -> L
+      # (コマンド：SDA=Z, SCL=L, 即時応答ON)
+      @_log(3, "_readBit", "SCL->L")
+      return @_base.transCommand(0x2b)
+    ).then(=>
+      return bit  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @private
   @method
     1ビットライト
     (必ずSCL='L'が先行しているものとする)
-  @param {0/1}  bit
-  @param {function(boolean)}  callback
-    コールバック関数
+  @return {0/1} bit
+    書き込みビット値
+  @return {Promise}
+    Promiseオブジェクト
   ###
-  _writeBit: (bit, callback) ->
-    @_log("_writeBit", "data=#{bit}") if DEBUG >= 2
-    setup = (done, abort, retry) =>
-      @_log("_writeBit", "setup") if DEBUG >= 3
-      @_base.transCommand(
-        0x0b + ((bit & 1) << 5) # SDA=bit, SCL=L, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
+  _writeBit: (bit) ->
+    timeLimit = undefined
+    bit = (if (bit != 0) then 1 else 0) << 5
+    return Promise.resolve(
+    ).then(=>
+      timeLimit = new TimeLimit(I2C_TIMEOUT_MS)
+      # Setup
+      # (コマンド：SDA=bit, SCL=L, 即時応答ON)
+      @_log(3, "_writeBit", "setup")
+      return @_base.transCommand(0x0b | bit)
+    ).then(=>
+      # SCL -> HiZ(H)
+      # (コマンド：SDA=bit, SCL=Z, 即時応答ON)
+      @_log(3, "_writeBit", "SCL->HiZ")
+      return tryPromise(timeLimit.left, =>
+        return @_base.transCommand(0x1b | bit).then((response) =>
+          return Promise.reject() unless (response & 0x10) == 0x10
+        )
       )
-    sclRelease = (done, abort, retry) =>
-      @_log("_writeBit", "sclRelease") if DEBUG >= 3
-      @_base.transCommand(
-        0x1b + ((bit & 1) << 5) # SDA=bit, SCL=Z, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          return retry() unless (response & 0x10) == 0x10
-          done(true)
-      )
-    sclLow = (done, abort, retry) =>
-      @_log("_writeBit", "sclLow") if DEBUG >= 3
-      @_base.transCommand(
-        0x2b  # SDA=Z, SCL=L, 即時応答ON
-        (result, response) ->
-          return abort(false) unless result
-          done(true)
-      )
-    _tryActions(
-      [setup, sclRelease, sclLow]
-      callback
-      I2C_TIMEOUT_MS
-    )
-    return
-
-  ###*
-  @static
-  @private
-  @method
-    タイムアウト付きで非同期アクション(複数可)を試行する
-  @param {Function[]} actions
-    実行するアクションの配列(完了,中止,リトライの3つのコールバック関数を引数とする)
-  @param {function(boolean)} callback
-    すべてのアクションが完了したときのコールバック関数
-  @param {number} timeout
-    1アクション当たりのタイムアウト時間
-    (window.performance.nowにより経過時間で計測される)
-  @param {number} [period]
-    リトライ周期(省略時は0ms…最小待ち)
-  @return {void}
-  ###
-  _tryActions = (actions, callback, timeout, period) ->
-    actions = [actions] unless actions instanceof Array
-    period or= 0
-    action = 0
-    startTime = window.performance.now()
-    done = (args...) ->
-      action += 1
-      return start() if action < actions.length
-      callback(args...)
-    abort = (args...) ->
-      callback(args...)
-    retry = ->
-      elapsed = window.performance.now() - startTime
-      @_log("_tryActions", "timeout")
-      return abort() if elapsed > timeout
-      window.setTimeout(start, period)
-    start = => actions[action](done, retry, abort)
-    start()
-    return
+    ).then(=>
+      # SDA -> HiZ(H)
+      # (コマンド：SDA=Z, SCL=L, 即時応答ON)
+      @_log(3, "_writeBit", "SCL->L")
+      return @_base.transCommand(0x2b)
+    ).then(=>
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 

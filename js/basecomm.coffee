@@ -1,10 +1,10 @@
 ###*
 @class Canarium.BaseComm
-PERIDOTボード下位層通信クラス
+  PERIDOTボード下位層通信クラス
 @uses chrome.serial
 ###
 class Canarium.BaseComm
-  DEBUG = if DEBUG? then DEBUG else 0
+  null
 
   #----------------------------------------------------------------
   # Public properties
@@ -44,6 +44,13 @@ class Canarium.BaseComm
   @property "sendImmediate",
     get: -> @_sendImmediate
     set: (v) -> @_sendImmediate = !!v
+
+  ###*
+  @static
+  @property {number}
+    デバッグ出力の細かさ(0で出力無し)
+  ###
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties
@@ -145,28 +152,30 @@ class Canarium.BaseComm
   @method
     接続対象デバイスを列挙する
     (PERIDOTでないデバイスも列挙される可能性があることに注意)
-  @param {function(boolean,Object[]):void}  callback
-    コールバック関数(配列の各要素は次のメンバを持つ)
+  @return {Promise}
+    Promiseオブジェクト
+  @return {Object[]} return.PromiseValue
+    デバイスの配列(各要素は次のメンバを持つ)
 
     - name : UI向け名称(COMxxなど)
     - path : 内部管理向けパス
-  @return {void}
   ###
-  @enumerate: (callback) ->
+  @enumerate: ->
     getName = (port) ->
       name = port.displayName
       path = port.path
       return "#{name} (#{path})" if name
-      "#{path}"
-    chrome.serial.getDevices((ports) ->
-      devices = []
-      devices.push({
-        path: "#{port.path}",
-        name: getName(port)
-      }) for port in ports
-      callback(true, devices)
-    )
-    return
+      return "#{path}"
+    return new Promise((resolve) =>
+      chrome.serial.getDevices((ports) ->
+        devices = []
+        devices.push({
+          path: "#{port.path}",
+          name: getName(port)
+        }) for port in ports
+        resolve(devices)
+      )
+    ) # return new Promise()
 
   ###*
   @method constructor
@@ -190,85 +199,79 @@ class Canarium.BaseComm
     ボードに接続する
   @param {string} path
     接続先パス(enumerateが返すpath)
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @return {Promise}
+    Promiseオブジェクト
   ###
-  connect: (path, callback) ->
-    if @_connected
-      callback(false)
-      return
+  connect: (path) ->
+    return Promise.reject(Error("Already connected")) if @_connected
     @_connected = true
     @_path = null
-    chrome.serial.connect(
-      path,
-      {bitrate: @_bitrate},
-      (connectionInfo) =>
-        ###
-        Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
-        ###
-        unless connectionInfo
-          chrome.runtime.lastError  # エラー読み捨て
-          @_connected = false
-          return callback(false)
-        @_path = "#{path}"
-        @_cid = connectionInfo.connectionId
-        @_rxQueue = []
-        @_rxBuffers = []
-        @_rxTotalLength = 0
-        chrome.serial.onReceive.addListener(@_onReceive)
-        chrome.serial.onReceiveError.addListener(@_onReceiveError)
-        callback(true)
+    return new Promise((resolve, reject) =>
+      chrome.serial.connect(
+        path,
+        {bitrate: @_bitrate},
+        (connectionInfo) =>
+          ###
+          Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
+          ###
+          unless connectionInfo
+            @_connected = false
+            return reject(Error(chrome.runtime.lastError))
+          @_path = "#{path}"
+          @_cid = connectionInfo.connectionId
+          @_rxQueue = []
+          @_rxBuffers = []
+          @_rxTotalLength = 0
+          chrome.serial.onReceive.addListener(@_onReceive)
+          chrome.serial.onReceiveError.addListener(@_onReceiveError)
+          return resolve()
+      )
     )
-    return
 
   ###*
   @method
     ボードから切断する
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @return {Promise}
+    Promiseオブジェクト
   ###
-  disconnect: (callback) ->
-    unless @_connected
-      callback(false)
-      return
-    chrome.serial.disconnect(@_cid, (result) =>
-      return callback(false) unless result
-      chrome.serial.onReceive.removeListener(@_onReceive)
-      chrome.serial.onReceiveError.removeListener(@_onReceiveError)
-      @_connected = false
-      @_path = null
-      @_cid = null
-      @_rxQueue = null
-      @_rxBuffers = null
-      @_rxTotalLength = null
-      callback(true)
+  disconnect: ->
+    return Promise.reject(Error("Not connected")) unless @_connected
+    return new Promise((resolve, reject) =>
+      chrome.serial.disconnect(@_cid, (result) =>
+        return reject(Error(chrome.runtime.lastError)) unless result
+        chrome.serial.onReceive.removeListener(@_onReceive)
+        chrome.serial.onReceiveError.removeListener(@_onReceiveError)
+        @_connected = false
+        @_path = null
+        @_cid = null
+        @_rxQueue = null
+        @_rxBuffers = null
+        @_rxTotalLength = null
+        return resolve()
+      )
     )
-    return
 
   ###*
   @method
     制御コマンドの送受信を行う
   @param {number} command
     コマンドバイト
-  @param {function(boolean,number):void}  callback
-    コールバック関数
-  @return {void}
+  @return {Promise}
+    Promiseオブジェクト
+  @return {number} return.PromiseValue
+    受信コマンド
   ###
-  transCommand: (command, callback) ->
+  transCommand: (command) ->
     txarray = new Uint8Array(2)
     txarray[0] = 0x3a
     txarray[1] = command
-    @_transSerial(
+    return @_transSerial(
       txarray.buffer,
-      1,
-      (result, rxdata) ->
-        return callback(false, null) unless result
-        rxArray = new Uint8Array(rxdata)
-        callback(true, rxArray[0])
+      1
+    ).then((rxdata) =>
+      rxArray = new Uint8Array(rxdata)
+      return rxArray[0]
     )
-    return
 
   ###*
   @method
@@ -277,11 +280,12 @@ class Canarium.BaseComm
     送信するデータ(制御バイトは自動的にエスケープされる。nullの場合は受信のみ)
   @param {number} rxsize
     受信するバイト数
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
+  @return {Promise}
+    Promiseオブジェクト
+  @return {ArrayBuffer} return.PromiseValue
+    受信データ
   ###
-  transData: (txdata, rxsize, callback) ->
+  transData: (txdata, rxsize) ->
     if txdata
       src = new Uint8Array(txdata)
       dst = new Uint8Array(txdata.byteLength * 2)
@@ -294,8 +298,7 @@ class Canarium.BaseComm
         dst[len] = byte
         len += 1
       txdata = dst.buffer.slice(0, len)
-    @_transSerial(txdata, rxsize, callback)
-    return
+    return @_transSerial(txdata, rxsize)
 
   #----------------------------------------------------------------
   # Private methods
@@ -305,16 +308,18 @@ class Canarium.BaseComm
   @private
   @method
     ログの出力
+  @param {number} lvl
+    詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
   @param {string} func
     関数名
   @param {string} msg
     メッセージ
   @param {Object} [data]
     任意のデータ
-  @return {void}
+  @return {undefined}
   ###
-  _log: (func, msg, data) ->
-    Canarium._log("BaseComm", func, msg, data)
+  _log: (lvl, func, msg, data) ->
+    Canarium._log("BaseComm", func, msg, data) if @constructor.verbosity >= lvl
     return
 
   ###*
@@ -325,71 +330,78 @@ class Canarium.BaseComm
     送信するデータ(nullの場合は受信のみ)
   @param {number} rxsize
     受信するバイト数
-  @param {function(boolean,ArrayBuffer):void} callback
-    コールバック関数
-  @return {void}
+  @return {Promise}
+    シリアル送受信動作のPromiseオブジェクト
+  @return {ArrayBuffer} return.PromiseValue
+    受信データ
   ###
-  _transSerial: (txdata, rxsize, callback) ->
-    unless @_connected
-      callback(false, null)
-      return
-    @_rxQueue.push({length: rxsize, callback: callback}) if rxsize > 0
+  _transSerial: (txdata, rxsize) ->
+    return Promise.reject(Error("Not connected")) unless @_connected
     pos = 0
-    remainder = txdata?.byteLength or 0
-    new Function.Sequence(
-      (seq) =>
-        return seq.next() if remainder == 0
-        len = Math.min(remainder, SERIAL_TX_MAX_LENGTH)
-        partialData = txdata.slice(pos, pos + len)
-        @_log(
-          "_transSerial"
-          "info:(send@#{pos}):#{new Uint8Array(partialData).hexDump()}"
-        ) if DEBUG >= 1
-        chrome.serial.send(@_cid, partialData, (writeInfo) =>
-          return seq.abort() unless writeInfo.bytesSent == len
-          pos += len
-          remainder -= len
-          return seq.next() if remainder == 0
-          window.setTimeout((-> seq.redo()), SUCCESSIVE_TX_WAIT_MS)
-        )
-    ).final(
-      (seq) =>
-        callback(seq.finished) if rxsize == 0
-    ).start()
-    return
+    txsize = txdata?.byteLength or 0
+    return (x for x in [0...txsize] by SERIAL_TX_MAX_LENGTH).reduce(
+      (sequence, pos) =>
+        return sequence.then(=>
+          return new Promise((resolve, reject) =>
+            data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH)
+            size = data.byteLength
+            chrome.serial.send(@_cid, data, (writeInfo) =>
+              e = writeInfo.error
+              return reject(Error(e)) if e?
+              b = writeInfo.bytesSent
+              return reject(Error("bytesSent(#{b}) != bytesRequested(#{size})")) if b != size
+              @_log(1, "_transSerial", "sent(#{hexDump(data)})")
+              return resolve() unless SUCCESSIVE_TX_WAIT_MS > 0
+              window.setTimeout(resolve, SUCCESSIVE_TX_WAIT_MS)
+            ) # chrome.serial.send()
+          ) # return new Promise()
+        ) # return sequence.then()
+      Promise.resolve()
+    ).then(=>
+      promise = new Promise((resolve, reject) =>
+        return resolve(new ArrayBuffer()) if rxsize == 0
+        @_rxQueue.push({length: rxsize, resolve: resolve, reject: reject})
+        @_onReceiveProcess()
+      )
+      @_log(1, "_transSerial", "wait", promise)
+      return promise
+    ) # return (...).reduce()...
 
   ###*
   @private
   @method
-    シリアル受信時の処理を行う
+    シリアル受信時のデータ格納と処理予約を行う
   @param {Object} info
     受信情報
   @param {number} info.connectionId
     接続ID
   @param {ArrayBuffer} info.data
     受信データ
-  @return {void}
+  @return {undefined}
   ###
   _onReceiveHandler: (info) ->
     return unless info.connectionId == @_cid and @_connected
     @_addRxBuffer(info.data)
     if SPLIT_EVENT_CONTEXT
-      window.setTimeout((=> @_onReceiveHandler2()), 0)
+      window.setTimeout((=> @_onReceiveProcess()), 0)
     else
-      @_onReceiveHandler2()
+      @_onReceiveProcess()
     return
 
-  _onReceiveHandler2: ->
+  ###*
+  @private
+  @method
+    シリアル受信後のデータ分割およびPromiseの遷移を行う
+  return {undefined}
+  ###
+  _onReceiveProcess: ->
     while @_rxQueue.length > 0
       length = @_rxQueue[0].length
       break if length > @_rxTotalLength
       queue = @_rxQueue.shift()
       buffer = @_sliceRxBuffer(length)
-      @_log(
-        "_onReceiveHandler2"
-        "info:(recv)#{new Uint8Array(buffer).hexDump()}"
-      ) if DEBUG >= 1
-      queue.callback.call(undefined, true, buffer)
+      @_log(1, "_onReceiveProcess", "recv(#{hexDump(buffer)})")
+      queue.resolve.call(undefined, buffer)
     return
 
   ###*
@@ -398,7 +410,7 @@ class Canarium.BaseComm
     受信データバッファの末尾にデータを追加する
   @param {ArrayBuffer} data
     受信データ
-  @return {void}
+  @return {undefined}
   ###
   _addRxBuffer: (data) ->
     @_rxBuffers.push(data.slice(0))
@@ -447,25 +459,34 @@ class Canarium.BaseComm
           "frame_error"/"overrun"/"buffer_overflow"/
           "parity_error"/"system_error"} info.error
     エラー種別を示す文字列
-  @return {void}
+  @return {undefined}
   ###
   _onReceiveErrorHandler: (info) ->
     return unless info.connectionId == @_cid and @_connected
+    error = "#{info.error}"
     if SPLIT_EVENT_CONTEXT
-      window.setTimeout((=> @_onReceiveErrorHandler2()), 0)
+      window.setTimeout((=> @_onReceiveErrorProcess(error)), 0)
     else
-      @_onReceiveErrorHandler2()
+      @_onReceiveErrorProcess(error)
     return
 
-  _onReceiveErrorHandler2: ->
+  ###*
+  @private
+  @method
+    受信エラー発生時の処置およびPromiseの遷移を行う
+  @param {string} error
+    エラー名称
+  @return {undefined}
+  ###
+  _onReceiveErrorProcess: (error) ->
     # シリアル通信レベルでの通信エラーは、原則として復旧不可。
     # また、ケーブル切断によるエラーの場合、ドライバを切断しておかないと
     # Windowsでは次回接続時に支障がでるため自動的にdisconnectする。
-    @disconnect(-> return)
+    @disconnect()
     # キューされた受信待ちキューをすべてエラー終了とする
     @_rxBuffers = []
     @_rxTotalLength = 0
     while queue = @_rxQueue.shift()
-      queue.callback.call(undefined, false, null)
+      queue.reject.call(undefined, Error("Disconnected because of #{error}"))
     return
 

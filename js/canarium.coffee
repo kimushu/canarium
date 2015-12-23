@@ -1,9 +1,9 @@
 ###*
 @class Canarium
-PERIDOTボードドライバ
+  PERIDOTボードドライバ
 ###
 class Canarium
-  DEBUG = DEBUG? or 0
+  null
 
   #----------------------------------------------------------------
   # Public properties
@@ -69,6 +69,13 @@ class Canarium
   @property "avm",
     get: -> @_avm
 
+  ###*
+  @static
+  @property {number}
+    デバッグ出力の細かさ(0で出力無し)
+  ###
+  @verbosity: 1
+
   #----------------------------------------------------------------
   # Private properties
   #
@@ -113,12 +120,21 @@ class Canarium
   ###*
   @static
   @method
-  @inheritdoc Canarium.BaseComm#enumerate
-  @localdoc
-    {@link Canarium.BaseComm#enumerate}に転送されます
+    接続対象デバイスを列挙する
+    (PERIDOTでないデバイスも列挙される可能性があることに注意)
+  @param {function(boolean,Object[]/Error)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト
+  @return {Object[]} return.PromiseValue
+    デバイスの配列(各要素は次のメンバを持つ)
+
+    - name : UI向け名称(COMxxなど)
+    - path : 内部管理向けパス
   ###
-  @enumerate: (args...) ->
-    Canarium.BaseComm.enumerate(args...)
+  @enumerate: (callback) ->
+    return invokeCallback(callback, @enumerate()) if callback?
+    return Canarium.BaseComm.enumerate()
 
   ###*
   @method constructor
@@ -131,51 +147,54 @@ class Canarium
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
     @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
-
-  ###*
-  @inheritdoc Canarium.BaseComm#connect
-  ###
-  open: (portname, callback) ->
-    if @_base.connected
-      callback(false)
-      return
-    @boardInfo = null
-    new Function.Sequence(
-      (seq) =>
-        @_base.connect(portname, (result) -> seq.next(result))
-      (seq) =>
-        @_eepromRead(0x00, 4, (result, readData) =>
-          return seq.abort() unless result
-          header = new Uint8Array(readData)
-          if header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
-            @_log("connect", "info:version=#{header[3].hex(2)}") if DEBUG >= 1
-            @boardInfo = {version: header[3]}
-            seq.next()
-          seq.abort()
-        )
-    ).final(
-      (seq) =>
-        return @_base.disconnect(-> callback(false)) if seq.aborted
-        callback(true)
-    ).start()
     return
 
   ###*
   @method
+    ボードに接続する
+  @param {string} path
+    接続先パス(enumerateが返すpath)
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+  ###
+  open: (portname, callback) ->
+    return invokeCallback(callback, @open(portname)) if callback?
+    return Promise.resolve(
+    ).then(=>
+      return @_base.connect(portname)
+    ).then(=>
+      @_boardInfo = null
+      return @_eepromRead(0x00, 4)
+    ).then((readData) =>
+      header = new Uint8Array(readData)
+      unless header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
+        return Promise.reject(Error("EEPROM header is invalid"))
+      @_log(1, "connect", "version=#{header[3].hex(2)}")
+      @_boardInfo = {version: header[3]}
+      return  # Last PromiseValue
+    ).catch((error) =>
+      return @_base.disconnect().catch(=>).then(=> Promise.reject(error))
+    ) # return Promise.resolve()...
+
+  ###*
+  @method
     PERIDOTデバイスポートのクローズ
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
   close: (callback) ->
-    unless @_base.connected
-      callback(false)
-      return
-    @_base.disconnect((result) =>
-      @boardInfo = null
-      callback(result)
-    )
-    return
+    return invokeCallback(callback, @close()) if callback?
+    return Promise.resolve(
+    ).then(=>
+      return @_base.disconnect()
+    ).then(=>
+      @_boardInfo = null
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
@@ -188,179 +207,157 @@ class Canarium
     シリアル番号
   @param {ArrayBuffer}  rbfdata
     rbfまたはrpdのデータ
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
   config: (boardInfo, rbfdata, callback) ->
-    return callback(false) unless @_base.connected
-    startTime = null
-    seq = new Function.Sequence()
-    if boardInfo
-      unless @boardInfo.id and @boardInfo.serialcode
-        # まだボード情報が読み込まれていないので先に読み込む
-        seq.add(=>
-          @getinfo((result) -> seq.next(result))
-        )
+    return invokeCallback(callback, @config()) if callback?
+    timeLimit = undefined
+    return Promise.resolve(
+    ).then(=>
+      return if boardInfo or (@boardInfo.id and @boardInfo.serialcode)
+      # まだボード情報が読み込まれていないので先に読み込む
+      return @getinfo()
+    ).then(=>
       # コンフィグレーション可否の判断を行う
-      seq.add(=>
-        mismatch = (a, b) -> a and a != b
-        return seq.abort() if mismatch(boardInfo.id, @boardInfo.id)
-        return seq.abort() if mismatch(boardInfo.serialcode, @boardInfo.serialcode)
-        seq.next()
-      )
-    seq.add(=>
+      mismatch = (a, b) -> a and a != b
+      if mismatch(boardInfo.id, @boardInfo.id)
+        return Promise.reject(Error("Board ID mismatch"))
+      if mismatch(boardInfo.serialcode, @boardInfo.serialcode)
+        return Promise.reject(Error("Board serial code mismatch"))
+    ).then(=>
       # モードチェック
-      @_base.transCommand(
-        0x3b  # 即時応答ON
-        (result, response) ->
-          return seq.abort() unless result
-          return seq.next() if (response & 0x01) == 0x00  # PSモード
-          # ASモード
-          seq.abort()
-      )
-    )
-    seq.add(->
-      startTime = window.performance.now()
-      seq.next()
-    )
-    seq.add(=>
+      # (コマンド：即時応答ON)
+      @_base.transCommand(0x3b)
+    ).then((response) =>
+      unless (response & 0x01) == 0x00
+        # ASモード(NG)
+        return Promise.reject(Error("Not PS mode"))
+      # PSモード(OK)
+      return
+    ).then(=>
+      # タイムアウト計算の基点を保存
+      # (ここからCONFIG_TIMEOUT_MS以内で処理完了しなかったらタイムアウト扱い)
+      timeLimit = new TimeLimit(CONFIG_TIMEOUT_MS)
+    ).then(=>
       # コンフィグレーション開始リクエスト発行(モード切替)
-      @_base.transCommand(
-        0x32  # コンフィグモード, nCONFIGアサート, 即時応答ON
-        (result, response) ->
-          return seq.abort() unless result
-          return seq.next() if (response & 0x06) == 0x00  # nSTATUS=L, CONF_DONE=L
-          dulation = parseInt(window.performance.now() - startTime)
-          return seq.abort() if dulation > CONFIG_TIMEOUT_MS
-          seq.redo()
-      )
-    )
-    seq.add(=>
+      return tryPromise(timeLimit.left, =>
+        # (コマンド：コンフィグモード, nCONFIGアサート, 即時応答ON)
+        return @_base.transCommand(0x32).then((response) =>
+          unless (response & 0x06) == 0x00
+            return Promise.reject()
+          # nSTATUS=L, CONF_DONE=L => OK
+          return
+        )
+      ) # return tryPromise()
+    ).then(=>
       # FPGAの応答待ち
-      @_base.transCommand(
-        0x33  # コンフィグモード, nCONFIGネゲート, 即時応答ON
-        (result, response) ->
-          return seq.abort() unless result
-          return seq.next() if (response & 0x06) == 0x02  # nSTATUS=H, CONF_DONE=L
-          dulation = parseInt(window.performance.now() - startTime)
-          return seq.abort() if dulation > CONFIG_TIMEOUT_MS
-          seq.redo()
-      )
-    )
-    seq.add(=>
+      return tryPromise(left(), =>
+        # (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
+        return @_base.transCommand(0x33).then((response) =>
+          unless (response & 0x06) == 0x02
+            return Promise.reject()
+          # nSTATUS=H, CONF_DONE=L => OK
+          return
+        )
+      ) # return tryPromise()
+    ).then(=>
       # コンフィグレーションデータ送信
-      @_base.transData(rbfdata, 0, (result) -> seq.next(result))
-    )
-    seq.add(=>
+      return @_base.transData(rbfdata, 0)
+    ).then(=>
       # コンフィグレーション完了チェック
-      @_base.transCommand(
-        0x33  # コンフィグモード, 即時応答ON
-        (result, response) ->
-          return seq.abort() unless result
-          return seq.next() if (response & 0x06) == 0x06  # nSTATUS=H, CONF_DONE=H
-          seq.abort()
-      )
-    )
-    seq.add(=>
+      # (コマンド：コンフィグモード, 即時応答ON)
+      return @_base.transCommand(0x33)
+    ).then((response) =>
+      unless (response & 0x06) == 0x06
+        return Promise.reject(Error("FPGA configuration failed"))
+      # nSTATUS=H, CONF_DONE=H => OK
+      return
+    ).then(=>
       # コンフィグレーション完了(モード切替)
-      @_base.transCommand(
-        0x39  # ユーザーモード
-        (result, response) -> seq.next(result)
-      )
-    )
-    seq.final(->
-      callback(seq.finished)
-    ).start()
-    return
+      # (コマンド：ユーザーモード)
+      return @_base.transCommand(0x39)
+    ).then(=>
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
     ボードのマニュアルリセット
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
   reset: (callback) ->
-    unless @_base.connected
-      return callback(false)
-    new Function.Sequence(
-      (seq) =>
-        @_base.transCommand(
-          0x31  # コンフィグモード(リセットアサート)
-          (result, response) ->
-            return seq.abort() unless result
-            window.setTimeout((-> seq.next()), 100)
-        )
-      (seq) =>
-        @_base.transCommand(
-          0x39  # ユーザモード(リセットネゲート)
-          (result, response) ->
-            return seq.abort() unless result
-            # @_base.sendImmediate = false
-            seq.next()
-        )
-    ).final(
-      (seq) ->
-        callback(seq.finished)
-    ).start()
-    return
+    return invokeCallback(callback, @reset()) if callback?
+    return Promise.resolve(
+    ).then(=>
+      # コンフィグモード(リセットアサート)
+      return @_base.transCommand(0x31)
+    ).then(=>
+      return Canarium._delay(100)
+    ).then(=>
+      # ユーザモード(リセットネゲート)
+      return @_base.transCommand(0x39)
+    ).then(=>
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
     ボード情報の取得
-  @param {function(boolean):void} callback
-    コールバック関数
-  @return {void}
+  @param {function(boolean,Object/Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+  @return {Object} return.PromiseValue
+    ボード情報
+  @return {string} return.PromiseValue.id
+    ボードID
+  @return {string} return.PromiseValue.serialCode
+    シリアル番号
   ###
   getinfo: (callback) ->
-    unless @_base.connected and @boardInfo?.version
-      callback(false)
-      return
-    seq = new Function.Sequence()
-    switch @boardInfo.version
-      when 1
-        # ver.1 ヘッダ
-        seq.add((seq) =>
-          @_eepromRead(0x04, 8, (result, readData) =>
-            return seq.abort() unless result
+    return invokeCallback(callback, @getinfo()) if callback?
+    return Promise.resolve(
+    ).then(=>
+      switch @_boardInfo?.version
+        when undefined
+          return Promise.reject(Error("Boardinfo not loaded"))
+        when 1
+          # ver.1 ヘッダ
+          return @_eepromRead(0x04, 8).then(=>
             info = new Uint8Array(readData)
-            @_log("getinfo", "info:(ver1)#{info.hexDump()}") if DEBUG >= 2
+            @_log(1, "getinfo", "ver1(#{hexDump(info)})")
             mid = (info[0] << 8) | (info[1] << 0)
             pid = (info[2] << 8) | (info[3] << 0)
             sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
             if mid == 0x0072
               s = "#{pid.hex(4)}#{sid.hex(8)}"
-              @boardInfo.id = "J72A"
-              @boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-000000"
-            seq.next()
-          )
-        )
-      when 2
-        # ver.2 ヘッダ
-        seq.add((seq) =>
-          @_eepromRead(0x04, 22, (result, readData) =>
-            return seq.abort() unless result
+              @_boardInfo.id = "J72A"
+              @_boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-000000"
+          ) # return @_eepromRead()
+        when 2
+          # ver.2 ヘッダ
+          return @_eepromRead(0x04, 22).then(=>
             info = new Uint8Array(readData)
-            @_log("getinfo", "info:(ver2)#{info.hexDump()}") if DEBUG >= 2
+            @_log(1, "getinfo", "ver2(#{hexDump(info)})")
             bid = ""
             (bid += String.fromCharCode(info[i])) for i in [0...4]
             s = ""
             (s += String.fromCharCode(info[i])) for i in [4...22]
-            @boardInfo.id = bid
-            @boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-#{s.substr(12, 6)}"
-            seq.next()
-          )
-        )
-      else
-        # 未知のヘッダバージョン
-        @_log("getinfo", "error:unknown version")
-        callback(false)
-        return
-    seq.final((seq) ->
-      callback(seq.finished)
-    ).start()
-    return
+            @_boardInfo.id = "#{bid}"
+            @_boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-#{s.substr(12, 6)}"
+          ) # return @_eepromRead()
+        else
+          # 未知のヘッダバージョン
+          return Promise.reject(Error("Unknown boardinfo version"))
+    ).then(=>
+      return @boardInfo # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @private
@@ -370,48 +367,83 @@ class Canarium
     読み出し開始アドレス
   @param {number} readbytes
     読み出しバイト数
-  @param {function(boolean,ArrayBuffer)} callback
-    コールバック関数
+  @return {Promise}
+    Promiseオブジェクト
+  @return {ArrayBuffer} return.PromiseValue
+    読み出し結果
   ###
-  _eepromRead: (startaddr, readbytes, callback) ->
+  _eepromRead: (startaddr, readbytes) ->
     array = new Uint8Array(readbytes)
     index = -1
-    new Function.Sequence(
-      (seq) =>  # Start condition
-        @i2c.start((result) => seq.next(result))
-      (seq) =>  # Send slave address and direction (write)
-        @i2c.write((EEPROM_SLAVE_ADDR << 1), (result, ack) =>
-          seq.next(result and ack)
-        )
-      (seq) =>  # Send EEPROM address
-        @i2c.write((startaddr & 0xff), (result, ack) =>
-          seq.next(result and ack)
-        )
-      (seq) =>  # Repeat start condition
-        @i2c.start((result) => seq.next(result))
-      (seq) =>  # Send slave address and direction (read)
-        @i2c.write((EEPROM_SLAVE_ADDR << 1) + 1, (result, ack) =>
-          seq.next(result and ack)
-        )
-      (seq) =>  # Read bytes
-        return seq.next() if readbytes == 0
-        @i2c.read(readbytes > 1, (result, readdata) =>
-          return seq.abort() unless result
-          array[index += 1] = readdata
-          readbytes -= 1
-          seq.redo()
-        )
-    ).final(
-      (seq) =>  # Stop condition
-        @i2c.stop((result) ->
-          return callback(false, null) if seq.aborted or not result
-          callback(true, array.buffer)
-        )
-    ).start()
+    lastError = null
+    return Promise.resolve(
+    ).then(=>
+      @_log(1, "_eepromRead", "begin(addr=#{hexDump(startaddr)},bytes=#{hexDump(readbytes)})")
+      # Start condition
+      return @i2c.start()
+    ).then(=>
+      # Send slave address and direction (write)
+      return @i2c.write(EEPROM_SLAVE_ADDR << 1).then((ack) =>
+        return Promise.reject(Error("EEPROM is not found.")) unless ack
+      )
+    ).then(=>
+      # Send EEPROM address
+      return @i2c.write(startaddr & 0xff).then((ack) =>
+        return Promise.reject(Error("Cannot write address in EEPROM")) unless ack
+      )
+    ).then(=>
+      # Repeat start condition
+      return @i2c.start()
+    ).then(=>
+      # Send slave address and direction (read)
+      return @i2c.write((EEPROM_SLAVE_ADDR << 1) + 1).then((ack) =>
+        return Promise.reject(Error("EEPROM is not found.")) unless ack
+      )
+    ).then(=>
+      lastIndex = readbytes - 1
+      return [0..lastIndex].reduce(
+        (promise, index) =>
+          return promise.then(=>
+            return @i2c.read(index != lastIndex)
+          ).then((byte) =>
+            array[index] = byte
+          )
+        Promise.resolve()
+      )
+    ).catch((error) =>
+      lastError = error
+      return
+    ).then(=>
+      return @i2c.stop()
+    ).then(=>
+      return Promise.reject(lastError) if lastError
+      @_log(1, "_eepromRead", "end(result=#{hexDump(array)})")
+      return array.buffer
+    ) # return Promise.resolve()
 
   #----------------------------------------------------------------
   # Private methods
   #
+
+  ###*
+  @private
+  @static
+  @method
+    指定時間待機のPromiseオブジェクトを生成
+  @param {number} dulation
+    待機時間(ミリ秒単位)
+  @param {Object} [value]
+    then節に渡されるオブジェクト
+  @return {Promise}
+    生成されたPromiseオブジェクト
+  ###
+  @_delay: (dulation, value) ->
+    return new Promise((resolve) ->
+      window.setTimeout(
+        -> resolve(value)
+        dulation
+      )
+    )
 
   ###*
   @private
@@ -426,11 +458,16 @@ class Canarium
     メッセージ
   @param {Object} [data]
     任意のデータ
-  @return {void}
+  @return {undefined}
   ###
   @_log: (cls, func, msg, data) ->
-    return if SUPPRESS_LOGS? and SUPPRESS_LOGS
-    out = {"#{cls}##{func}": msg, stack: new Error().stack.split("\n    ").slice(1)}
+    return if SUPPRESS_ALL_LOGS? and SUPPRESS_ALL_LOGS
+    time = window.performance.now().toFixed(3)
+    out = {
+      time: time
+      "#{cls}##{func}": msg
+      stack: new Error().stack.split("\n    ").slice(1)
+    }
     out.data = data if data
     console.log(out)
     return
@@ -439,15 +476,17 @@ class Canarium
   @private
   @method
     ログの出力
+  @param {number} lvl
+    詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
   @param {string} func
     関数名
   @param {string} msg
     メッセージ
   @param {Object} [data]
     任意のデータ
-  @return {void}
+  @return {undefined}
   ###
-  _log: (func, msg, data) ->
-    Canarium._log("Canarium", func, msg, data)
+  _log: (lvl, func, msg, data) ->
+    Canarium._log("Canarium", func, msg, data) if @constructor.verbosity >= lvl
     return
 

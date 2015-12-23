@@ -140,8 +140,9 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         c = null
         callback(@FAIL)
     body: (callback) ->
-      c._base.connect(dev_test[0], (result) =>
-        return callback(@PASS) if result
+      c._base.connect(dev_test[0]).then(=>
+        callback(@PASS)
+      ).catch(=>
         c = null
         callback(@FAIL)
       )
@@ -152,8 +153,10 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     setup: (callback) ->
       callback(if c then @PASS else @FAIL)
     body: (callback) ->
-      c._base.connect(dev_test[0], (result) =>
-        callback(if result then @FAIL else @PASS)
+      c._base.connect(dev_test[0]).then(=>
+        callback(@FAIL)
+      ).catch(=>
+        callback(@PASS)
       )
   )
   @add(
@@ -162,15 +165,15 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     setup: (callback) ->
       callback(if c then @PASS else @FAIL)
     body: (callback) ->
-      c._eepromRead(0x00, 4, (result, readdata) =>
-        unless result
-          @print("読み出し失敗")
-          return callback(@FAIL)
+      c._eepromRead(0x00, 4).then((readdata) =>
         a = new Uint8Array(readdata)
         @print(dump(a))
         if a[0] == 0x4a and a[1] == 0x37 and a[2] == 0x57
           return callback(@PASS)
         callback(@FAIL)
+      ).catch((error) =>
+        @print("読み出し失敗(#{error})")
+        return callback(@FAIL)
       )
   )
   @add(
