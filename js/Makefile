@@ -35,6 +35,7 @@ doc: $(firstword $(TARGETS))
 		--output $@ \
 		--welcome=welcome.html \
 		--external=$(subst $(space),$(comma),$(JS_TYPES)) $< \
+		--warnings=-global \
 		|| ($(target_rollback); false)
 	$(target_update)
 	$(target_cleanup)
