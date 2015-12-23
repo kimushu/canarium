@@ -319,10 +319,12 @@ class Canarium
   ###*
   @method
     ボードのマニュアルリセット
-  @param {function(boolean,Error=)} [callback]
+  @param {function(boolean,number/Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+  @return {number} return.PromiseValue
+    レスポンスコマンド
   ###
   reset: (callback) ->
     return invokeCallback(callback, @reset()) if callback?
@@ -338,8 +340,8 @@ class Canarium
     ).then(=>
       # ユーザモード(リセットネゲート)
       return @_base.transCommand(0x39)
-    ).then(=>
-      return  # Last PromiseValue
+    ).then((response) =>
+      return response # Last PromiseValue
     ).then(finallyPromise(=>
       @_resetBarrier = false
     )...) # return Promise.resolve()...
