@@ -189,10 +189,10 @@ tryPromise = (timeout, promiser, maxTries) ->
 
 ###*
 @method
-  Promiseに成功失敗にかかわらず実行する関数のペアを生成
+  Promiseの成功失敗にかかわらず実行する関数のペアを生成
 @return {Function[]}
   成功(fulfilled)と失敗(rejected)の関数ペア。
-  promise.then(finallyPromise(-> 中身)...) として用いる
+  promise.then(finallyPromise(-> 中身)...) として用いる。...を忘れないこと。
 ###
 finallyPromise = (action) ->
   return [

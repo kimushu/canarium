@@ -108,6 +108,7 @@ class Canarium
   EEPROM_SLAVE_ADDR = 0b1010000
 
   ###*
+  @private
   @static
   @cfg {number}
     EEPROMの最大バーストリード長(バイト数)

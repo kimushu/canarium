@@ -287,7 +287,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       callback(if c then @PASS else @FAIL)
     body: (callback) ->
       c.avm.iord(SYSID_BASE, 0).then((id) =>
-        @print("sysid.id = 0x#{id.toString(16)}")
+        @print("sysid.id = 0x#{(id | 0x100000000).toString(16)[-8..-1]}")
         mask = 0xffffffff
         callback(if (id & mask) == (SYSID_ID & mask) then @PASS else @FAIL)
       ).catch(=>
