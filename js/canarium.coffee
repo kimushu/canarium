@@ -74,7 +74,7 @@ class Canarium
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 1
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties
@@ -84,6 +84,18 @@ class Canarium
   @private
   @property {Canarium.BaseComm} _base
     下位層通信クラスのインスタンス
+  ###
+
+  ###*
+  @private
+  @property {boolean} _configBarrier
+    コンフィグレーション中を示すフラグ(再帰実行禁止用)
+  ###
+
+  ###*
+  @private
+  @property {boolean} _resetBarrier
+    リセット中を示すフラグ(再帰実行禁止用)
   ###
 
   ###*
@@ -147,6 +159,8 @@ class Canarium
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
     @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
+    @_configBarrier = false
+    @_resetBarrier = false
     return
 
   ###*
@@ -165,17 +179,21 @@ class Canarium
     ).then(=>
       return @_base.connect(portname)
     ).then(=>
-      @_boardInfo = null
-      return @_eepromRead(0x00, 4)
-    ).then((readData) =>
-      header = new Uint8Array(readData)
-      unless header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
-        return Promise.reject(Error("EEPROM header is invalid"))
-      @_log(1, "connect", "version=#{header[3].hex(2)}")
-      @_boardInfo = {version: header[3]}
-      return  # Last PromiseValue
-    ).catch((error) =>
-      return @_base.disconnect().catch(=>).then(=> Promise.reject(error))
+      return Promise.resolve(
+      ).then(=>
+        @_boardInfo = null
+        @_base.configured = false
+        return @_eepromRead(0x00, 4)
+      ).then((readData) =>
+        header = new Uint8Array(readData)
+        unless header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
+          return Promise.reject(Error("EEPROM header is invalid"))
+        @_log(1, "open", "done(version=#{hexDump(header[3])})")
+        @_boardInfo = {version: header[3]}
+        return  # Last PromiseValue
+      ).catch((error) =>
+        return @_base.disconnect().catch(=>).then(=> Promise.reject(error))
+      ) # return Promise.resolve()...
     ) # return Promise.resolve()...
 
   ###*
@@ -193,6 +211,7 @@ class Canarium
       return @_base.disconnect()
     ).then(=>
       @_boardInfo = null
+      @_base.configured = false
       return  # Last PromiseValue
     ) # return Promise.resolve()...
 
@@ -213,7 +232,9 @@ class Canarium
     戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
   config: (boardInfo, rbfdata, callback) ->
-    return invokeCallback(callback, @config()) if callback?
+    return invokeCallback(callback, @config(boardInfo, rbfdata)) if callback?
+    return Promise.reject(Error("Configuration is now in progress")) if @_configBarrier
+    @_configBarrier = true
     timeLimit = undefined
     return Promise.resolve(
     ).then(=>
@@ -223,9 +244,9 @@ class Canarium
     ).then(=>
       # コンフィグレーション可否の判断を行う
       mismatch = (a, b) -> a and a != b
-      if mismatch(boardInfo.id, @boardInfo.id)
+      if mismatch(boardInfo?.id, @boardInfo.id)
         return Promise.reject(Error("Board ID mismatch"))
-      if mismatch(boardInfo.serialcode, @boardInfo.serialcode)
+      if mismatch(boardInfo?.serialcode, @boardInfo.serialcode)
         return Promise.reject(Error("Board serial code mismatch"))
     ).then(=>
       # モードチェック
@@ -254,7 +275,7 @@ class Canarium
       ) # return tryPromise()
     ).then(=>
       # FPGAの応答待ち
-      return tryPromise(left(), =>
+      return tryPromise(timeLimit.left, =>
         # (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
         return @_base.transCommand(0x33).then((response) =>
           unless (response & 0x06) == 0x02
@@ -280,8 +301,11 @@ class Canarium
       # (コマンド：ユーザーモード)
       return @_base.transCommand(0x39)
     ).then(=>
+      @_base.configured = true
       return  # Last PromiseValue
-    ) # return Promise.resolve()...
+    ).then(finallyPromise(=>
+      @_configBarrier = false
+    )...) # return Promise.resolve()...
 
   ###*
   @method
@@ -293,18 +317,23 @@ class Canarium
   ###
   reset: (callback) ->
     return invokeCallback(callback, @reset()) if callback?
+    return Promise.reject(Error("Reset is now in progress")) if @_resetBarrier
+    @_resetBarrier = true
     return Promise.resolve(
     ).then(=>
       # コンフィグモード(リセットアサート)
       return @_base.transCommand(0x31)
     ).then(=>
-      return Canarium._delay(100)
+      # 100ms待機
+      return waitPromise(100)
     ).then(=>
       # ユーザモード(リセットネゲート)
       return @_base.transCommand(0x39)
     ).then(=>
       return  # Last PromiseValue
-    ) # return Promise.resolve()...
+    ).then(finallyPromise(=>
+      @_resetBarrier = false
+    )...) # return Promise.resolve()...
 
   ###*
   @method
@@ -329,9 +358,9 @@ class Canarium
           return Promise.reject(Error("Boardinfo not loaded"))
         when 1
           # ver.1 ヘッダ
-          return @_eepromRead(0x04, 8).then(=>
+          return @_eepromRead(0x04, 8).then((readData) =>
             info = new Uint8Array(readData)
-            @_log(1, "getinfo", "ver1(#{hexDump(info)})")
+            @_log(1, "getinfo", "ver1", info)
             mid = (info[0] << 8) | (info[1] << 0)
             pid = (info[2] << 8) | (info[3] << 0)
             sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
@@ -342,9 +371,9 @@ class Canarium
           ) # return @_eepromRead()
         when 2
           # ver.2 ヘッダ
-          return @_eepromRead(0x04, 22).then(=>
+          return @_eepromRead(0x04, 22).then((readData) =>
             info = new Uint8Array(readData)
-            @_log(1, "getinfo", "ver2(#{hexDump(info)})")
+            @_log(1, "getinfo", "ver2", info)
             bid = ""
             (bid += String.fromCharCode(info[i])) for i in [0...4]
             s = ""
@@ -358,6 +387,26 @@ class Canarium
     ).then(=>
       return @boardInfo # Last PromiseValue
     ) # return Promise.resolve()...
+
+  ###*
+  @method
+    オプション設定
+  @param {Object} option
+    オプション
+  @param {boolean}  option.forceConfigured
+    コンフィグレーション済みとして扱うかどうか
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト
+  ###
+  option: (option, callback) ->
+    return invokeCallback(callback, @option(option)) if callback?
+    return @_base.option(option)
+
+  #----------------------------------------------------------------
+  # Private methods
+  #
 
   ###*
   @private
@@ -417,33 +466,9 @@ class Canarium
       return @i2c.stop()
     ).then(=>
       return Promise.reject(lastError) if lastError
-      @_log(1, "_eepromRead", "end(result=#{hexDump(array)})")
+      @_log(1, "_eepromRead", "end", array)
       return array.buffer
     ) # return Promise.resolve()
-
-  #----------------------------------------------------------------
-  # Private methods
-  #
-
-  ###*
-  @private
-  @static
-  @method
-    指定時間待機のPromiseオブジェクトを生成
-  @param {number} dulation
-    待機時間(ミリ秒単位)
-  @param {Object} [value]
-    then節に渡されるオブジェクト
-  @return {Promise}
-    生成されたPromiseオブジェクト
-  ###
-  @_delay: (dulation, value) ->
-    return new Promise((resolve) ->
-      window.setTimeout(
-        -> resolve(value)
-        dulation
-      )
-    )
 
   ###*
   @private

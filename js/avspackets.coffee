@@ -15,7 +15,7 @@ class Canarium.AvsPackets
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 1
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties

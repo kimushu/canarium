@@ -46,6 +46,14 @@ class Canarium.BaseComm
     set: (v) -> @_sendImmediate = !!v
 
   ###*
+  @property {boolean} configured
+    コンフィグレーション済みかどうか
+  ###
+  @property "configured",
+    get: -> @_configured
+    set: (v) -> @_configured = !!v
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
@@ -132,7 +140,7 @@ class Canarium.BaseComm
     連続シリアル送信の間隔(ミリ秒)
   @readonly
   ###
-  SUCCESSIVE_TX_WAIT_MS = 4
+  SUCCESSIVE_TX_WAIT_MS = null # 4
 
   ###*
   @private
@@ -186,6 +194,7 @@ class Canarium.BaseComm
     @_path = null
     @_bitrate = 115200
     @_sendImmediate = false
+    @_configured = false
     @_cid = null
     @_onReceive = (info) => @_onReceiveHandler(info)
     @_onReceiveError = (info) => @_onReceiveErrorHandler(info)
@@ -227,6 +236,29 @@ class Canarium.BaseComm
           return resolve()
       )
     )
+
+  ###*
+  @method
+    オプション設定
+  @param {Object} option
+    オプション
+  @param {boolean} option.forceConfigured
+    コンフィグレーション済みとして扱うかどうか
+  @return {Promise}
+    Promiseオブジェクト
+  ###
+  option: (option) ->
+    return Promise.resolve(
+    ).then(=>
+      return unless (value = option.fastAcknowledge)?
+      @_sendImmediate = value
+      return @transCommand(0x39 | (if value then 0x02 else 0x00))
+    ).then(=>
+      return unless (value = option.forceConfigured)?
+      @_configured = value
+    ).then(=>
+      return  # Last PromiseValue
+    ) # return Promise.resolve()...
 
   ###*
   @method
@@ -350,7 +382,7 @@ class Canarium.BaseComm
               return reject(Error(e)) if e?
               b = writeInfo.bytesSent
               return reject(Error("bytesSent(#{b}) != bytesRequested(#{size})")) if b != size
-              @_log(1, "_transSerial", "sent(#{hexDump(data)})")
+              @_log(1, "_transSerial", "sent", new Uint8Array(data))
               return resolve() unless SUCCESSIVE_TX_WAIT_MS > 0
               window.setTimeout(resolve, SUCCESSIVE_TX_WAIT_MS)
             ) # chrome.serial.send()
@@ -400,7 +432,7 @@ class Canarium.BaseComm
       break if length > @_rxTotalLength
       queue = @_rxQueue.shift()
       buffer = @_sliceRxBuffer(length)
-      @_log(1, "_onReceiveProcess", "recv(#{hexDump(buffer)})")
+      @_log(1, "_onReceiveProcess", "recv", new Uint8Array(buffer))
       queue.resolve.call(undefined, buffer)
     return
 

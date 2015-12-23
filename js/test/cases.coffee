@@ -182,8 +182,10 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     setup: (callback) ->
       callback(if c then @PASS else @FAIL)
     body: (callback) ->
-      c._base.disconnect((result) =>
-        callback(if result then @PASS else @FAIL)
+      c._base.disconnect().then(=>
+        callback(@PASS)
+      ).catch(=>
+        callback(@FAIL)
       )
   )
   @add(
@@ -192,8 +194,10 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     setup: (callback) ->
       callback(if c then @PASS else @FAIL)
     body: (callback) ->
-      c._base.disconnect((result) =>
-        callback(if result then @FAIL else @PASS)
+      c._base.disconnect().then(=>
+        callback(@FAIL)
+      ).catch(=>
+        callback(@PASS)
       )
   )
   @add(
@@ -234,6 +238,9 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       )
   )
   rbf = null
+  RBF_PATH = "testsuite.rbf"
+  SYSID_BASE = 0x10000000
+  SYSID_ID = 0xa0140807
   @add(
     category: "コンフィグ(正常系)"
     description: "RBFファイルを用いてコンフィグレーション実行(ボード制限無し)"
@@ -241,7 +248,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       callback(if c then @PASS else @FAIL)
     prologue: (callback) ->
       xhr = new XMLHttpRequest
-      xhr.open("GET", chrome.runtime.getURL("sample_ledlampy.rbf"))
+      xhr.open("GET", chrome.runtime.getURL(RBF_PATH))
       xhr.responseType = "arraybuffer"
       xhr.onload = =>
         return unless xhr.status == 200
@@ -272,6 +279,30 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     body: (callback) ->
       c.config({id: binfo.id, serialcode: "#{binfo.serialcode}X"}, rbf, (result) =>
         callback(if result then @FAIL else @PASS)
+      )
+  @add(
+    category: "AVM通信(正常系)"
+    description: "AVM経由でsysidを読み取り"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.avm.iord(SYSID_BASE, 0).then((id) =>
+        @print("sysid.id = 0x#{id.toString(16)}")
+        mask = 0xffffffff
+        callback(if (id & mask) == (SYSID_ID & mask) then @PASS else @FAIL)
+      ).catch(=>
+        callback(@FAIL)
+      )
+    )
+  )
+  @add(
+    category: "リセット(正常系)"
+    description: "リセット実行"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.reset((result) =>
+        callback(if result then @PASS else @FAIL)
       )
   )
   @add(

@@ -15,7 +15,7 @@ class Canarium.AvmTransactions
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 1
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties
@@ -74,6 +74,7 @@ class Canarium.AvmTransactions
   read: (address, bytenum, callback) ->
     return invokeCallback(callback, @read(address, bytenum)) if callback?
     @_log(1, "read", "begin(address=#{hexDump(address)})")
+    return Promise.reject("Device is not configured") unless @_avs._base.configured
     dest = new Uint8Array(bytenum)
     return (x for x in [0...bytenum] by AVM_TRANS_MAX_BYTES).reduce(
       (sequence, pos) =>
@@ -89,7 +90,7 @@ class Canarium.AvmTransactions
         ) # return sequence.then()
       Promise.resolve()
     ).then(=>
-      @_log(1, "read", "end(data=#{hexDump(dest, 16)})")
+      @_log(1, "read", "end", dest)
       return dest.buffer  # Last PromiseValue
     ) # return (...).reduce()...
 
@@ -107,8 +108,9 @@ class Canarium.AvmTransactions
   ###
   write: (address, writedata, callback) ->
     return invokeCallback(callback, @write(address, writedata)) if callback?
-    @_log(1, "write", "begin(address=#{hexDump(address)},data=#{hexDump(writedata, 16)})")
     src = new Uint8Array(writedata)
+    @_log(1, "write", "begin(address=#{hexDump(address)})", src)
+    return Promise.reject("Device is not configured") unless @_avs._base.configured
     return (x for x in [0...src.byteLength] by AVM_TRANS_MAX_BYTES).reduce(
       (sequence, pos) =>
         return sequence.then(=>
@@ -142,6 +144,7 @@ class Canarium.AvmTransactions
   iord: (address, offset, callback) ->
     return invokeCallback(callback, @iord(address, offset)) if callback?
     @_log(1, "iord", "begin(address=#{hexDump(address)}+#{offset})")
+    return Promise.reject("Device is not configured") unless @_avs._base.configured
     return @_trans(
       0x10  # Read, non-incrementing address
       (address & 0xfffffffc) + (offset << 2)
@@ -153,7 +156,7 @@ class Canarium.AvmTransactions
                  (src[2] << 16) |
                  (src[1] <<  8) |
                  (src[0] <<  0)
-      @_log(1, "iord", "end(data=#{hexDump(readData)})")
+      @_log(1, "iord", "end", readData)
       return readData # Last PromiseValue
     ) # return @_trans().then()
 
@@ -173,7 +176,8 @@ class Canarium.AvmTransactions
   ###
   iowr: (address, offset, writedata, callback) ->
     return invokeCallback(callback, @iowr(address, offset, writedata)) if callback?
-    @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset},data=#{hexDump(writedata, 16)})")
+    @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset})", writedata)
+    return Promise.reject("Device is not configured") unless @_avs._base.configured
     src = new Uint8Array(4)
     src[0] = (writedata >>> 24) & 0xff
     src[1] = (writedata >>> 16) & 0xff
@@ -202,19 +206,8 @@ class Canarium.AvmTransactions
     戻り値なし(callback指定時)、または、Promiseオブジェクト
   ###
   option: (option, callback) ->
-    new Function.Sequence(
-      (seq) =>
-        seq.next() unless option.fastAcknowledge?
-        @_avs._base.sendImmediate = if option.fastAcknowledge then true else false
-        @_avs._base.transCommand(
-          0x39 | (if @_avs._base.sendImmediate then 0x02 else 0x00)
-          (result, response) -> seq.next(result)
-        )
-    ).final(
-      (seq) ->
-        callback(seq.finished)
-    ).start()
-    return
+    return invokeCallback(callback, @option(option)) if callback?
+    return @_avs._base.option(option)
 
   #----------------------------------------------------------------
   # Private methods
@@ -267,9 +260,9 @@ class Canarium.AvmTransactions
     pkt[6] = (address >>>  8) & 0xff
     pkt[7] = (address >>>  0) & 0xff
     pkt.set(txdata, 8) if txdata
-    @_log(2, "_trans", "send(#{hexDump(pkt)})")
+    @_log(2, "_trans", "send", pkt)
     return @_avs.transPacket(@_channel, pkt.buffer, (rxsize or 4)).then((rxdata) =>
-      @_log(2, "_trans", "recv(#{hexDump(rxdata)})")
+      @_log(2, "_trans", "recv", new Uint8Array(rxdata))
       if rxsize
         unless rxdata.byteLength == rxsize
           return Promise.reject(Error("Received data length does not match"))

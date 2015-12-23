@@ -46,8 +46,8 @@ hexDump = (data, maxBytes) ->
     throw Error("Unsupported data type: #{data}")
   len = data.length
   len = Math.min(len, maxBytes) if maxBytes?
-  hex = (v) -> "0x#{if v < 16 then "0" else ""}#{v.toString(16)}"
-  r = hex(data[v]) for v in [0..len]
+  hex = (v) -> "0x#{if v < 16 then "0" else ""}#{v?.toString?(16) or "??"}"
+  r = (hex(data[i]) for i in [0...len]).join(",")
   r += "..." if data.length > len
   r = "[#{r}]" if brace
   return r
@@ -76,15 +76,36 @@ invokeCallback = (callback, promise) ->
   )
   return
 
+###*
+@private
+@class TimeLimit
+  タイムアウト検出クラス
+###
 class TimeLimit
+  ###*
+  @method constructor
+    コンストラクタ
+  @param {number} timeout
+    タイムアウト時間(ms)
+  ###
   constructor: (@timeout) ->
     @start = @now
     return
 
+  ###*
+  @property {number} now
+    現在時刻(残り時間ではない)
+  @readonly
+  ###
   @property("now", get: ->
     return window.performance.now()
   )
 
+  ###*
+  @property {number} left
+    残り時間(ms)
+  @readonly
+  ###
   @property("left", get: ->
     return Math.max(0, @timeout - parseInt(@now - @start))
   )
@@ -92,7 +113,23 @@ class TimeLimit
 ###*
 @private
 @method
-  成功するまで繰り返すPromiseオブジェクトを作成
+  指定時間待機するPromiseオブジェクトを生成
+@param {number} dulation
+  待機時間(ミリ秒単位)
+@param {Object} [value]
+  成功時にPromiseValueとして渡されるオブジェクト
+@return {Promise}
+  Promiseオブジェクト
+###
+waitPromise = (dulation, value) ->
+  return new Promise((resolve) ->
+    window.setTimeout((-> resolve(value)), dulation)
+  )
+
+###*
+@private
+@method
+  成功するまで繰り返すPromiseオブジェクトを生成
 @param {number} timeout
   最大待機時間(ミリ秒単位)
 @param {function():Promise} promiser
@@ -149,4 +186,21 @@ tryPromise = (timeout, promiser, maxTries) ->
       ) # promiser().then()
     next()
   ) # return new Promise()
+
+###*
+@method
+  Promiseに成功失敗にかかわらず実行する関数のペアを生成
+@return {Function[]}
+  成功(fulfilled)と失敗(rejected)の関数ペア。
+  promise.then(finallyPromise(-> 中身)...) として用いる
+###
+finallyPromise = (action) ->
+  return [
+    (value) ->
+      action()
+      return value
+    (error) ->
+      action()
+      return Promise.reject(error)
+  ] # return []
 

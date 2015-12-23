@@ -15,7 +15,7 @@ class Canarium.I2CComm
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 3
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties
@@ -34,7 +34,7 @@ class Canarium.I2CComm
     I2C通信のタイムアウト時間
   @readonly
   ###
-  I2C_TIMEOUT_MS = 100 * 10
+  I2C_TIMEOUT_MS = 1000
 
   #----------------------------------------------------------------
   # Public methods
