@@ -87,35 +87,37 @@ class Canarium.AvsPackets
     txdata = dst.buffer.slice(0, len)
     totalRxLen = rxsize + header.length + 1
     @_log(1, "transPacket", "begin", {source: src, encoded: new Uint8Array(txdata)})
-    return @_base.transData(txdata, totalRxLen).then((rxdata) =>
+
+    eopFinder = (rxdata, offset) =>
+      array = new Uint8Array(rxdata)
+      for pos in [offset...array.length]
+        if (array[pos - 1] == 0x7b and array[pos - 0] != 0x7d) or
+           (array[pos - 2] == 0x7b and array[pos - 1] == 0x7d)
+          return pos + 1
+      return  # Need more bytes
+
+    return @_base.transData(txdata, eopFinder).then((rxdata) =>
       src = new Uint8Array(rxdata)
       @_log(1, "transPacket", "recv", {encoded: src})
-      pos = header.length
-      unless src.subarray(0, pos).join(",") == header.join(",")
+      unless src.subarray(0, header.length).join(",") == header.join(",")
         return Promise.reject(Error("Illegal packetize control bytes"))
-      dst = new Uint8Array(rxdata.byteLength - 4)
-      len = 0
+      src = src.subarray(header.length)
+      dst = new Uint8Array(rxsize)
+      pos = 0
       xor = 0x00
-      eop = false
-      while pos < src.byteLength
-        byte = src[pos++]
-        switch byte
-          when 0x7a, 0x7c # SOP, Channel
-            break
-          when 0x7b # EOP
-            eop = true
-            continue
-          when 0x7d
-            xor = 0x20
-            continue
-        dst[len++] = byte ^ xor
-        xor = 0x00
-        continue unless eop
-        break if pos == src.byteLength
-        return Promise.reject(Error("Illegal packetized bytestream"))
-      data = dst.buffer.slice(0, len)
-      @_log(1, "transPacket", "end", {decoded: new Uint8Array(data)})
-      return data # Last PromiseValue
+      for byte in src
+        if pos == rxsize
+          return Promise.reject(Error("Received data is too large"))
+        continue if byte == 0x7b
+        if byte == 0x7d
+          xor = 0x20
+        else
+          dst[pos++] = byte ^ xor
+          xor = 0x00
+      if pos < rxsize
+        return Promise.reject(Error("Received data is too small"))
+      @_log(1, "transPacket", "end", {decoded: dst})
+      return dst.buffer # Last PromiseValue
     ) # return @_base.transData().then()
 
   #----------------------------------------------------------------

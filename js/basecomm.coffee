@@ -58,7 +58,7 @@ class Canarium.BaseComm
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 0
+  @verbosity: 2
 
   #----------------------------------------------------------------
   # Private properties
@@ -201,6 +201,9 @@ class Canarium.BaseComm
     @_rxQueue = null
     @_rxBuffers = null
     @_rxTotalLength = null
+    @_rxBuffer = null
+    @_receiver = null
+    @_processor = Promise.resolve()
     return
 
   ###*
@@ -299,25 +302,32 @@ class Canarium.BaseComm
     txarray[1] = command
     return @_transSerial(
       txarray.buffer,
-      1
+      (rxdata) =>
+        return unless rxdata.byteLength >= 1
+        return 1
     ).then((rxdata) =>
-      rxArray = new Uint8Array(rxdata)
-      return rxArray[0]
-    )
+      return (new Uint8Array(rxdata))[0]
+    ) # return @_transSerial().then()
 
   ###*
   @method
     データの送受信を行う
   @param {ArrayBuffer/null} txdata
     送信するデータ(制御バイトは自動的にエスケープされる。nullの場合は受信のみ)
-  @param {number} rxsize
-    受信するバイト数
+  @param {function(ArrayBuffer,number):number/undefined/Error} [receiver]
+    受信完了まで繰り返し呼び出される受信処理関数。
+    引数は受信データ全体と、今回の呼び出しで追加されたデータのオフセット。
+    省略時は送信のみで完了とする。戻り値の解釈は以下の通り。
+
+    - number : 指定バイト数を受信して受信完了
+    - undefined : 追加データを要求
+    - Error : エラー発生時のエラー情報
   @return {Promise}
     Promiseオブジェクト
   @return {ArrayBuffer} return.PromiseValue
     受信データ
   ###
-  transData: (txdata, rxsize) ->
+  transData: (txdata, receiver) ->
     if txdata
       src = new Uint8Array(txdata)
       dst = new Uint8Array(txdata.byteLength * 2)
@@ -330,7 +340,7 @@ class Canarium.BaseComm
         dst[len] = byte
         len += 1
       txdata = dst.buffer.slice(0, len)
-    return @_transSerial(txdata, rxsize)
+    return @_transSerial(txdata, receiver)
 
   #----------------------------------------------------------------
   # Private methods
@@ -360,16 +370,40 @@ class Canarium.BaseComm
     シリアル通信の送受信を行う
   @param {ArrayBuffer/null} txdata
     送信するデータ(nullの場合は受信のみ)
-  @param {number} rxsize
-    受信するバイト数
+  @param {function(ArrayBuffer,number):number/undefined/Error} [receiver]
+    受信完了まで繰り返し呼び出される受信処理関数。
+    引数は受信データ全体と、今回の呼び出しで追加されたデータのオフセット。
+    省略時は送信のみで完了とする。戻り値の解釈は以下の通り。
+
+    - number : 指定バイト数を受信して受信完了
+    - undefined : 追加データを要求
+    - Error : エラー発生時のエラー情報
   @return {Promise}
-    シリアル送受信動作のPromiseオブジェクト
+    Promiseオブジェクト
   @return {ArrayBuffer} return.PromiseValue
-    受信データ
+    受信したデータ(指定バイト数分)
   ###
-  _transSerial: (txdata, rxsize) ->
+  _transSerial: (txdata, receiver) ->
     return Promise.reject(Error("Not connected")) unless @_connected
-    pos = 0
+    return Promise.reject(Error("Operation is in progress")) if @_receiver
+    promise = new Promise((resolve, reject) =>
+      @_receiver = (rxdata) =>
+        offset = @_rxBuffer?.byteLength or 0
+        newArray = new Uint8Array(offset + rxdata.byteLength)
+        newArray.set(new Uint8Array(@_rxBuffer)) if @_rxBuffer
+        newArray.set(new Uint8Array(rxdata), offset)
+        @_rxBuffer = newArray.buffer
+        result = receiver(@_rxBuffer, offset)
+        if result instanceof Error
+          @_rxBuffer = null
+          @_receiver = null
+          return reject(result)
+        if result?
+          rxdata = @_rxBuffer.slice(0, result)
+          @_rxBuffer = @_rxBuffer.slice(result)
+          @_receiver = null
+          return resolve(rxdata) # Last PromiseValue if receiver
+    ) # promise = new Promise()
     txsize = txdata?.byteLength or 0
     return (x for x in [0...txsize] by SERIAL_TX_MAX_LENGTH).reduce(
       (sequence, pos) =>
@@ -390,11 +424,9 @@ class Canarium.BaseComm
         ) # return sequence.then()
       Promise.resolve()
     ).then(=>
-      promise = new Promise((resolve, reject) =>
-        return resolve(new ArrayBuffer()) if rxsize == 0
-        @_rxQueue.push({length: rxsize, resolve: resolve, reject: reject})
-        @_onReceiveProcess()
-      )
+      unless receiver
+        @_receiver = null
+        return new ArrayBuffer(0) # Last PromiseValue if !receiver
       @_log(1, "_transSerial", "wait", promise)
       return promise
     ) # return (...).reduce()...
@@ -413,28 +445,31 @@ class Canarium.BaseComm
   ###
   _onReceiveHandler: (info) ->
     return unless info.connectionId == @_cid and @_connected
-    @_addRxBuffer(info.data)
-    if SPLIT_EVENT_CONTEXT
-      window.setTimeout((=> @_onReceiveProcess()), 0)
-    else
-      @_onReceiveProcess()
+    Promise.resolve(
+    ).then(=>
+      if @_receiver
+        @_receiver(info.data)
+      else
+        @_log(1, "_onReceiveHandler", "dropped", new Uint8Array(info.data))
+      return
+    )
     return
 
   ###*
   @private
   @method
     シリアル受信後のデータ分割およびPromiseの遷移を行う
+  @param {ArrayBuffer} data
+    受信データ
   return {undefined}
   ###
-  _onReceiveProcess: ->
-    while @_rxQueue.length > 0
-      length = @_rxQueue[0].length
-      break if length > @_rxTotalLength
-      queue = @_rxQueue.shift()
-      buffer = @_sliceRxBuffer(length)
-      @_log(1, "_onReceiveProcess", "recv", new Uint8Array(buffer))
-      queue.resolve.call(undefined, buffer)
-    return
+  _onReceiveProcess: (data) ->
+    unless @_receiver
+      @_log(1, "_onReceiveHandler", "dropped", new Uint8Array(info.data))
+      return
+    @_processor = @_processor.then(=>
+      return @_receiver(data)
+    )
 
   ###*
   @private

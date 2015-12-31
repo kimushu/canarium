@@ -403,6 +403,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
           return Promise.reject()
         data = new Uint8Array(read.slice(0))
         (data[x] = data[x] ^ 0xff) for x in [0...size]
+        (data[x] = (x & 0xff)) for x in [256...512]
         @print("phase = #{phase = 2}")
       ).then(=>
         c.avm.write(SDRAM_BASE, data.buffer).then(=>

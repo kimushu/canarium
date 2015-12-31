@@ -297,7 +297,7 @@ class Canarium
       ) # return tryPromise()
     ).then(=>
       # コンフィグレーションデータ送信
-      return @_base.transData(rbfdata, 0)
+      return @_base.transData(rbfdata)
     ).then(=>
       # コンフィグレーション完了チェック
       # (コマンド：コンフィグモード, 即時応答ON)
