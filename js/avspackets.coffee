@@ -23,7 +23,7 @@ class Canarium.AvsPackets
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 0
+  @verbosity: 2
 
   #----------------------------------------------------------------
   # Private properties
@@ -86,10 +86,10 @@ class Canarium.AvsPackets
     len = pushWithEscape(dst, len, src[src.length - 1])
     txdata = dst.buffer.slice(0, len)
     totalRxLen = rxsize + header.length + 1
-    @_log(1, "transPacket", "begin", {data: src, encoded: new Uint8Array(txdata)})
+    @_log(1, "transPacket", "begin", {source: src, encoded: new Uint8Array(txdata)})
     return @_base.transData(txdata, totalRxLen).then((rxdata) =>
       src = new Uint8Array(rxdata)
-      @_log(1, "transPacket", "recv", {data: src})
+      @_log(1, "transPacket", "recv", {encoded: src})
       pos = header.length
       unless src.subarray(0, pos).join(",") == header.join(",")
         return Promise.reject(Error("Illegal packetize control bytes"))
@@ -114,7 +114,7 @@ class Canarium.AvsPackets
         break if pos == src.byteLength
         return Promise.reject(Error("Illegal packetized bytestream"))
       data = dst.buffer.slice(0, len)
-      @_log(1, "transPacket", "end", {data: new Uint8Array(data)})
+      @_log(1, "transPacket", "end", {decoded: new Uint8Array(data)})
       return data # Last PromiseValue
     ) # return @_base.transData().then()
 

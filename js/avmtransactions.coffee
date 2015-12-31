@@ -15,7 +15,7 @@ class Canarium.AvmTransactions
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 0
+  @verbosity: 2
 
   #----------------------------------------------------------------
   # Private properties
@@ -31,6 +31,12 @@ class Canarium.AvmTransactions
   @private
   @property {number} _channel
     Avalon Packets to Transactions Converterのチャネル番号
+  ###
+
+  ###*
+  @private
+  @property {Promise} _lastAction
+    キューされている動作の最後尾を示すPromiseオブジェクト
   ###
 
   ###*
@@ -55,6 +61,7 @@ class Canarium.AvmTransactions
     パケットのチャネル番号
   ###
   constructor: (@_avs, @_channel) ->
+    @_lastAction = Promise.resolve()
     return
 
   ###*
@@ -73,26 +80,30 @@ class Canarium.AvmTransactions
   ###
   read: (address, bytenum, callback) ->
     return invokeCallback(callback, @read(address, bytenum)) if callback?
-    @_log(1, "read", "begin(address=#{hexDump(address)})")
-    return Promise.reject("Device is not configured") unless @_avs.base.configured
-    dest = new Uint8Array(bytenum)
-    return (x for x in [0...bytenum] by AVM_TRANS_MAX_BYTES).reduce(
-      (sequence, pos) =>
-        return sequence.then(=>
-          return @_trans(
-            0x14  # Read, incrementing address
-            address + pos
-            undefined
-            len
-          ).then((partialData) =>
-            dest.set(new Uint8Array(partialData), pos)
-          ) # return @_trans().then()
-        ) # return sequence.then()
-      Promise.resolve()
-    ).then(=>
-      @_log(1, "read", "end", dest)
-      return dest.buffer  # Last PromiseValue
-    ) # return (...).reduce()...
+    return @_queue(=>
+      @_log(1, "read", "begin(address=#{hexDump(address)})")
+      return Promise.reject("Device is not configured") unless @_avs.base.configured
+      dest = new Uint8Array(bytenum)
+      return (x for x in [0...bytenum] by AVM_TRANS_MAX_BYTES).reduce(
+        (sequence, pos) =>
+          return sequence.then(=>
+            partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES)
+            @_log(2, "read", "partial(offset=#{hexDump(pos)},size=#{hexDump(partialSize)})")
+            return @_trans(
+              0x14  # Read, incrementing address
+              address + pos
+              undefined
+              partialSize
+            ).then((partialData) =>
+              dest.set(new Uint8Array(partialData), pos)
+            ) # return @_trans().then()
+          ) # return sequence.then()
+        Promise.resolve()
+      ).then(=>
+        @_log(1, "read", "end", dest)
+        return dest.buffer  # Last PromiseValue
+      ) # return (...).reduce()...
+    ) # return @_queue()
 
   ###*
   @method
@@ -108,24 +119,28 @@ class Canarium.AvmTransactions
   ###
   write: (address, writedata, callback) ->
     return invokeCallback(callback, @write(address, writedata)) if callback?
-    src = new Uint8Array(writedata)
-    @_log(1, "write", "begin(address=#{hexDump(address)})", src)
-    return Promise.reject("Device is not configured") unless @_avs.base.configured
-    return (x for x in [0...src.byteLength] by AVM_TRANS_MAX_BYTES).reduce(
-      (sequence, pos) =>
-        return sequence.then(=>
-          return @_trans(
-            0x04  # Write, incrementing address
-            address + pos
-            src.subarray(pos, AVM_TRANS_MAX_BYTES)
-            undefined
-          ) # return @_trans()
-        ) # return sequence.then()
-      Promise.resolve()
-    ).then(=>
-      @_log(1, "write", "end")
-      return  # Last PromiseValue
-    ) # return (...).reduce()...
+    src = new Uint8Array(writedata.slice(0))
+    return @_queue(=>
+      @_log(1, "write", "begin(address=#{hexDump(address)})", src)
+      return Promise.reject("Device is not configured") unless @_avs.base.configured
+      return (x for x in [0...src.byteLength] by AVM_TRANS_MAX_BYTES).reduce(
+        (sequence, pos) =>
+          return sequence.then(=>
+            partialData = src.subarray(pos, pos + AVM_TRANS_MAX_BYTES)
+            @_log(2, "write", "partial(offset=#{hexDump(pos)})", partialData)
+            return @_trans(
+              0x04  # Write, incrementing address
+              address + pos
+              partialData
+              undefined
+            ) # return @_trans()
+          ) # return sequence.then()
+        Promise.resolve()
+      ).then(=>
+        @_log(1, "write", "end")
+        return  # Last PromiseValue
+      ) # return (...).reduce()...
+    ) # return @_queue()
 
   ###*
   @method
@@ -143,22 +158,24 @@ class Canarium.AvmTransactions
   ###
   iord: (address, offset, callback) ->
     return invokeCallback(callback, @iord(address, offset)) if callback?
-    @_log(1, "iord", "begin(address=#{hexDump(address)}+#{offset})")
-    return Promise.reject("Device is not configured") unless @_avs.base.configured
-    return @_trans(
-      0x10  # Read, non-incrementing address
-      (address & 0xfffffffc) + (offset << 2)
-      undefined
-      4
-    ).then((rxdata) =>
-      src = new Uint8Array(rxdata)
-      readData = (src[3] << 24) |
-                 (src[2] << 16) |
-                 (src[1] <<  8) |
-                 (src[0] <<  0)
-      @_log(1, "iord", "end", readData)
-      return readData # Last PromiseValue
-    ) # return @_trans().then()
+    return @_queue(=>
+      @_log(1, "iord", "begin(address=#{hexDump(address)}+#{offset})")
+      return Promise.reject("Device is not configured") unless @_avs.base.configured
+      return @_trans(
+        0x10  # Read, non-incrementing address
+        (address & 0xfffffffc) + (offset << 2)
+        undefined
+        4
+      ).then((rxdata) =>
+        src = new Uint8Array(rxdata)
+        readData = (src[3] << 24) |
+                   (src[2] << 16) |
+                   (src[1] <<  8) |
+                   (src[0] <<  0)
+        @_log(1, "iord", "end", readData)
+        return readData # Last PromiseValue
+      ) # return @_trans().then()
+    ) # return @_queue()
 
   ###*
   @method
@@ -176,22 +193,24 @@ class Canarium.AvmTransactions
   ###
   iowr: (address, offset, writedata, callback) ->
     return invokeCallback(callback, @iowr(address, offset, writedata)) if callback?
-    @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset})", writedata)
-    return Promise.reject("Device is not configured") unless @_avs.base.configured
-    src = new Uint8Array(4)
-    src[0] = (writedata >>>  0) & 0xff
-    src[1] = (writedata >>>  8) & 0xff
-    src[2] = (writedata >>> 16) & 0xff
-    src[3] = (writedata >>> 24) & 0xff
-    return @_trans(
-      0x00  # Write, non-incrementing address
-      (address & 0xfffffffc) + (offset << 2)
-      src
-      undefined
-    ).then(=>
-      @_log(1, "iowr", "end")
-      return  # Last PromiseValue
-    ) # return @_trans().then()
+    return @_queue(=>
+      @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset})", writedata)
+      return Promise.reject("Device is not configured") unless @_avs.base.configured
+      src = new Uint8Array(4)
+      src[0] = (writedata >>>  0) & 0xff
+      src[1] = (writedata >>>  8) & 0xff
+      src[2] = (writedata >>> 16) & 0xff
+      src[3] = (writedata >>> 24) & 0xff
+      return @_trans(
+        0x00  # Write, non-incrementing address
+        (address & 0xfffffffc) + (offset << 2)
+        src
+        undefined
+      ).then(=>
+        @_log(1, "iowr", "end")
+        return  # Last PromiseValue
+      ) # return @_trans().then()
+    ) # return @_queue()
 
   ###*
   @method
@@ -207,11 +226,27 @@ class Canarium.AvmTransactions
   ###
   option: (option, callback) ->
     return invokeCallback(callback, @option(option)) if callback?
-    return @_avs.base.option(option)
+    return @_queue(=>
+      return @_avs.base.option(option)
+    )
 
   #----------------------------------------------------------------
   # Private methods
   #
+
+  ###*
+  @private
+  @method
+    非同期実行キューに追加する
+  @param {function():Promise} action
+    Promiseオブジェクトを返却する関数
+  @return {Promise}
+    Promiseオブジェクト
+  ###
+  _queue: (action) ->
+    return new Promise((resolve, reject) =>
+      @_lastAction = @_lastAction.then(action).then(resolve, reject)
+    )
 
   ###*
   @private

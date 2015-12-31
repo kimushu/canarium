@@ -238,11 +238,15 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       )
   )
   rbf = null
+  # https://github.com/osafune/peridot/tree/master/fpga/peridot_testsuite
   RBF_PATH      = "testsuite.rbf"
+  IPL_MEM_BASE  = 0x0f000000
+  IPL_MEM_SIZE  = 0x00004000
   SYSID_BASE    = 0x10000000
   SYSID_ID      = 0xa0140807
-  IPL_MEM_BASE  = 0x0f000000
-  IPL_MEM_SIZE  = 16384
+  SDRAM_BASE    = 0x00000000
+  SDRAM_SIZE    = 0x00800000
+  RESETCTL_BASE = 0x0fff0000
   @add(
     category: "コンフィグ(正常系)"
     description: "RBFファイルを用いてコンフィグレーション実行(ボード制限無し)"
@@ -363,6 +367,87 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       c.avm.iord(SCRATCH_BASE, 0).then((compare) =>
         @print("scratch = 0x#{(compare|0x100000000).toString(16)[-8..-1]}")
         callback(if (compare|0) != (SCRATCH_MAGIC|0) then @PASS else @FAIL)
+      ).catch(=>
+        callback(@FAIL)
+      )
+  )
+  @add(
+    category: "AVM通信(正常系)"
+    description: "2つのAVM通信要求が呼び出し順序でキューイングされるか確認"
+    setup: (callback) ->
+      return callback(@FAIL) unless c
+      @print("Nios II プロセッサの停止要求中...")
+      checkreset = =>
+        return c.avm.iord(RESETCTL_BASE, 0).then((resettaken) =>
+          return unless (resettaken & 1) == 1
+          checkreset = null
+          @print("Nios II プロセッサを停止しました")
+        ).then(=>
+          return callback(@PASS) unless checkreset
+          checkreset()
+        )
+      c.avm.iowr(RESETCTL_BASE, 0, 0x1).then(=>
+        checkreset()
+      ).catch(=>
+        callback(@FAIL)
+      )
+    body: (callback) ->
+      phase = 0
+      size = 0x20000
+      data = null
+      c.avm.read(SDRAM_BASE, size).then((read) =>
+        return if phase < 0
+        unless phase == 1 and read.byteLength == size
+          phase = -1
+          callback(@FAIL)
+          return Promise.reject()
+        data = new Uint8Array(read.slice(0))
+        (data[x] = data[x] ^ 0xff) for x in [0...size]
+        @print("phase = #{phase = 2}")
+      ).then(=>
+        c.avm.write(SDRAM_BASE, data.buffer).then(=>
+          return if phase < 0
+          unless phase == 2
+            phase = -2
+            return callback(@FAIL)
+          @print("phase = #{phase = 3}")
+        ).catch(=>
+          return if phase < 0
+          phase = -2
+          callback(@FAIL)
+        )
+        c.avm.read(SDRAM_BASE, size).then((read) =>
+          return if phase < 0
+          unless phase == 3 and read.byteLength == size
+            phase = -3
+            return callback(@FAIL)
+          @print("phase = #{phase = 4}")
+          compare = new Uint8Array(read)
+          mismatch = false
+          for x in [0...size]
+            if data[x] != compare[x]
+              mismatch = true
+              break
+          phase = -phase
+          callback(if mismatch then @FAIL else @PASS)
+        ).catch(=>
+          return if phase < 0
+          phase = -3
+          callback(@FAIL)
+        )
+      ).catch(=>
+        return if phase < 0
+        callback(@FAIL)
+      )
+      @print("phase = #{phase = 1}")
+    epilogue: (callback) ->
+      @print("Nios II プロセッサの起動要求中...")
+      c.avm.iowr(RESETCTL_BASE, 0, 0x0).then(=>
+        return c.avm.iord(RESETCTL_BASE, 0)
+      ).then((resettaken) =>
+        return Promise.reject() unless (resettaken & 1) == 0
+        @print("Nios II プロセッサを起動しました")
+        callback(@PASS)
       ).catch(=>
         callback(@FAIL)
       )

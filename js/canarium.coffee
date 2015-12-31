@@ -195,6 +195,8 @@ class Canarium
         return @_eepromRead(0x00, 4)
       ).then((readData) =>
         header = new Uint8Array(readData)
+        # if header[] == ....
+        #   max10mode = true
         unless header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
           return Promise.reject(Error("EEPROM header is invalid"))
         @_log(1, "open", "done(version=#{hexDump(header[3])})")
@@ -392,6 +394,13 @@ class Canarium
             @_boardInfo.id = "#{bid}"
             @_boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-#{s.substr(12, 6)}"
           ) # return @_eepromRead()
+        when 10
+          # MAX10ヘッダ
+          return @avm.read(MAX10BOOT_SWI_BASE + 8, 8).then((readData) =>
+            @_log(1, "getinfo", "ver10", readData)
+            @_boardInfo.id = "MAX 10"
+            @_boardInfo.serialcode = "xxxxxxxx-xxxxxxxx" # dataから作る
+          )
         else
           # 未知のヘッダバージョン
           return Promise.reject(Error("Unknown boardinfo version"))
