@@ -1,4 +1,4 @@
-TARGETS = canarium.js canarium.min.js
+TARGETS = ../canarium.js ../canarium.min.js
 SOURCE = \
 	header.coffee \
 	canarium.coffee \
@@ -9,16 +9,15 @@ SOURCE = \
 	# hostfs.coffee hostnet.coffee
 PREAMBLE = license.js
 JS_TYPES = ArrayBuffer chrome.serial Uint8Array DirectoryEntry Promise
-DOC_DIR = doc
 
 comma := ,
 empty :=
 space := $(empty) $(empty)
 
-target_backup = (test ! -e $@ || ($(target_cleanup) && mv $@ .bak-$@))
-target_rollback = (test ! -e .bak-$@ || (rm -r $@ && mv .bak-$@ $@))
-target_update = (test ! -e .bak-$@/.git || (mv .bak-$@/.git $@/ && git -C $@ add --all .))
-target_cleanup = (test ! -e .bak-$@ || rm -r .bak-$@)
+target_backup = (test ! -e ../$@ || ($(target_cleanup) && mv ../$@ ../.bak-$@))
+target_rollback = (test ! -e ../.bak-$@ || (rm -r ../$@ && mv ../.bak-$@ ../$@))
+target_update = (test ! -e ../.bak-$@/.git || (mv ../.bak-$@/.git ../$@/ && git -C ../$@ add --all .))
+target_cleanup = (test ! -e ../.bak-$@ || rm -r ../.bak-$@)
 
 compile:
 
@@ -32,7 +31,7 @@ compile: $(TARGETS)
 doc: $(firstword $(TARGETS))
 	$(target_backup)
 	jsduck \
-		--output $@ \
+		--output ../$@ \
 		--welcome=welcome.html \
 		--external=$(subst $(space),$(comma),$(JS_TYPES)) $< \
 		--warnings=-global \
@@ -43,13 +42,13 @@ doc: $(firstword $(TARGETS))
 .PHONY: clean
 clean:
 	rm -f $(TARGETS)
-	rm -rf doc/*
+	rm -rf ../doc/*
 
 .PHONY: test
 test: compile
-	$(MAKE) -C $@
+	$(MAKE) -C ../$@
 
-canarium.js: $(SOURCE) $(PREAMBLE)
+../canarium.js: $(SOURCE) $(PREAMBLE)
 	cat /dev/null $(PREAMBLE) > $@ || (rm -f $@; false)
 	cat $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
 
