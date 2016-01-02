@@ -141,7 +141,11 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         callback(@FAIL)
     body: (callback) ->
       c._base.connect(dev_test[0]).then(=>
-        callback(@PASS)
+        return c._base.transCommand(0x39)
+      ).then((response) =>
+        as_mode = (response & 0x01) != 0
+        @print("ASモードに設定されています") if as_mode
+        callback(if as_mode then @FAIL else @PASS)
       ).catch(=>
         c = null
         callback(@FAIL)
@@ -220,6 +224,14 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         callback(if result then @FAIL else @PASS)
       )
   )
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "コンフィグレーションが未完了になっているか確認"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      callback(if c._base.configured then @FAIL else @PASS)
+  )
   binfo = {}
   @add(
     category: "ボード情報(正常系)"
@@ -266,6 +278,14 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
       c.config(null, rbf, (result) =>
         callback(if result then @PASS else @FAIL)
       )
+  )
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "コンフィグレーションが完了になっているか確認"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      callback(if c._base.configured then @PASS else @FAIL)
   )
   @add(
     category: "コンフィグ(異常系)"

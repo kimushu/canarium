@@ -15,7 +15,7 @@ class Canarium.AvmTransactions
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 2
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties
@@ -217,8 +217,10 @@ class Canarium.AvmTransactions
     AvalonMMオプション設定
   @param {Object} option
     オプション
-  @param {boolean}  option.fastAcknowledge
+  @param {boolean} option.fastAcknowledge
     即時応答ビットを立てるかどうか
+  @param {boolean} option.forceConfigured
+    コンフィグレーション済みとして扱うかどうか
   @param {function(boolean,Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}

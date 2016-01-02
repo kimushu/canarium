@@ -191,16 +191,18 @@ class Canarium
       return Promise.resolve(
       ).then(=>
         @_boardInfo = null
-        @_base.configured = false
         return @_eepromRead(0x00, 4)
       ).then((readData) =>
         header = new Uint8Array(readData)
-        # if header[] == ....
-        #   max10mode = true
         unless header[0] == 0x4a and header[1] == 0x37 and header[2] == 0x57
           return Promise.reject(Error("EEPROM header is invalid"))
         @_log(1, "open", "done(version=#{hexDump(header[3])})")
         @_boardInfo = {version: header[3]}
+        return @_base.transCommand(0x39)
+      ).then((response) =>
+        # ASモードならコンフィグレーション済みとして設定する
+        return @_base.option({forceConfigured: (response & 0x01) != 0})
+      ).then(=>
         return  # Last PromiseValue
       ).catch((error) =>
         return @_base.disconnect().catch(=>).then(=> Promise.reject(error))
@@ -222,7 +224,6 @@ class Canarium
       return @_base.disconnect()
     ).then(=>
       @_boardInfo = null
-      @_base.configured = false
       return  # Last PromiseValue
     ) # return Promise.resolve()...
 
@@ -312,7 +313,9 @@ class Canarium
       # (コマンド：ユーザーモード)
       return @_base.transCommand(0x39)
     ).then(=>
-      @_base.configured = true
+      # コンフィグレーション済みとして設定
+      return @_base.option({forceConfigured: true})
+    ).then(=>
       return  # Last PromiseValue
     ).then(finallyPromise(=>
       @_configBarrier = false
@@ -394,35 +397,12 @@ class Canarium
             @_boardInfo.id = "#{bid}"
             @_boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-#{s.substr(12, 6)}"
           ) # return @_eepromRead()
-        when 10
-          # MAX10ヘッダ
-          return @avm.read(MAX10BOOT_SWI_BASE + 8, 8).then((readData) =>
-            @_log(1, "getinfo", "ver10", readData)
-            @_boardInfo.id = "MAX 10"
-            @_boardInfo.serialcode = "xxxxxxxx-xxxxxxxx" # dataから作る
-          )
         else
           # 未知のヘッダバージョン
           return Promise.reject(Error("Unknown boardinfo version"))
     ).then(=>
       return @boardInfo # Last PromiseValue
     ) # return Promise.resolve()...
-
-  ###*
-  @method
-    オプション設定
-  @param {Object} option
-    オプション
-  @param {boolean}  option.forceConfigured
-    コンフィグレーション済みとして扱うかどうか
-  @param {function(boolean,Error=)} [callback]
-    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
-  @return {undefined/Promise}
-    戻り値なし(callback指定時)、または、Promiseオブジェクト
-  ###
-  option: (option, callback) ->
-    return invokeCallback(callback, @option(option)) if callback?
-    return @_base.option(option)
 
   #----------------------------------------------------------------
   # Private methods

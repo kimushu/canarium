@@ -3,9 +3,10 @@ canarium.jsの先頭に配置されるスクリプト。
 共通関数定義を行う。
 ###
 
-# リリース用ビルドの時はtrueにする
-# (デバッグ向けのBuilt-inメソッド上書きを無効化する)
-RELEASE_BUILD = false
+# デバッグ向けのBuilt-inメソッド追加/上書き
+# **** リリース用ビルドの時はfalseにすること ****
+if false
+  Uint8Array::hexDump = -> hexDump(this)
 
 # 既にpropertyが定義されていた場合、canarium.jsロード後に
 # 元の定義に戻すために一旦別名保存する。
@@ -174,13 +175,6 @@ finallyPromise = (action) ->
       action()
       return Promise.reject(error)
   ] # return []
-
-###*
-@method
-  Uint8ArrayをhexDumpする
-###
-unless RELEASE_BUILD
-  Uint8Array::hexDump = -> hexDump(this)
 
 ###*
 @private

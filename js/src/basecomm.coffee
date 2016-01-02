@@ -27,7 +27,7 @@ class Canarium.BaseComm
   @readonly
   ###
   @property "path",
-    get: -> @_path
+    get: -> "#{@_path}"
 
   ###*
   @property {number} bitrate
@@ -40,25 +40,25 @@ class Canarium.BaseComm
   ###*
   @property {boolean} sendImmediate
     即時応答ビットを立てるかどうか
+  @readonly
   ###
   @property "sendImmediate",
     get: -> @_sendImmediate
-    set: (v) -> @_sendImmediate = !!v
 
   ###*
   @property {boolean} configured
     コンフィグレーション済みかどうか
+  @readonly
   ###
   @property "configured",
     get: -> @_configured
-    set: (v) -> @_configured = !!v
 
   ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
   ###
-  @verbosity: 2
+  @verbosity: 0
 
   #----------------------------------------------------------------
   # Private properties
@@ -84,14 +84,20 @@ class Canarium.BaseComm
 
   ###*
   @private
+  @property {number} _cid
+    シリアル接続ID
+  ###
+
+  ###*
+  @private
   @property {boolean} _sendImmediate
   @inheritdoc #sendImmediate
   ###
 
   ###*
   @private
-  @property {number} _cid
-    シリアル接続ID
+  @property {boolean} _configured
+  @inheritdoc #configured
   ###
 
   ###*
@@ -108,20 +114,14 @@ class Canarium.BaseComm
 
   ###*
   @private
-  @property {Object[]} _rxQueue
-    受信待ちキュー
+  @property {ArrayBuffer} _rxBuffer
+    受信中データ
   ###
 
   ###*
   @private
-  @property {ArrayBuffer[]} _rxBuffers
-    受信データバッファの配列
-  ###
-
-  ###*
-  @private
-  @property {number} _rxTotalLength
-    受信データの合計サイズ
+  @property {function(ArrayBuffer=,Error=)} _receiver
+    受信処理を行う関数
   ###
 
   ###*
@@ -141,15 +141,6 @@ class Canarium.BaseComm
   @readonly
   ###
   SUCCESSIVE_TX_WAIT_MS = null # 4
-
-  ###*
-  @private
-  @static
-  @cfg {boolean}
-    chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
-  @readonly
-  ###
-  SPLIT_EVENT_CONTEXT = false
 
   #----------------------------------------------------------------
   # Public methods
@@ -198,12 +189,6 @@ class Canarium.BaseComm
     @_cid = null
     @_onReceive = (info) => @_onReceiveHandler(info)
     @_onReceiveError = (info) => @_onReceiveErrorHandler(info)
-    @_rxQueue = null
-    @_rxBuffers = null
-    @_rxTotalLength = null
-    @_rxBuffer = null
-    @_receiver = null
-    @_processor = Promise.resolve()
     return
 
   ###*
@@ -230,10 +215,11 @@ class Canarium.BaseComm
             @_connected = false
             return reject(Error(chrome.runtime.lastError))
           @_path = "#{path}"
+          @_sendImmediate = false
+          @_configured = false
           @_cid = connectionInfo.connectionId
-          @_rxQueue = []
-          @_rxBuffers = []
-          @_rxTotalLength = 0
+          @_rxBuffer = null
+          @_receiver = null
           chrome.serial.onReceive.addListener(@_onReceive)
           chrome.serial.onReceiveError.addListener(@_onReceiveError)
           return resolve()
@@ -245,20 +231,24 @@ class Canarium.BaseComm
     オプション設定
   @param {Object} option
     オプション
+  @param {boolean} option.sendImmediate
+    即時応答ビットを有効にするかどうか
   @param {boolean} option.forceConfigured
     コンフィグレーション済みとして扱うかどうか
   @return {Promise}
     Promiseオブジェクト
   ###
   option: (option) ->
+    return Promise.reject(Error("Not connected")) unless @_connected
     return Promise.resolve(
     ).then(=>
       return unless (value = option.fastAcknowledge)?
-      @_sendImmediate = value
+      @_sendImmediate = !!value
       return @transCommand(0x39 | (if value then 0x02 else 0x00))
     ).then(=>
       return unless (value = option.forceConfigured)?
-      @_configured = value
+      @_configured = !!value
+      return
     ).then(=>
       return  # Last PromiseValue
     ) # return Promise.resolve()...
@@ -279,9 +269,6 @@ class Canarium.BaseComm
         @_connected = false
         @_path = null
         @_cid = null
-        @_rxQueue = null
-        @_rxBuffers = null
-        @_rxTotalLength = null
         return resolve()
       )
     )
@@ -314,7 +301,7 @@ class Canarium.BaseComm
     データの送受信を行う
   @param {ArrayBuffer/null} txdata
     送信するデータ(制御バイトは自動的にエスケープされる。nullの場合は受信のみ)
-  @param {function(ArrayBuffer,number):number/undefined/Error} [receiver]
+  @param {function(ArrayBuffer,number):number/undefined/Error} [estimator]
     受信完了まで繰り返し呼び出される受信処理関数。
     引数は受信データ全体と、今回の呼び出しで追加されたデータのオフセット。
     省略時は送信のみで完了とする。戻り値の解釈は以下の通り。
@@ -327,7 +314,7 @@ class Canarium.BaseComm
   @return {ArrayBuffer} return.PromiseValue
     受信データ
   ###
-  transData: (txdata, receiver) ->
+  transData: (txdata, estimator) ->
     if txdata
       src = new Uint8Array(txdata)
       dst = new Uint8Array(txdata.byteLength * 2)
@@ -340,7 +327,7 @@ class Canarium.BaseComm
         dst[len] = byte
         len += 1
       txdata = dst.buffer.slice(0, len)
-    return @_transSerial(txdata, receiver)
+    return @_transSerial(txdata, estimator)
 
   #----------------------------------------------------------------
   # Private methods
@@ -370,7 +357,7 @@ class Canarium.BaseComm
     シリアル通信の送受信を行う
   @param {ArrayBuffer/null} txdata
     送信するデータ(nullの場合は受信のみ)
-  @param {function(ArrayBuffer,number):number/undefined/Error} [receiver]
+  @param {function(ArrayBuffer,number):number/undefined/Error} [estimator]
     受信完了まで繰り返し呼び出される受信処理関数。
     引数は受信データ全体と、今回の呼び出しで追加されたデータのオフセット。
     省略時は送信のみで完了とする。戻り値の解釈は以下の通り。
@@ -383,17 +370,20 @@ class Canarium.BaseComm
   @return {ArrayBuffer} return.PromiseValue
     受信したデータ(指定バイト数分)
   ###
-  _transSerial: (txdata, receiver) ->
+  _transSerial: (txdata, estimator) ->
     return Promise.reject(Error("Not connected")) unless @_connected
     return Promise.reject(Error("Operation is in progress")) if @_receiver
     promise = new Promise((resolve, reject) =>
-      @_receiver = (rxdata) =>
-        offset = @_rxBuffer?.byteLength or 0
-        newArray = new Uint8Array(offset + rxdata.byteLength)
-        newArray.set(new Uint8Array(@_rxBuffer)) if @_rxBuffer
-        newArray.set(new Uint8Array(rxdata), offset)
-        @_rxBuffer = newArray.buffer
-        result = receiver(@_rxBuffer, offset)
+      @_receiver = (rxdata, error) =>
+        if rxdata?
+          offset = @_rxBuffer?.byteLength or 0
+          newArray = new Uint8Array(offset + rxdata.byteLength)
+          newArray.set(new Uint8Array(@_rxBuffer)) if @_rxBuffer
+          newArray.set(new Uint8Array(rxdata), offset)
+          @_rxBuffer = newArray.buffer
+          result = estimator(@_rxBuffer, offset)
+        else
+          result = error
         if result instanceof Error
           @_rxBuffer = null
           @_receiver = null
@@ -402,7 +392,7 @@ class Canarium.BaseComm
           rxdata = @_rxBuffer.slice(0, result)
           @_rxBuffer = @_rxBuffer.slice(result)
           @_receiver = null
-          return resolve(rxdata) # Last PromiseValue if receiver
+          return resolve(rxdata) # Last PromiseValue if estimator
     ) # promise = new Promise()
     txsize = txdata?.byteLength or 0
     return (x for x in [0...txsize] by SERIAL_TX_MAX_LENGTH).reduce(
@@ -413,7 +403,7 @@ class Canarium.BaseComm
             size = data.byteLength
             chrome.serial.send(@_cid, data, (writeInfo) =>
               e = writeInfo.error
-              return reject(Error(e)) if e?
+              return reject(Error("Serial error: #{e}")) if e?
               b = writeInfo.bytesSent
               return reject(Error("bytesSent(#{b}) != bytesRequested(#{size})")) if b != size
               @_log(1, "_transSerial", "sent", new Uint8Array(data))
@@ -424,9 +414,9 @@ class Canarium.BaseComm
         ) # return sequence.then()
       Promise.resolve()
     ).then(=>
-      unless receiver
+      unless estimator
         @_receiver = null
-        return new ArrayBuffer(0) # Last PromiseValue if !receiver
+        return new ArrayBuffer(0) # Last PromiseValue if !estimator
       @_log(1, "_transSerial", "wait", promise)
       return promise
     ) # return (...).reduce()...
@@ -458,65 +448,6 @@ class Canarium.BaseComm
   ###*
   @private
   @method
-    シリアル受信後のデータ分割およびPromiseの遷移を行う
-  @param {ArrayBuffer} data
-    受信データ
-  return {undefined}
-  ###
-  _onReceiveProcess: (data) ->
-    unless @_receiver
-      @_log(1, "_onReceiveHandler", "dropped", new Uint8Array(info.data))
-      return
-    @_processor = @_processor.then(=>
-      return @_receiver(data)
-    )
-
-  ###*
-  @private
-  @method
-    受信データバッファの末尾にデータを追加する
-  @param {ArrayBuffer} data
-    受信データ
-  @return {undefined}
-  ###
-  _addRxBuffer: (data) ->
-    @_rxBuffers.push(data.slice(0))
-    @_rxTotalLength += data.byteLength
-    return
-
-  ###*
-  @private
-  @method
-    受信データバッファの先頭からデータを取り出す
-  @param {number} length
-    取り出すバイト数
-  @return {ArrayBuffer/null}
-    取り出したデータ(バッファ不足時はnull)
-  ###
-  _sliceRxBuffer: (length) ->
-    return null if length > @_rxTotalLength
-    array = new Uint8Array(length)
-    pos = 0
-    rem = length
-    while rem > 0
-      partBuf = @_rxBuffers[0]
-      partLen = partBuf.byteLength
-      if partLen <= rem
-        @_rxBuffers.shift()
-      else
-        partArray = new Uint8Array(partLen - rem)
-        partArray.set(new Uint8Array(partBuf, rem))
-        @_rxBuffers[0] = partArray.buffer
-        partLen = rem
-      array.set(new Uint8Array(partBuf, 0, partLen), pos)
-      pos += partLen
-      rem -= partLen
-    @_rxTotalLength -= length
-    return array.buffer
-
-  ###*
-  @private
-  @method
     受信エラーハンドラ
   @param {Object} info
     エラー情報
@@ -530,30 +461,17 @@ class Canarium.BaseComm
   ###
   _onReceiveErrorHandler: (info) ->
     return unless info.connectionId == @_cid and @_connected
-    error = "#{info.error}"
-    if SPLIT_EVENT_CONTEXT
-      window.setTimeout((=> @_onReceiveErrorProcess(error)), 0)
-    else
-      @_onReceiveErrorProcess(error)
-    return
-
-  ###*
-  @private
-  @method
-    受信エラー発生時の処置およびPromiseの遷移を行う
-  @param {string} error
-    エラー名称
-  @return {undefined}
-  ###
-  _onReceiveErrorProcess: (error) ->
-    # シリアル通信レベルでの通信エラーは、原則として復旧不可。
-    # また、ケーブル切断によるエラーの場合、ドライバを切断しておかないと
-    # Windowsでは次回接続時に支障がでるため自動的にdisconnectする。
-    @disconnect()
-    # キューされた受信待ちキューをすべてエラー終了とする
-    @_rxBuffers = []
-    @_rxTotalLength = 0
-    while queue = @_rxQueue.shift()
-      queue.reject.call(undefined, Error("Disconnected because of #{error}"))
+    Promise.resolve(
+    ).then(=>
+      # シリアル通信レベルでの通信エラーは、原則として復旧不可。
+      # また、ケーブル切断によるエラーの場合、ドライバを切断しておかないと
+      # Windowsでは次回接続時に支障がでるため自動的にdisconnectする。
+      @disconnect()
+      error = "Serial error: #{info.error}"
+      if @_receiver
+        @_receiver(null, Error(error))
+      else
+        @_log(1, "_onReceiveErrorHandler", "dropped", error)
+    )
     return
 
