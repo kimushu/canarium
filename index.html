@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles-3eba09980fa05ead185cb17d9c0deb0f.css" type="text/css" />
 
   <script type="text/javascript" src="extjs/ext-all.js"></script>
-  <script type="text/javascript" src="data-c1c19b5580ca009c5c9ef917926f2c3d.js"></script>
+  <script type="text/javascript" src="data-d5ea7a54d0ae57a50a9c67a35d16b08a.js"></script>
 
   <script type="text/javascript" src="app-0c945a27f43452df695771ddb60b3d14.js"></script>
 
@@ -26,10 +26,34 @@
 
   <div id="header-content"><strong>Documentation</strong> JSDuck</div>
   <div id='welcome-content' style='display:none'><body>
-  <h1>Test H1</h1>
-  Texts...
-  <h2>Test H2</h2>
-  Blah, blah...
+  <div class="class-categories" style="margin: 20px;">
+    <h1 class="top" style="padding-bottom: 10px">Canarium - Chromeアプリ用PERIDOTボードドライバ 0.9.7</h1>
+
+    <p>Canariumは、Chromeアプリ開発者向けに用意されたPERIDOTボードのドライバライブラリです。</p>
+    <p>本ライブラリは、<a href="https://github.com/osafune/peridot/tree/master/sample_apps/lib" target="blank">PERIDOTボード本家リポジトリ</a>に含まれているCanarium(0.9.5)をベースとして、<a href="http://coffeescript.org">CoffeeScript</a>で書き直したものです。</p>
+    <p>&nbsp;</p>
+
+    <div class="section">
+      <h1 style="padding-bottom: 10px">PERIDOTボードについて</h1>
+      PERIDOTボードについては、<a href="http://osafune.github.io/peridot.html" target="blank">制作元サイト</a>を参照してください。
+    </div>
+
+    <div class="section">
+      <h1 style="padding-bottom: 10px">このバージョンの機能</h1>
+      <p>本家Canarium(0.9.5)からの差分は以下のとおりです。</p>
+      <ul style="padding-left: 20px">
+        <li style="list-style-type: square">JavaScriptにコンパイルされたライブラリ本体は、canarium.jsとcanarium.min.jsの2種類で提供されるようになりました。どちらも機能は同じですが、後者はサイズを減らすために圧縮されています。</li>
+        <li style="list-style-type: square">非同期処理を行うすべての関数は、コールバック関数の指定を省略する(またはundefinedやnullを渡す)ことで、Promiseオブジェクトを返す仕様になります。</li>
+        <li style="list-style-type: square">ASモードでの接続時はコンフィグレーション済みとして扱い、接続直後からavmの使用が許可されます。</li>
+        <li style="list-style-type: square">avm.optionにてfastAcknowledge=trueを設定しても、chrome.serial.flushを行いません。</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h1 style="padding-bottom: 10px">使い方</h1>
+      <p>ドキュメント整備中です。なお、APIリファレンスは本ページ上部にある歯車アイコンのタブをクリックすると見ることが出来ます。</p>
+    </div>
+  </div>
 </body>
 </div>
             <div id='categories-content' style='display:none'>
@@ -69,7 +93,7 @@
 
   
   
-  <div id='footer-content' style='display: none'>Generated on Wed 23 Dec 2015 21:37:39 by <a href='https://github.com/senchalabs/jsduck'>JSDuck</a> 5.3.4.</div>
+  <div id='footer-content' style='display: none'>Generated on Wed 06 Jan 2016 01:07:33 by <a href='https://github.com/senchalabs/jsduck'>JSDuck</a> 5.3.4.</div>
 
   
 

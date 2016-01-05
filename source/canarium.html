@@ -16,10 +16,10 @@
 </head>
 <body onload="prettyPrint(); highlight();">
   <pre class="prettyprint lang-js">// ******************************************************************* //
-// PERIDOT Chrome Apps driver - &#39;Canarium&#39; (version 0.9.9)             //
+// PERIDOT Chrome Apps driver - &#39;Canarium&#39; (version 0.9.7)             //
 // Copyright (C) 2015 @kimu_shu and @s_osafune                         //
 // ------------------------------------------------------------------- //
-// The original version of Canarium (below version 0.9.7) is written   //
+// The original version of Canarium (below version 0.9.6) is written   //
 // by @s_osafune and distributed under the following license:          //
 //                                                                     //
 //     Copyright (C) 2014, J-7SYSTEM Works.  All rights Reserved.      //
@@ -41,6 +41,12 @@ canarium.jsの先頭に配置されるスクリプト。
 (function() {
   var Canarium, TimeLimit, finallyPromise, hexDump, invokeCallback, oldProperty, tryPromise, waitPromise;
 
+  if (false) {
+    Uint8Array.prototype.hexDump = function() {
+      return hexDump(this);
+    };
+  }
+
   oldProperty = Function.prototype.property;
 
 
@@ -61,7 +67,7 @@ canarium.jsの先頭に配置されるスクリプト。
 
 <span id='global-method-hexDump'>  /**
 </span>  @private
-  @method hexDump
+  @method
     16進ダンプ表示の文字列に変換
   @param {number/number[]/ArrayBuffer/Uint8Array} data
     変換するデータ
@@ -158,9 +164,9 @@ canarium.jsの先頭に配置されるスクリプト。
   };
 
 
-<span id='global-method-global'>  /**
+<span id='global-method-tryPromise'>  /**
 </span>  @private
-  @method global#tryPromise
+  @method
     成功するまで繰り返すPromiseオブジェクトを生成
   @param {number} timeout
     最大待機時間(ミリ秒単位)
@@ -288,7 +294,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Canarium.property(&quot;version&quot;, {
-      value: &quot;0.9.9&quot;
+      value: &quot;0.9.7&quot;
     });
 
 
@@ -516,7 +522,6 @@ canarium.jsの先頭に配置されるスクリプト。
         return function() {
           return Promise.resolve().then(function() {
             _this._boardInfo = null;
-            _this._base.configured = false;
             return _this._eepromRead(0x00, 4);
           }).then(function(readData) {
             var header;
@@ -528,7 +533,12 @@ canarium.jsの先頭に配置されるスクリプト。
             _this._boardInfo = {
               version: header[3]
             };
-          })[&quot;catch&quot;](function(error) {
+            return _this._base.transCommand(0x39);
+          }).then(function(response) {
+            return _this._base.option({
+              forceConfigured: (response &amp; 0x01) !== 0
+            });
+          }).then(function() {})[&quot;catch&quot;](function(error) {
             return _this._base.disconnect()[&quot;catch&quot;](function() {}).then(function() {
               return Promise.reject(error);
             });
@@ -558,7 +568,6 @@ canarium.jsの先頭に配置されるスクリプト。
       })(this)).then((function(_this) {
         return function() {
           _this._boardInfo = null;
-          _this._base.configured = false;
         };
       })(this));
     };
@@ -647,7 +656,7 @@ canarium.jsの先頭に配置されるスクリプト。
         };
       })(this)).then((function(_this) {
         return function() {
-          return _this._base.transData(rbfdata, 0);
+          return _this._base.transData(rbfdata);
         };
       })(this)).then((function(_this) {
         return function() {
@@ -665,8 +674,12 @@ canarium.jsの先頭に配置されるスクリプト。
         };
       })(this)).then((function(_this) {
         return function() {
-          _this._base.configured = true;
+          return _this._base.option({
+            forceConfigured: true
+          });
         };
+      })(this)).then((function(_this) {
+        return function() {};
       })(this))).then.apply(ref, finallyPromise((function(_this) {
         return function() {
           return _this._configBarrier = false;
@@ -678,10 +691,12 @@ canarium.jsの先頭に配置されるスクリプト。
 <span id='Canarium-method-reset'>    /**
 </span>    @method
       ボードのマニュアルリセット
-    @param {function(boolean,Error=)} [callback]
+    @param {function(boolean,number/Error=)} [callback]
       コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
     @return {undefined/Promise}
       戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+    @return {number} return.PromiseValue
+      レスポンスコマンド
      */
 
     Canarium.prototype.reset = function(callback) {
@@ -706,7 +721,9 @@ canarium.jsの先頭に配置されるスクリプト。
           return _this._base.transCommand(0x39);
         };
       })(this)).then((function(_this) {
-        return function() {};
+        return function(response) {
+          return response;
+        };
       })(this))).then.apply(ref, finallyPromise((function(_this) {
         return function() {
           return _this._resetBarrier = false;
@@ -779,27 +796,6 @@ canarium.jsの先頭に配置されるスクリプト。
           return _this.boardInfo;
         };
       })(this));
-    };
-
-
-<span id='Canarium-method-option'>    /**
-</span>    @method
-      オプション設定
-    @param {Object} option
-      オプション
-    @param {boolean}  option.forceConfigured
-      コンフィグレーション済みとして扱うかどうか
-    @param {function(boolean,Error=)} [callback]
-      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
-    @return {undefined/Promise}
-      戻り値なし(callback指定時)、または、Promiseオブジェクト
-     */
-
-    Canarium.prototype.option = function(option, callback) {
-      if (callback != null) {
-        return invokeCallback(callback, this.option(option));
-      }
-      return this._base.option(option);
     };
 
 
@@ -982,7 +978,7 @@ canarium.jsの先頭に配置されるスクリプト。
    */
 
   Canarium.BaseComm = (function() {
-    var SERIAL_TX_MAX_LENGTH, SPLIT_EVENT_CONTEXT, SUCCESSIVE_TX_WAIT_MS;
+    var SERIAL_TX_MAX_LENGTH, SUCCESSIVE_TX_WAIT_MS;
 
     null;
 
@@ -1011,7 +1007,7 @@ canarium.jsの先頭に配置されるスクリプト。
 
     BaseComm.property(&quot;path&quot;, {
       get: function() {
-        return this._path;
+        return &quot;&quot; + this._path;
       }
     });
 
@@ -1034,14 +1030,12 @@ canarium.jsの先頭に配置されるスクリプト。
 <span id='Canarium-BaseComm-property-sendImmediate'>    /**
 </span>    @property {boolean} sendImmediate
       即時応答ビットを立てるかどうか
+    @readonly
      */
 
     BaseComm.property(&quot;sendImmediate&quot;, {
       get: function() {
         return this._sendImmediate;
-      },
-      set: function(v) {
-        return this._sendImmediate = !!v;
       }
     });
 
@@ -1049,14 +1043,12 @@ canarium.jsの先頭に配置されるスクリプト。
 <span id='Canarium-BaseComm-property-configured'>    /**
 </span>    @property {boolean} configured
       コンフィグレーション済みかどうか
+    @readonly
      */
 
     BaseComm.property(&quot;configured&quot;, {
       get: function() {
         return this._configured;
-      },
-      set: function(v) {
-        return this._configured = !!v;
       }
     });
 
@@ -1091,6 +1083,13 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
 
+<span id='Canarium-BaseComm-property-_cid'>    /**
+</span>    @private
+    @property {number} _cid
+      シリアル接続ID
+     */
+
+
 <span id='Canarium-BaseComm-property-_sendImmediate'>    /**
 </span>    @private
     @property {boolean} _sendImmediate
@@ -1098,10 +1097,10 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
 
-<span id='Canarium-BaseComm-property-_cid'>    /**
+<span id='Canarium-BaseComm-property-_configured'>    /**
 </span>    @private
-    @property {number} _cid
-      シリアル接続ID
+    @property {boolean} _configured
+    @inheritdoc #configured
      */
 
 
@@ -1119,24 +1118,17 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
 
-<span id='Canarium-BaseComm-property-_rxQueue'>    /**
+<span id='Canarium-BaseComm-property-_rxBuffer'>    /**
 </span>    @private
-    @property {Object[]} _rxQueue
-      受信待ちキュー
+    @property {ArrayBuffer} _rxBuffer
+      受信中データ
      */
 
 
-<span id='Canarium-BaseComm-property-_rxBuffers'>    /**
+<span id='Canarium-BaseComm-property-_receiver'>    /**
 </span>    @private
-    @property {ArrayBuffer[]} _rxBuffers
-      受信データバッファの配列
-     */
-
-
-<span id='Canarium-BaseComm-property-_rxTotalLength'>    /**
-</span>    @private
-    @property {number} _rxTotalLength
-      受信データの合計サイズ
+    @property {function(ArrayBuffer=,Error=)} _receiver
+      受信処理を行う関数
      */
 
 
@@ -1160,17 +1152,6 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     SUCCESSIVE_TX_WAIT_MS = null;
-
-
-<span id='Canarium-BaseComm-static-cfg-SPLIT_EVENT_CONTEXT'>    /**
-</span>    @private
-    @static
-    @cfg {boolean}
-      chrome.serialのイベントハンドラのコンテキストから分離するか否か(デバッグ用)
-    @readonly
-     */
-
-    SPLIT_EVENT_CONTEXT = false;
 
 
 <span id='Canarium-BaseComm-static-method-enumerate'>    /**
@@ -1239,9 +1220,6 @@ canarium.jsの先頭に配置されるスクリプト。
           return _this._onReceiveErrorHandler(info);
         };
       })(this);
-      this._rxQueue = null;
-      this._rxBuffers = null;
-      this._rxTotalLength = null;
       return;
     }
 
@@ -1275,10 +1253,11 @@ canarium.jsの先頭に配置されるスクリプト。
               return reject(Error(chrome.runtime.lastError));
             }
             _this._path = &quot;&quot; + path;
+            _this._sendImmediate = false;
+            _this._configured = false;
             _this._cid = connectionInfo.connectionId;
-            _this._rxQueue = [];
-            _this._rxBuffers = [];
-            _this._rxTotalLength = 0;
+            _this._rxBuffer = null;
+            _this._receiver = null;
             chrome.serial.onReceive.addListener(_this._onReceive);
             chrome.serial.onReceiveError.addListener(_this._onReceiveError);
             return resolve();
@@ -1293,6 +1272,8 @@ canarium.jsの先頭に配置されるスクリプト。
       オプション設定
     @param {Object} option
       オプション
+    @param {boolean} option.sendImmediate
+      即時応答ビットを有効にするかどうか
     @param {boolean} option.forceConfigured
       コンフィグレーション済みとして扱うかどうか
     @return {Promise}
@@ -1300,13 +1281,16 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     BaseComm.prototype.option = function(option) {
+      if (!this._connected) {
+        return Promise.reject(Error(&quot;Not connected&quot;));
+      }
       return Promise.resolve().then((function(_this) {
         return function() {
           var value;
           if ((value = option.fastAcknowledge) == null) {
             return;
           }
-          _this._sendImmediate = value;
+          _this._sendImmediate = !!value;
           return _this.transCommand(0x39 | (value ? 0x02 : 0x00));
         };
       })(this)).then((function(_this) {
@@ -1315,7 +1299,7 @@ canarium.jsの先頭に配置されるスクリプト。
           if ((value = option.forceConfigured) == null) {
             return;
           }
-          return _this._configured = value;
+          _this._configured = !!value;
         };
       })(this)).then((function(_this) {
         return function() {};
@@ -1345,9 +1329,6 @@ canarium.jsの先頭に配置されるスクリプト。
             _this._connected = false;
             _this._path = null;
             _this._cid = null;
-            _this._rxQueue = null;
-            _this._rxBuffers = null;
-            _this._rxTotalLength = null;
             return resolve();
           });
         };
@@ -1371,11 +1352,16 @@ canarium.jsの先頭に配置されるスクリプト。
       txarray = new Uint8Array(2);
       txarray[0] = 0x3a;
       txarray[1] = command;
-      return this._transSerial(txarray.buffer, 1).then((function(_this) {
+      return this._transSerial(txarray.buffer, (function(_this) {
         return function(rxdata) {
-          var rxArray;
-          rxArray = new Uint8Array(rxdata);
-          return rxArray[0];
+          if (!(rxdata.byteLength &gt;= 1)) {
+            return;
+          }
+          return 1;
+        };
+      })(this)).then((function(_this) {
+        return function(rxdata) {
+          return (new Uint8Array(rxdata))[0];
         };
       })(this));
     };
@@ -1386,15 +1372,21 @@ canarium.jsの先頭に配置されるスクリプト。
       データの送受信を行う
     @param {ArrayBuffer/null} txdata
       送信するデータ(制御バイトは自動的にエスケープされる。nullの場合は受信のみ)
-    @param {number} rxsize
-      受信するバイト数
+    @param {function(ArrayBuffer,number):number/undefined/Error} [estimator]
+      受信完了まで繰り返し呼び出される受信処理関数。
+      引数は受信データ全体と、今回の呼び出しで追加されたデータのオフセット。
+      省略時は送信のみで完了とする。戻り値の解釈は以下の通り。
+    
+      - number : 指定バイト数を受信して受信完了
+      - undefined : 追加データを要求
+      - Error : エラー発生時のエラー情報
     @return {Promise}
       Promiseオブジェクト
     @return {ArrayBuffer} return.PromiseValue
       受信データ
      */
 
-    BaseComm.prototype.transData = function(txdata, rxsize) {
+    BaseComm.prototype.transData = function(txdata, estimator) {
       var byte, dst, j, len, len1, src;
       if (txdata) {
         src = new Uint8Array(txdata);
@@ -1412,7 +1404,7 @@ canarium.jsの先頭に配置されるスクリプト。
         }
         txdata = dst.buffer.slice(0, len);
       }
-      return this._transSerial(txdata, rxsize);
+      return this._transSerial(txdata, estimator);
     };
 
 
@@ -1444,20 +1436,58 @@ canarium.jsの先頭に配置されるスクリプト。
       シリアル通信の送受信を行う
     @param {ArrayBuffer/null} txdata
       送信するデータ(nullの場合は受信のみ)
-    @param {number} rxsize
-      受信するバイト数
+    @param {function(ArrayBuffer,number):number/undefined/Error} [estimator]
+      受信完了まで繰り返し呼び出される受信処理関数。
+      引数は受信データ全体と、今回の呼び出しで追加されたデータのオフセット。
+      省略時は送信のみで完了とする。戻り値の解釈は以下の通り。
+    
+      - number : 指定バイト数を受信して受信完了
+      - undefined : 追加データを要求
+      - Error : エラー発生時のエラー情報
     @return {Promise}
-      シリアル送受信動作のPromiseオブジェクト
+      Promiseオブジェクト
     @return {ArrayBuffer} return.PromiseValue
-      受信データ
+      受信したデータ(指定バイト数分)
      */
 
-    BaseComm.prototype._transSerial = function(txdata, rxsize) {
-      var pos, txsize, x;
+    BaseComm.prototype._transSerial = function(txdata, estimator) {
+      var promise, txsize, x;
       if (!this._connected) {
         return Promise.reject(Error(&quot;Not connected&quot;));
       }
-      pos = 0;
+      if (this._receiver) {
+        return Promise.reject(Error(&quot;Operation is in progress&quot;));
+      }
+      promise = new Promise((function(_this) {
+        return function(resolve, reject) {
+          return _this._receiver = function(rxdata, error) {
+            var newArray, offset, ref, result;
+            if (rxdata != null) {
+              offset = ((ref = _this._rxBuffer) != null ? ref.byteLength : void 0) || 0;
+              newArray = new Uint8Array(offset + rxdata.byteLength);
+              if (_this._rxBuffer) {
+                newArray.set(new Uint8Array(_this._rxBuffer));
+              }
+              newArray.set(new Uint8Array(rxdata), offset);
+              _this._rxBuffer = newArray.buffer;
+              result = estimator(_this._rxBuffer, offset);
+            } else {
+              result = error;
+            }
+            if (result instanceof Error) {
+              _this._rxBuffer = null;
+              _this._receiver = null;
+              return reject(result);
+            }
+            if (result != null) {
+              rxdata = _this._rxBuffer.slice(0, result);
+              _this._rxBuffer = _this._rxBuffer.slice(result);
+              _this._receiver = null;
+              return resolve(rxdata);
+            }
+          };
+        };
+      })(this));
       txsize = (txdata != null ? txdata.byteLength : void 0) || 0;
       return ((function() {
         var j, ref, ref1, results;
@@ -1477,7 +1507,7 @@ canarium.jsの先頭に配置されるスクリプト。
                 var b, e;
                 e = writeInfo.error;
                 if (e != null) {
-                  return reject(Error(e));
+                  return reject(Error(&quot;Serial error: &quot; + e));
                 }
                 b = writeInfo.bytesSent;
                 if (b !== size) {
@@ -1494,18 +1524,10 @@ canarium.jsの先頭に配置されるスクリプト。
         };
       })(this), Promise.resolve()).then((function(_this) {
         return function() {
-          var promise;
-          promise = new Promise(function(resolve, reject) {
-            if (rxsize === 0) {
-              return resolve(new ArrayBuffer());
-            }
-            _this._rxQueue.push({
-              length: rxsize,
-              resolve: resolve,
-              reject: reject
-            });
-            return _this._onReceiveProcess();
-          });
+          if (!estimator) {
+            _this._receiver = null;
+            return new ArrayBuffer(0);
+          }
           _this._log(1, &quot;_transSerial&quot;, &quot;wait&quot;, promise);
           return promise;
         };
@@ -1530,91 +1552,15 @@ canarium.jsの先頭に配置されるスクリプト。
       if (!(info.connectionId === this._cid &amp;&amp; this._connected)) {
         return;
       }
-      this._addRxBuffer(info.data);
-      if (SPLIT_EVENT_CONTEXT) {
-        window.setTimeout(((function(_this) {
-          return function() {
-            return _this._onReceiveProcess();
-          };
-        })(this)), 0);
-      } else {
-        this._onReceiveProcess();
-      }
-    };
-
-
-<span id='Canarium-BaseComm-method-_onReceiveProcess'>    /**
-</span>    @private
-    @method
-      シリアル受信後のデータ分割およびPromiseの遷移を行う
-    return {undefined}
-     */
-
-    BaseComm.prototype._onReceiveProcess = function() {
-      var buffer, length, queue;
-      while (this._rxQueue.length &gt; 0) {
-        length = this._rxQueue[0].length;
-        if (length &gt; this._rxTotalLength) {
-          break;
-        }
-        queue = this._rxQueue.shift();
-        buffer = this._sliceRxBuffer(length);
-        this._log(1, &quot;_onReceiveProcess&quot;, &quot;recv&quot;, new Uint8Array(buffer));
-        queue.resolve.call(void 0, buffer);
-      }
-    };
-
-
-<span id='Canarium-BaseComm-method-_addRxBuffer'>    /**
-</span>    @private
-    @method
-      受信データバッファの末尾にデータを追加する
-    @param {ArrayBuffer} data
-      受信データ
-    @return {undefined}
-     */
-
-    BaseComm.prototype._addRxBuffer = function(data) {
-      this._rxBuffers.push(data.slice(0));
-      this._rxTotalLength += data.byteLength;
-    };
-
-
-<span id='Canarium-BaseComm-method-_sliceRxBuffer'>    /**
-</span>    @private
-    @method
-      受信データバッファの先頭からデータを取り出す
-    @param {number} length
-      取り出すバイト数
-    @return {ArrayBuffer/null}
-      取り出したデータ(バッファ不足時はnull)
-     */
-
-    BaseComm.prototype._sliceRxBuffer = function(length) {
-      var array, partArray, partBuf, partLen, pos, rem;
-      if (length &gt; this._rxTotalLength) {
-        return null;
-      }
-      array = new Uint8Array(length);
-      pos = 0;
-      rem = length;
-      while (rem &gt; 0) {
-        partBuf = this._rxBuffers[0];
-        partLen = partBuf.byteLength;
-        if (partLen &lt;= rem) {
-          this._rxBuffers.shift();
-        } else {
-          partArray = new Uint8Array(partLen - rem);
-          partArray.set(new Uint8Array(partBuf, rem));
-          this._rxBuffers[0] = partArray.buffer;
-          partLen = rem;
-        }
-        array.set(new Uint8Array(partBuf, 0, partLen), pos);
-        pos += partLen;
-        rem -= partLen;
-      }
-      this._rxTotalLength -= length;
-      return array.buffer;
+      Promise.resolve().then((function(_this) {
+        return function() {
+          if (_this._receiver) {
+            _this._receiver(info.data);
+          } else {
+            _this._log(1, &quot;_onReceiveHandler&quot;, &quot;dropped&quot;, new Uint8Array(info.data));
+          }
+        };
+      })(this));
     };
 
 
@@ -1634,40 +1580,21 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     BaseComm.prototype._onReceiveErrorHandler = function(info) {
-      var error;
       if (!(info.connectionId === this._cid &amp;&amp; this._connected)) {
         return;
       }
-      error = &quot;&quot; + info.error;
-      if (SPLIT_EVENT_CONTEXT) {
-        window.setTimeout(((function(_this) {
-          return function() {
-            return _this._onReceiveErrorProcess(error);
-          };
-        })(this)), 0);
-      } else {
-        this._onReceiveErrorProcess(error);
-      }
-    };
-
-
-<span id='Canarium-BaseComm-method-_onReceiveErrorProcess'>    /**
-</span>    @private
-    @method
-      受信エラー発生時の処置およびPromiseの遷移を行う
-    @param {string} error
-      エラー名称
-    @return {undefined}
-     */
-
-    BaseComm.prototype._onReceiveErrorProcess = function(error) {
-      var queue;
-      this.disconnect();
-      this._rxBuffers = [];
-      this._rxTotalLength = 0;
-      while (queue = this._rxQueue.shift()) {
-        queue.reject.call(void 0, Error(&quot;Disconnected because of &quot; + error));
-      }
+      Promise.resolve().then((function(_this) {
+        return function() {
+          var error;
+          _this.disconnect();
+          error = &quot;Serial error: &quot; + info.error;
+          if (_this._receiver) {
+            return _this._receiver(null, Error(error));
+          } else {
+            return _this._log(1, &quot;_onReceiveErrorHandler&quot;, &quot;dropped&quot;, error);
+          }
+        };
+      })(this));
     };
 
     return BaseComm;
@@ -2110,7 +2037,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     AvsPackets.prototype.transPacket = function(channel, txdata, rxsize) {
-      var byte, dst, header, j, len, len1, pushWithEscape, ref, src, totalRxLen;
+      var byte, dst, eopFinder, header, j, len, len1, pushWithEscape, ref, src, totalRxLen;
       pushWithEscape = function(array, pos, byte) {
         if ((0x7a &lt;= byte &amp;&amp; byte &lt;= 0x7d)) {
           array[pos++] = 0x7d;
@@ -2138,52 +2065,56 @@ canarium.jsの先頭に配置されるスクリプト。
       txdata = dst.buffer.slice(0, len);
       totalRxLen = rxsize + header.length + 1;
       this._log(1, &quot;transPacket&quot;, &quot;begin&quot;, {
-        data: src,
+        source: src,
         encoded: new Uint8Array(txdata)
       });
-      return this._base.transData(txdata, totalRxLen).then((function(_this) {
+      eopFinder = (function(_this) {
+        return function(rxdata, offset) {
+          var array, k, pos, ref1, ref2;
+          array = new Uint8Array(rxdata);
+          for (pos = k = ref1 = offset, ref2 = array.length; ref1 &lt;= ref2 ? k &lt; ref2 : k &gt; ref2; pos = ref1 &lt;= ref2 ? ++k : --k) {
+            if ((array[pos - 1] === 0x7b &amp;&amp; array[pos - 0] !== 0x7d) || (array[pos - 2] === 0x7b &amp;&amp; array[pos - 1] === 0x7d)) {
+              return pos + 1;
+            }
+          }
+        };
+      })(this);
+      return this._base.transData(txdata, eopFinder).then((function(_this) {
         return function(rxdata) {
-          var data, eop, pos, xor;
+          var k, len2, pos, xor;
           src = new Uint8Array(rxdata);
           _this._log(1, &quot;transPacket&quot;, &quot;recv&quot;, {
-            data: src
+            encoded: src
           });
-          pos = header.length;
-          if (src.subarray(0, pos).join(&quot;,&quot;) !== header.join(&quot;,&quot;)) {
+          if (src.subarray(0, header.length).join(&quot;,&quot;) !== header.join(&quot;,&quot;)) {
             return Promise.reject(Error(&quot;Illegal packetize control bytes&quot;));
           }
-          dst = new Uint8Array(rxdata.byteLength - 4);
-          len = 0;
+          src = src.subarray(header.length);
+          dst = new Uint8Array(rxsize);
+          pos = 0;
           xor = 0x00;
-          eop = false;
-          while (pos &lt; src.byteLength) {
-            byte = src[pos++];
-            switch (byte) {
-              case 0x7a:
-              case 0x7c:
-                break;
-              case 0x7b:
-                eop = true;
-                continue;
-              case 0x7d:
-                xor = 0x20;
-                continue;
+          for (k = 0, len2 = src.length; k &lt; len2; k++) {
+            byte = src[k];
+            if (pos === rxsize) {
+              return Promise.reject(Error(&quot;Received data is too large&quot;));
             }
-            dst[len++] = byte ^ xor;
-            xor = 0x00;
-            if (!eop) {
+            if (byte === 0x7b) {
               continue;
             }
-            if (pos === src.byteLength) {
-              break;
+            if (byte === 0x7d) {
+              xor = 0x20;
+            } else {
+              dst[pos++] = byte ^ xor;
+              xor = 0x00;
             }
-            return Promise.reject(Error(&quot;Illegal packetized bytestream&quot;));
           }
-          data = dst.buffer.slice(0, len);
+          if (pos &lt; rxsize) {
+            return Promise.reject(Error(&quot;Received data is too small&quot;));
+          }
           _this._log(1, &quot;transPacket&quot;, &quot;end&quot;, {
-            data: new Uint8Array(data)
+            decoded: dst
           });
-          return data;
+          return dst.buffer;
         };
       })(this));
     };
@@ -2250,6 +2181,13 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
 
+<span id='Canarium-AvmTransactions-property-_lastAction'>    /**
+</span>    @private
+    @property {Promise} _lastAction
+      キューされている動作の最後尾を示すPromiseオブジェクト
+     */
+
+
 <span id='Canarium-AvmTransactions-static-cfg-AVM_TRANS_MAX_BYTES'>    /**
 </span>    @private
     @static
@@ -2273,6 +2211,7 @@ canarium.jsの先頭に配置されるスクリプト。
     function AvmTransactions(_avs, _channel) {
       this._avs = _avs;
       this._channel = _channel;
+      this._lastAction = Promise.resolve();
       return;
     }
 
@@ -2293,34 +2232,37 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     AvmTransactions.prototype.read = function(address, bytenum, callback) {
-      var dest, x;
       if (callback != null) {
         return invokeCallback(callback, this.read(address, bytenum));
       }
-      this._log(1, &quot;read&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;)&quot;);
-      if (!this._avs._base.configured) {
-        return Promise.reject(&quot;Device is not configured&quot;);
-      }
-      dest = new Uint8Array(bytenum);
-      return ((function() {
-        var j, ref, ref1, results;
-        results = [];
-        for (x = j = 0, ref = bytenum, ref1 = AVM_TRANS_MAX_BYTES; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
-          results.push(x);
-        }
-        return results;
-      })()).reduce((function(_this) {
-        return function(sequence, pos) {
-          return sequence.then(function() {
-            return _this._trans(0x14, address + pos, void 0, len).then(function(partialData) {
-              return dest.set(new Uint8Array(partialData), pos);
-            });
-          });
-        };
-      })(this), Promise.resolve()).then((function(_this) {
+      return this._queue((function(_this) {
         return function() {
-          _this._log(1, &quot;read&quot;, &quot;end&quot;, dest);
-          return dest.buffer;
+          var dest, x;
+          _this._log(1, &quot;read&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;)&quot;);
+          if (!_this._avs.base.configured) {
+            return Promise.reject(&quot;Device is not configured&quot;);
+          }
+          dest = new Uint8Array(bytenum);
+          return ((function() {
+            var j, ref, ref1, results;
+            results = [];
+            for (x = j = 0, ref = bytenum, ref1 = AVM_TRANS_MAX_BYTES; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
+              results.push(x);
+            }
+            return results;
+          })()).reduce(function(sequence, pos) {
+            return sequence.then(function() {
+              var partialSize;
+              partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
+              _this._log(2, &quot;read&quot;, &quot;partial(offset=&quot; + (hexDump(pos)) + &quot;,size=&quot; + (hexDump(partialSize)) + &quot;)&quot;);
+              return _this._trans(0x14, address + pos, void 0, partialSize).then(function(partialData) {
+                return dest.set(new Uint8Array(partialData), pos);
+              });
+            });
+          }, Promise.resolve()).then(function() {
+            _this._log(1, &quot;read&quot;, &quot;end&quot;, dest);
+            return dest.buffer;
+          });
         };
       })(this));
     };
@@ -2340,31 +2282,35 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     AvmTransactions.prototype.write = function(address, writedata, callback) {
-      var src, x;
+      var src;
       if (callback != null) {
         return invokeCallback(callback, this.write(address, writedata));
       }
-      src = new Uint8Array(writedata);
-      this._log(1, &quot;write&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;)&quot;, src);
-      if (!this._avs._base.configured) {
-        return Promise.reject(&quot;Device is not configured&quot;);
-      }
-      return ((function() {
-        var j, ref, ref1, results;
-        results = [];
-        for (x = j = 0, ref = src.byteLength, ref1 = AVM_TRANS_MAX_BYTES; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
-          results.push(x);
-        }
-        return results;
-      })()).reduce((function(_this) {
-        return function(sequence, pos) {
-          return sequence.then(function() {
-            return _this._trans(0x04, address + pos, src.subarray(pos, AVM_TRANS_MAX_BYTES), void 0);
-          });
-        };
-      })(this), Promise.resolve()).then((function(_this) {
+      src = new Uint8Array(writedata.slice(0));
+      return this._queue((function(_this) {
         return function() {
-          _this._log(1, &quot;write&quot;, &quot;end&quot;);
+          var x;
+          _this._log(1, &quot;write&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;)&quot;, src);
+          if (!_this._avs.base.configured) {
+            return Promise.reject(&quot;Device is not configured&quot;);
+          }
+          return ((function() {
+            var j, ref, ref1, results;
+            results = [];
+            for (x = j = 0, ref = src.byteLength, ref1 = AVM_TRANS_MAX_BYTES; ref1 &gt; 0 ? j &lt; ref : j &gt; ref; x = j += ref1) {
+              results.push(x);
+            }
+            return results;
+          })()).reduce(function(sequence, pos) {
+            return sequence.then(function() {
+              var partialData;
+              partialData = src.subarray(pos, pos + AVM_TRANS_MAX_BYTES);
+              _this._log(2, &quot;write&quot;, &quot;partial(offset=&quot; + (hexDump(pos)) + &quot;)&quot;, partialData);
+              return _this._trans(0x04, address + pos, partialData, void 0);
+            });
+          }, Promise.resolve()).then(function() {
+            _this._log(1, &quot;write&quot;, &quot;end&quot;);
+          });
         };
       })(this));
     };
@@ -2389,17 +2335,19 @@ canarium.jsの先頭に配置されるスクリプト。
       if (callback != null) {
         return invokeCallback(callback, this.iord(address, offset));
       }
-      this._log(1, &quot;iord&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;+&quot; + offset + &quot;)&quot;);
-      if (!this._avs._base.configured) {
-        return Promise.reject(&quot;Device is not configured&quot;);
-      }
-      return this._trans(0x10, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), void 0, 4).then((function(_this) {
-        return function(rxdata) {
-          var readData, src;
-          src = new Uint8Array(rxdata);
-          readData = (src[3] &lt;&lt; 24) | (src[2] &lt;&lt; 16) | (src[1] &lt;&lt; 8) | (src[0] &lt;&lt; 0);
-          _this._log(1, &quot;iord&quot;, &quot;end&quot;, readData);
-          return readData;
+      return this._queue((function(_this) {
+        return function() {
+          _this._log(1, &quot;iord&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;+&quot; + offset + &quot;)&quot;);
+          if (!_this._avs.base.configured) {
+            return Promise.reject(&quot;Device is not configured&quot;);
+          }
+          return _this._trans(0x10, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), void 0, 4).then(function(rxdata) {
+            var readData, src;
+            src = new Uint8Array(rxdata);
+            readData = (src[3] &lt;&lt; 24) | (src[2] &lt;&lt; 16) | (src[1] &lt;&lt; 8) | (src[0] &lt;&lt; 0);
+            _this._log(1, &quot;iord&quot;, &quot;end&quot;, readData);
+            return readData;
+          });
         };
       })(this));
     };
@@ -2421,22 +2369,24 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     AvmTransactions.prototype.iowr = function(address, offset, writedata, callback) {
-      var src;
       if (callback != null) {
         return invokeCallback(callback, this.iowr(address, offset, writedata));
       }
-      this._log(1, &quot;iowr&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;+&quot; + offset + &quot;)&quot;, writedata);
-      if (!this._avs._base.configured) {
-        return Promise.reject(&quot;Device is not configured&quot;);
-      }
-      src = new Uint8Array(4);
-      src[0] = (writedata &gt;&gt;&gt; 24) &amp; 0xff;
-      src[1] = (writedata &gt;&gt;&gt; 16) &amp; 0xff;
-      src[2] = (writedata &gt;&gt;&gt; 8) &amp; 0xff;
-      src[3] = (writedata &gt;&gt;&gt; 0) &amp; 0xff;
-      return this._trans(0x00, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), src.buffer, void 0).then((function(_this) {
+      return this._queue((function(_this) {
         return function() {
-          _this._log(1, &quot;iowr&quot;, &quot;end&quot;);
+          var src;
+          _this._log(1, &quot;iowr&quot;, &quot;begin(address=&quot; + (hexDump(address)) + &quot;+&quot; + offset + &quot;)&quot;, writedata);
+          if (!_this._avs.base.configured) {
+            return Promise.reject(&quot;Device is not configured&quot;);
+          }
+          src = new Uint8Array(4);
+          src[0] = (writedata &gt;&gt;&gt; 0) &amp; 0xff;
+          src[1] = (writedata &gt;&gt;&gt; 8) &amp; 0xff;
+          src[2] = (writedata &gt;&gt;&gt; 16) &amp; 0xff;
+          src[3] = (writedata &gt;&gt;&gt; 24) &amp; 0xff;
+          return _this._trans(0x00, (address &amp; 0xfffffffc) + (offset &lt;&lt; 2), src, void 0).then(function() {
+            _this._log(1, &quot;iowr&quot;, &quot;end&quot;);
+          });
         };
       })(this));
     };
@@ -2447,8 +2397,10 @@ canarium.jsの先頭に配置されるスクリプト。
       AvalonMMオプション設定
     @param {Object} option
       オプション
-    @param {boolean}  option.fastAcknowledge
+    @param {boolean} option.fastAcknowledge
       即時応答ビットを立てるかどうか
+    @param {boolean} option.forceConfigured
+      コンフィグレーション済みとして扱うかどうか
     @param {function(boolean,Error=)} [callback]
       コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
     @return {undefined/Promise}
@@ -2459,7 +2411,30 @@ canarium.jsの先頭に配置されるスクリプト。
       if (callback != null) {
         return invokeCallback(callback, this.option(option));
       }
-      return this._avs._base.option(option);
+      return this._queue((function(_this) {
+        return function() {
+          return _this._avs.base.option(option);
+        };
+      })(this));
+    };
+
+
+<span id='Canarium-AvmTransactions-method-_queue'>    /**
+</span>    @private
+    @method
+      非同期実行キューに追加する
+    @param {function():Promise} action
+      Promiseオブジェクトを返却する関数
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    AvmTransactions.prototype._queue = function(action) {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          return _this._lastAction = _this._lastAction.then(action).then(resolve, reject);
+        };
+      })(this));
     };
 
 
