@@ -345,7 +345,7 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
   )
   @add(
     category: "AVM通信(正常系)"
-    description: "エスケープシーケンスが読み書き双方向で正しく処理できるか確認"
+    description: "エスケープシーケンスを読み書き双方向で正しく処理できるか確認"
     setup: stopcpu
     body: (callback) ->
       data = new Uint8Array(0x1000)
@@ -559,6 +559,60 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     body: (callback) ->
       c.close((result) =>
         callback(if result then @FAIL else @PASS)
+      )
+  )
+  @add(
+    category: "環境整備(手動操作)"
+    description :"PERIDOTを切断する"
+    setup: (callback) ->
+      @prompt("PERIDOTデバイスを切断してから[PASS]をクリックしてください")
+      callback(@PASS)
+    epilogue: (callback) ->
+      chrome.serial.getDevices((ports) =>
+        found = []
+        for port in ports
+          if port.path not in dev_ignore
+            found.push(port.path)
+        if found.length > 0
+          @print("PERIDOTデバイスが切断されていません")
+          return callback(@FAIL)
+        callback(@PASS)
+      )
+  )
+  @add(
+    category: "環境整備(手動操作)"
+    description :"PERIDOT(ASモード)を1台だけ接続する"
+    setup: (callback) ->
+      @prompt("スイッチを<u>ASモードにした</u>PERIDOTを<u>1台だけ</u>" +
+              "接続してから[PASS]をクリックしてください")
+      callback(@PASS)
+  )
+  @add(
+    category: "接続(正常系)"
+    description: "PERIDOTに接続"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.open(dev_test[0], (result) =>
+        callback(if result then @PASS else @FAIL)
+      )
+  )
+  @add(
+    category: "コンフィグ(正常系)"
+    description: "コンフィグレーションが完了になっているか確認"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      callback(if c._base.configured then @PASS else @FAIL)
+  )
+  @add(
+    category: "切断(正常系)"
+    description: "PERIDOTから切断"
+    setup: (callback) ->
+      callback(if c then @PASS else @FAIL)
+    body: (callback) ->
+      c.close((result) =>
+        callback(if result then @PASS else @FAIL)
       )
   )
   @start()
