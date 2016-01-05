@@ -1,4 +1,10 @@
 c = null
+
+Uint8Array::match = (array) ->
+  return false unless @length == array.length
+  return false for i in [0...@length] when @[i] != array[i]
+  return true
+
 new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
   dev_prescan = []
   dev_ignore = []
@@ -339,6 +345,35 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
   )
   @add(
     category: "AVM通信(正常系)"
+    description: "エスケープシーケンスが読み書き双方向で正しく処理できるか確認"
+    setup: stopcpu
+    body: (callback) ->
+      data = new Uint8Array(0x1000)
+      [0x3a, 0x3d, 0x7a, 0x7b, 0x7c, 0x7d].reduce(
+        (sequence, byte) =>
+          sequence.then(=>
+            (data[x] = byte) for x in [0...data.length]
+            return c.avm.write(SDRAM_BASE, data.buffer)
+          ).then(=>
+            return c.avm.read(SDRAM_BASE, data.length)
+          ).then((read) =>
+            read = new Uint8Array(read)
+            text = "0x#{byte.toString(16)}"
+            unless data.match(read)
+              @print("#{text} => NG")
+              return Promise.reject()
+            @print("#{text} => OK")
+          )
+        Promise.resolve()
+      ).then(=>
+        callback(@PASS)
+      ).catch(=>
+        callback(@FAIL)
+      )
+    epilogue: startcpu
+  )
+  @add(
+    category: "AVM通信(正常系)"
     description: "sysidを読み取り(IORD)"
     setup: (callback) ->
       callback(if c then @PASS else @FAIL)
@@ -391,87 +426,120 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
         callback(@FAIL)
       )
   )
+  stopcpu = (callback) ->
+    return callback(@FAIL) unless c
+    checkreset = =>
+      return c.avm.iord(RESETCTL_BASE, 0).then((resettaken) =>
+        return unless (resettaken & 1) == 1
+        checkreset = null
+        @print("(setup) Nios II プロセッサを停止しました")
+      ).then(=>
+        return callback(@PASS) unless checkreset
+        checkreset()
+      )
+    c.avm.iowr(RESETCTL_BASE, 0, 0x1).then(=>
+      checkreset()
+    ).catch(=>
+      callback(@FAIL)
+    )
+  startcpu = (callback) ->
+    c.avm.iowr(RESETCTL_BASE, 0, 0x0).then(=>
+      return c.avm.iord(RESETCTL_BASE, 0)
+    ).then((resettaken) =>
+      return Promise.reject() unless (resettaken & 1) == 0
+      @print("(epilogue) Nios II プロセッサを起動しました")
+      callback(@PASS)
+    ).catch(=>
+      callback(@FAIL)
+    )
   @add(
     category: "AVM通信(正常系)"
     description: "2つのAVM通信要求が呼び出し順序でキューイングされるか確認"
-    setup: (callback) ->
-      return callback(@FAIL) unless c
-      @print("Nios II プロセッサの停止要求中...")
-      checkreset = =>
-        return c.avm.iord(RESETCTL_BASE, 0).then((resettaken) =>
-          return unless (resettaken & 1) == 1
-          checkreset = null
-          @print("Nios II プロセッサを停止しました")
-        ).then(=>
-          return callback(@PASS) unless checkreset
-          checkreset()
-        )
-      c.avm.iowr(RESETCTL_BASE, 0, 0x1).then(=>
-        checkreset()
-      ).catch(=>
-        callback(@FAIL)
-      )
+    setup: stopcpu
     body: (callback) ->
       phase = 0
-      size = 0x20000
-      data = null
-      c.avm.read(SDRAM_BASE, size).then((read) =>
-        return if phase < 0
-        unless phase == 1 and read.byteLength == size
+      size = 0x1000
+      Promise.resolve(
+      ).then(=>
+        # (準備) テスト領域全体をゼロフィル
+        return c.avm.write(SDRAM_BASE, new ArrayBuffer(size))
+      ).then(=>
+        # (Phase 1->2) テストデータ書き込み
+        data1 = new Uint8Array(size)
+        (data1[x] = (x & 0xff)) for x in [0...size]
+        c.avm.write(SDRAM_BASE, data1.buffer).then(=>
+          return if phase < 0
+          unless phase == 1
+            phase = -1
+            return callback(@FAIL)
+          @print("(1)Write完了")
+          phase = 2
+        ).catch(=>
+          return if phase < 0
           phase = -1
           callback(@FAIL)
-          return Promise.reject()
-        data = new Uint8Array(read.slice(0))
-        (data[x] = data[x] ^ 0xff) for x in [0...size]
-        (data[x] = (x & 0xff)) for x in [256...512]
-        @print("phase = #{phase = 2}")
-      ).then(=>
-        c.avm.write(SDRAM_BASE, data.buffer).then(=>
+        )
+        # (Phase 2->3) テストデータ書き込み(前半を変更)
+        data2 = new Uint8Array(data1.length / 2)
+        (data2[x] = (x & 0xff) ^ 0xff) for x in [0...(size / 2)]
+        c.avm.write(SDRAM_BASE, data2.buffer).then(=>
           return if phase < 0
           unless phase == 2
             phase = -2
             return callback(@FAIL)
-          @print("phase = #{phase = 3}")
+          @print("(2)Write完了")
+          phase = 3
         ).catch(=>
           return if phase < 0
           phase = -2
           callback(@FAIL)
         )
-        c.avm.read(SDRAM_BASE, size).then((read) =>
+        # (Phase 3->4) テストデータ読み込み＆ベリファイ
+        c.avm.read(SDRAM_BASE, data1.length).then((data3) =>
+          data3 = new Uint8Array(data3)
           return if phase < 0
-          unless phase == 3 and read.byteLength == size
+          unless phase == 3 and data3.byteLength == size
             phase = -3
             return callback(@FAIL)
-          @print("phase = #{phase = 4}")
-          compare = new Uint8Array(read)
-          mismatch = false
-          for x in [0...size]
-            if data[x] != compare[x]
-              mismatch = true
-              break
+          phase = 4
+          match = data2.match(data3.subarray(0, data2.length)) and
+                  data1.subarray(data2.length).match(data3.subarray(data2.length))
           phase = -phase
-          callback(if mismatch then @FAIL else @PASS)
+          return callback(@FAIL) unless match
+          @print("(3)Read完了")
+          callback(@PASS)
         ).catch(=>
           return if phase < 0
           phase = -3
           callback(@FAIL)
         )
+        phase = 1
       ).catch(=>
         return if phase < 0
         callback(@FAIL)
       )
-      @print("phase = #{phase = 1}")
-    epilogue: (callback) ->
-      @print("Nios II プロセッサの起動要求中...")
-      c.avm.iowr(RESETCTL_BASE, 0, 0x0).then(=>
-        return c.avm.iord(RESETCTL_BASE, 0)
-      ).then((resettaken) =>
-        return Promise.reject() unless (resettaken & 1) == 0
-        @print("Nios II プロセッサを起動しました")
-        callback(@PASS)
+    epilogue: startcpu
+  )
+  @add(
+    category: "AVM通信(正常系)"
+    description: "1パケットで扱えない巨大なデータの読み書き確認"
+    setup: stopcpu
+    body: (callback) ->
+      data = new Uint8Array(0x40000)
+      (data[x] = (x * 13 + 1) & 0xff) for x in [0...data.length]
+      @print("#{data.length} bytes")
+      Promise.resolve(
+      ).then(=>
+        return c.avm.write(SDRAM_BASE, data.buffer)
+      ).then(=>
+        return c.avm.read(SDRAM_BASE, data.length)
+      ).then((read) =>
+        read = new Uint8Array(read)
+        callback(if data.match(read) then @PASS else @FAIL)
       ).catch(=>
         callback(@FAIL)
       )
+    epilogue: startcpu
   )
   @add(
     category: "切断(正常系)"

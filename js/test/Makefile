@@ -13,5 +13,5 @@ canarium.js: ../canarium.js
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
 %.js: %.coffee
-	cat $< | coffee -b -c -s > $@ || (rm -f $@; false)
+	coffee -b -c -m $< || (rm -f $@; false)
 
