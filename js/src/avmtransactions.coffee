@@ -71,7 +71,7 @@ class Canarium.AvmTransactions
     読み込み元アドレス(バイト単位)
   @param {number} bytenum
     読み込むバイト数
-  @param {function(boolean,ArrayBuffer)} [callback]
+  @param {function(boolean,ArrayBuffer/Error)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト
@@ -153,7 +153,7 @@ class Canarium.AvmTransactions
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト
-  @return {ArrayBuffer} return.PromiseValue
+  @return {number} return.PromiseValue
     受信したデータ(リトルエンディアンの32-bit符号有り整数)
   ###
   iord: (address, offset, callback) ->
