@@ -11,6 +11,14 @@ class Canarium.AvmTransactions
   #
 
   ###*
+  @property base
+  @inheritdoc Canarium.AvsPackets#_base
+  @readonly
+  ###
+  @property "base",
+    get: -> @_avs.base
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
