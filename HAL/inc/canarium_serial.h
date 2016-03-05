@@ -6,8 +6,8 @@
  * See LICENSE file in the root directory of this project.
  */
 
-#ifndef __CANARIUM_UART_H__
-#define __CANARIUM_UART_H__
+#ifndef __CANARIUM_SERIAL_H__
+#define __CANARIUM_SERIAL_H__
 
 #include <stddef.h>
 #include "canarium_hostcomm.h"
@@ -19,29 +19,29 @@
 extern "C" {
 #endif  /* __cplusplus */
 
-typedef struct canarium_uart_dev_s
+typedef struct canarium_serial_dev_s
 {
   alt_dev dev;
   canarium_hostcomm_svc svc;
   int timeout;
 }
-canarium_uart_dev;
+canarium_serial_dev;
 
-extern void canarium_uart_init(canarium_uart_dev *d);
-extern int canarium_uart_read_fd(alt_fd *fd, char *ptr, int len);
-extern int canarium_uart_write_fd(alt_fd *fd, const char *ptr, int len);
-extern int canarium_uart_close_fd(alt_fd *fd);
+extern void canarium_serial_init(canarium_serial_dev *d);
+extern int canarium_serial_read_fd(alt_fd *fd, char *ptr, int len);
+extern int canarium_serial_write_fd(alt_fd *fd, const char *ptr, int len);
+extern int canarium_serial_close_fd(alt_fd *fd);
 
-#define CANARIUM_UART_INSTANCE(name, d) \
-  static canarium_uart_dev d =          \
+#define CANARIUM_SERIAL_INSTANCE(name, d) \
+  static canarium_serial_dev d =          \
   {                                     \
     {                                   \
       ALT_LLIST_ENTRY,                  \
       name##_NAME,                      \
       NULL, /* open */                  \
-      canarium_uart_close_fd,           \
-      canarium_uart_read_fd,            \
-      canarium_uart_write_fd,           \
+      canarium_serial_close_fd,           \
+      canarium_serial_read_fd,            \
+      canarium_serial_write_fd,           \
       NULL, /* lseek */                 \
       NULL, /* fstat */                 \
       NULL, /* ioctl */                 \
@@ -52,12 +52,12 @@ extern int canarium_uart_close_fd(alt_fd *fd);
     name##_TIMEOUT,                     \
   }
 
-#define CANARIUM_UART_INIT(name, d)     \
-  canarium_uart_init(&d)
+#define CANARIUM_SERIAL_INIT(name, d)     \
+  canarium_serial_init(&d)
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif  /* __cplusplus */
 
-#endif  /* __CANARIUM_UART_H__ */
+#endif  /* __CANARIUM_SERIAL_H__ */
 /* vim: set et sts=2 sw=2: */
