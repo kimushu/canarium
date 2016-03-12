@@ -60,6 +60,39 @@ hexDump = (data, maxBytes) ->
 ###*
 @private
 @method
+  UTF-8文字列からArrayBufferに変換
+@param {string} str
+  UTF-8文字列
+@return {ArrayBuffer}
+  変換されたArrayBuffer
+###
+str2ab = (str) ->
+  len = str.length
+  ary = new Uint8Array(len * 4)
+  pos = 0
+  for i in [0...len]
+    c = str.charCodeAt(i)
+    if c < 0x80
+      ary[pos++] = c
+    else if c < 0x800
+      ary[pos++] = 0xc0 | (c >>> 6)
+      ary[pos++] = 0x80 | (c & 0x3f)
+    else if c < 0x10000
+      ary[pos++] = 0xe0 | (c >>> 12)
+      ary[pos++] = 0x80 | ((c >>> 6) & 0x3f)
+      ary[pos++] = 0x80 | (c & 0x3f)
+    else
+      ary[pos++] = 0xf0 | (c >>> 18)
+      ary[pos++] = 0x80 | ((c >>> 12) & 0x3f)
+      ary[pos++] = 0x80 | ((c >>> 6) & 0x3f)
+      ary[pos++] = 0x80 | (c & 0x3f)
+  buf = new Uint8Array(pos)
+  buf.set(ary.subarray(0, pos), 0)
+  return buf.buffer
+
+###*
+@private
+@method
   Promiseオブジェクトからcallbackを呼び出し
 @param {function(boolean,Object)/undefined} callback
   呼び出し先コールバック関数。省略時は引数promiseをそのまま返すだけの動作となる。
@@ -209,4 +242,60 @@ class TimeLimit
   @property("left", get: ->
     return Math.max(0, @timeout - parseInt(@now - @start))
   )
+
+###*
+@private
+@class FIFOBuffer
+  自動伸張FIFOバッファクラス
+###
+class FIFOBuffer
+  ###*
+  @method constructor
+    コンストラクタ
+  @param {number} [capacity=128]
+    初期バイト数
+  ###
+  constructor: (capacity = 128) ->
+    @buffer = new ArrayBuffer(capacity)
+    @length = 0
+    return
+
+  ###*
+  @method
+    データを末尾に保存
+  @param {Uint8Array/ArrayBuffer} data
+    保存するデータ
+  @return {undefined}
+  ###
+  push: (data) ->
+    data = new Uint8Array(data) if data instanceof ArrayBuffer
+    newLength = @length + data.length
+    capacity = @buffer.byteLength
+    if newLength > capacity
+      capacity = 1 if capacity < 1
+      capacity *= 2 while newLength > capacity
+      newBuffer = new ArrayBuffer(capacity)
+      new Uint8Array(newBuffer).set(new Uint8Array(@buffer))
+      @buffer = newBuffer
+    new Uint8Array(@buffer).set(data, @length)
+    @length = newLength
+    return
+
+  ###*
+  @method
+    データを先頭から取り出し
+  @param {number} length
+    取り出すバイト数
+  @return {ArrayBuffer}
+    取り出したデータ
+  ###
+  shift: (length) ->
+    length = @length if length > @length
+    result = new Uint8Array(length)
+    if length > 0
+      array = new Uint8Array(@buffer)
+      result.set(array.subarray(0, length))
+      array.set(array.subarray(length, @length))
+      @length -= length
+    return result.buffer
 
