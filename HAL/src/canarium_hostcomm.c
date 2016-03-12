@@ -267,9 +267,7 @@ static void canarium_hostcomm_receive(void *arg)
       continue;
     }
 
-#if (NIOS2_DCACHE_SIZE > 0)
-    alt_dcache_flush_no_writeback(&desc->resp_status, sizeof(desc->resp_status));
-#endif
+    desc->resp_status = word;
 
     /* remove from linked list */
     if (prev)
