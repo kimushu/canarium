@@ -8,6 +8,7 @@
 
 #include "canarium_serial.h"
 #include "canarium_hostcomm.h"
+#include "os/alt_sem.h"
 #include "priv/alt_file.h"
 #include "system.h"
 #include <fcntl.h>

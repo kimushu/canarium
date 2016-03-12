@@ -13,7 +13,6 @@
 #include "canarium_hostcomm.h"
 #include "sys/alt_dev.h"
 #include "sys/alt_llist.h"
-#include "os/alt_sem.h"
 
 #ifdef __cplusplus
 extern "C" {
