@@ -211,9 +211,8 @@ class Canarium.BaseComm
           ###
           Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
           ###
-          unless connectionInfo
-            @_connected = false
-            return reject(Error(chrome.runtime.lastError))
+          return reject(Error(chrome.runtime.lastError)) unless connectionInfo
+
           @_path = "#{path}"
           @_sendImmediate = false
           @_configured = false
@@ -224,6 +223,9 @@ class Canarium.BaseComm
           chrome.serial.onReceiveError.addListener(@_onReceiveError)
           return resolve()
       )
+    ).catch((error) =>
+      @_connected = false
+      return Promise.reject(error)
     )
 
   ###*

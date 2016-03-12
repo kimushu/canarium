@@ -11,6 +11,14 @@ class Canarium.AvmTransactions
   #
 
   ###*
+  @property base
+  @inheritdoc Canarium.AvsPackets#_base
+  @readonly
+  ###
+  @property "base",
+    get: -> @_avs.base
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
@@ -159,7 +167,7 @@ class Canarium.AvmTransactions
   iord: (address, offset, callback) ->
     return invokeCallback(callback, @iord(address, offset)) if callback?
     return @_queue(=>
-      @_log(1, "iord", "begin(address=#{hexDump(address)}+#{offset})")
+      @_log(1, "iord", "begin(address=#{hexDump(address)}+#{offset}*4)")
       return Promise.reject("Device is not configured") unless @_avs.base.configured
       return @_trans(
         0x10  # Read, non-incrementing address
@@ -194,7 +202,7 @@ class Canarium.AvmTransactions
   iowr: (address, offset, writedata, callback) ->
     return invokeCallback(callback, @iowr(address, offset, writedata)) if callback?
     return @_queue(=>
-      @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset})", writedata)
+      @_log(1, "iowr", "begin(address=#{hexDump(address)}+#{offset}*4)", writedata)
       return Promise.reject("Device is not configured") unless @_avs.base.configured
       src = new Uint8Array(4)
       src[0] = (writedata >>>  0) & 0xff
