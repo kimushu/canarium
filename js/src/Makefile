@@ -4,7 +4,7 @@ SOURCE = \
 	canarium.coffee \
 	basecomm.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
-	hostcomm.coffee \
+	hostcomm.coffee port.coffee serial.coffee \
 	footer.coffee
 	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
 	# hostfs.coffee hostnet.coffee

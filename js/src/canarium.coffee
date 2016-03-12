@@ -37,14 +37,6 @@ class Canarium
     get: -> @_base.bitrate
     set: (v) -> @_base.bitrate = v
 
-  ###
-  @property {Canarium.Channel[]} channels
-    チャネル[0～255]
-  @readonly
-  ###
-  @property "channels",
-    get: -> @_channels
-
   ###*
   @property {Canarium.I2CComm} i2c
     I2C通信制御クラスのインスタンス
@@ -68,6 +60,14 @@ class Canarium
   ###
   @property "avm",
     get: -> @_avm
+
+  ###*
+  @property {Canarium.HostComm} hostComm
+    ホスト通信クラスのインスタンス
+  @readonly
+  ###
+  @property "hostComm",
+    get: -> @_hostComm
 
   ###*
   @static
@@ -101,7 +101,7 @@ class Canarium
   ###*
   @private
   @static
-  @cfg {number}
+  @cfg {number} EEPROM_SLAVE_ADDR = 0b1010000
     EEPROMのスレーブアドレス(7-bit表記)
   @readonly
   ###
@@ -110,7 +110,7 @@ class Canarium
   ###*
   @private
   @static
-  @cfg {number}
+  @cfg {number} SPLIT_EEPROM_BURST = 6
     EEPROMの最大バーストリード長(バイト数)
   @readonly
   ###
@@ -119,7 +119,7 @@ class Canarium
   ###*
   @private
   @static
-  @cfg {number}
+  @cfg {number} CONFIG_TIMEOUT_MS = 3000
     コンフィグレーション開始のタイムアウト時間(ms)
   @readonly
   ###
@@ -128,11 +128,20 @@ class Canarium
   ###*
   @private
   @static
-  @cfg {number}
+  @cfg {number} AVM_CHANNEL = 0
     Avalon-MM 通信レイヤのチャネル番号
   @readonly
   ###
   AVM_CHANNEL = 0
+
+  ###*
+  @private
+  @static
+  @cfg {number} SWI_BASE_ADDR = 0x10000000
+    ホスト通信用ペリフェラル(SWI)のベースアドレス
+  @readonly
+  ###
+  SWI_BASE_ADDR = 0x10000000
 
   #----------------------------------------------------------------
   # Public methods
@@ -163,11 +172,11 @@ class Canarium
   ###
   constructor: ->
     @_boardInfo = null
-    @_channels = null
     @_base = new Canarium.BaseComm()
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
     @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
+    @_hostComm = new Canarium.HostComm(@_avm, SWI_BASE_ADDR)
     @_configBarrier = false
     @_resetBarrier = false
     return
@@ -403,6 +412,25 @@ class Canarium
     ).then(=>
       return @boardInfo # Last PromiseValue
     ) # return Promise.resolve()...
+
+  ###*
+  @method
+    シリアル通信ポートの生成
+  @param {function(boolean,Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @param {Object[]} [args]
+    {@link Canarium.Serial#constructor}の第2引数以降に同じ
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト
+  @return {Canarium.Serial} return.PromiseValue
+    シリアル通信ポートクラスのインスタンス
+  ###
+  requestSerial: (callback, args...) ->
+    return invokeCallback(callback, @requestSerial(null, args...)) if callback
+    return Promise.resolve(
+    ).then(=>
+      return new Canarium.Serial(@_hostComm, args...)
+    )
 
   #----------------------------------------------------------------
   # Private methods
