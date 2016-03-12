@@ -21,8 +21,20 @@
 #error "No SWI interface for Canarium found"
 #endif
 
-static canarium_hostcomm_desc *last;
+#define IS_ENABLED_DESC(p) \
+  ((((alt_u32)(p)) & CANARIUM_HOSTCOMM_DESC_ENABLE) != 0)
 
+#define ENABLE_DESC(p) \
+  ((struct canarium_hostcomm_desc *) \
+   (((alt_u32)(p)) | CANARIUM_HOSTCOMM_DESC_ENABLE))
+
+#define GET_DESC(p) \
+  ((struct canarium_hostcomm_desc *) \
+   (((alt_u32)(p)) & ~CANARIUM_HOSTCOMM_DESC_ENABLE))
+
+static canarium_hostcomm_desc *chain_all, *next_chain, *chain_last;
+
+static ALT_INLINE ALT_ALWAYS_INLINE void canarium_hostcomm_send_chain(void);
 static void canarium_hostcomm_receive(void *arg);
 static void canarium_hostcomm_callback(canarium_hostcomm_desc *desc);
 
@@ -40,7 +52,7 @@ canarium_hostcomm_pack;
  */
 void canarium_hostcomm_init(void)
 {
-  last = NULL;
+  chain_all = next_chain = chain_last = NULL;
   canarium_write_message(NULL);
   canarium_register_irq_handler(canarium_hostcomm_receive, NULL);
 }
@@ -190,18 +202,45 @@ void canarium_hostcomm_queue(canarium_hostcomm_desc *desc, int timeout)
 
   context = alt_irq_disable_all();
 
-  if (last)
+  if (next_chain)
   {
-    last->next = desc;
-    alt_dcache_flush(&last->next, sizeof(last->next));
+    // Append to chain
+    chain_last->next = ENABLE_DESC(desc);
+    chain_last = desc;
   }
   else
   {
-    canarium_write_message(desc);
+    // New chain
+    if (chain_last)
+    {
+      chain_last->next = desc;
+    }
+    next_chain = chain_last = desc;
+
+    if (!chain_all)
+    {
+      chain_all = desc;
+    }
   }
-  last = desc;
+
+  canarium_hostcomm_send_chain();
 
   alt_irq_enable_all(context);
+}
+
+/*
+ * Send next chain to host if host is available
+ * (This function must be called in critical section)
+ */
+static ALT_INLINE ALT_ALWAYS_INLINE void canarium_hostcomm_send_chain(void)
+{
+  if (next_chain && !IS_ENABLED_DESC(canarium_read_message()))
+  {
+    // Send next_chain to host because there is no pending chain
+    // in message register
+    canarium_write_message(ENABLE_DESC(next_chain));
+    next_chain = NULL;
+  }
 }
 
 /*
@@ -213,10 +252,10 @@ static void canarium_hostcomm_receive(void *arg)
   alt_u32 word;
   (void)arg;
 
-  prev = NULL;
-  desc = (canarium_hostcomm_desc *)canarium_read_message();
+  canarium_hostcomm_send_chain();
 
-  for (; desc; desc = desc->next)
+  prev = NULL;
+  for (desc = chain_all; desc && desc != next_chain; desc = GET_DESC(desc->next))
   {
     /* check response */
     word = IORD_32DIRECT(desc, offsetof(canarium_hostcomm_desc, resp_status));
@@ -236,11 +275,15 @@ static void canarium_hostcomm_receive(void *arg)
     if (prev)
     {
       prev->next = desc->next;
-      alt_dcache_flush(&desc->next, sizeof(desc->next));
     }
     else
     {
-      canarium_write_message(desc->next);
+      chain_all = GET_DESC(desc->next);
+    }
+
+    if (chain_last == desc)
+    {
+      chain_last = NULL;
     }
 
     /* invoke callback */
@@ -249,8 +292,6 @@ static void canarium_hostcomm_receive(void *arg)
       (*desc->callback)(desc);
     }
   }
-
-  last = prev;
 }
 
 /*

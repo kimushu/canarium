@@ -20,7 +20,7 @@ add_sw_property supported_bsp_type UCOSII
 add_sw_property supported_bsp_type TINYTH
 
 # Settings
-add_sw_setting quoted_string system_h_define name CANARIUM_SERIAL_NAME "/dev/ser_canarium" "Device name"
+add_sw_setting quoted_string system_h_define name CANARIUM_SERIAL_NAME "/dev/serc0" "Device name"
 add_sw_setting decimal_number system_h_define port_number CANARIUM_SERIAL_PORT_NUMBER 8250 "Port number"
 add_sw_setting decimal_number system_h_define timeout CANARIUM_SERIAL_TIMEOUT 1000 "Timeout (in OS ticks)"
 add_sw_setting boolean system_h_define override_stdin CANARIUM_SERIAL_OVERRIDE_STDIN false "Use this device as STDIN (hal.stdin must be disabled)"

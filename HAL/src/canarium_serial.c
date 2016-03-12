@@ -10,6 +10,8 @@
 #include "canarium_hostcomm.h"
 #include "priv/alt_file.h"
 #include "system.h"
+#include <fcntl.h>
+#include <errno.h>
 
 #if (CANARIUM_SERIAL_OVERRIDE_STDIN != 0) && defined(ALT_STDIN_PRESENT)
 #error "canarium_serial.override_stdin cannot be used with hal.stdin"
@@ -60,16 +62,24 @@ void canarium_serial_init(canarium_serial_dev *d)
 int canarium_serial_read_fd(alt_fd *fd, char *ptr, int len)
 {
   canarium_serial_dev *dev = (canarium_serial_dev *)fd->dev;
-  size_t read_len = 0;
+  size_t read_len;
   int result;
 
-  result = canarium_hostcomm_h2c(&dev->svc, ptr, len, &read_len, dev->timeout);
-  if (result > 0)
+  do
   {
-    return -result;
+    result = canarium_hostcomm_h2c(&dev->svc, ptr, len, &read_len, dev->timeout);
+    if (result == 0)
+    {
+      return (int)read_len;
+    }
+    if (result != EWOULDBLOCK)
+    {
+      return -result;
+    }
   }
+  while (!(fd->fd_flags & O_NONBLOCK));
 
-  return (int)read_len;
+  return -EWOULDBLOCK;
 }
 
 int canarium_serial_write_fd(alt_fd *fd, const char *ptr, int len)
