@@ -352,7 +352,7 @@ class Canarium.HostComm
           )
         else
           @_log(1, "_delegate", "error(desc=#{hexDump(desc.address)})", desc)
-          promise = port.promise.then(=> Promise.reject(134)) # ENOTSUP
+          promise = port.promise.then(=> Promise.reject(Canarium.Errno.ENOTSUP))
       port.promise = promise.then(
         (length) =>
           desc.transferedBytes = length
@@ -362,7 +362,7 @@ class Canarium.HostComm
         # TODO: log
         if typeof(status) != "number"
           console.log("error:#{status}")
-          status = 5  # EIO
+          status = Canarium.Errno.EIO
         desc.response = RESP_ERROR
         desc.status = status
       ).then(=>
