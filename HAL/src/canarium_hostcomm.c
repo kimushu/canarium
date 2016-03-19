@@ -188,38 +188,57 @@ int canarium_hostcomm_h2c(canarium_hostcomm_svc *service, void *data, size_t len
 }
 
 /*
- * Queue descriptor
+ * Queue a descriptor
  */
 void canarium_hostcomm_queue(canarium_hostcomm_desc *desc, int timeout)
 {
-  int context;
+  canarium_hostcomm_queue_multiple(&desc, 1, timeout);
+}
 
-  desc->next = NULL;
-  desc->reserved_zero = 0;
-  desc->resp_status = 0;
-  desc->timestamp = alt_nticks() + timeout;
-  alt_dcache_flush(desc, sizeof(*desc));
+/*
+ * Queue descriptors
+ */
+void canarium_hostcomm_queue_multiple(canarium_hostcomm_desc **descs, int nqueues, int timeout)
+{
+  int context;
+  int i;
+  canarium_hostcomm_desc *desc;
+
+  for (i = 0; i < nqueues; ++i)
+  {
+    desc = descs[i];
+    desc->next = NULL;
+    desc->reserved_zero = 0;
+    desc->resp_status = 0;
+    desc->timestamp = alt_nticks() + timeout;
+    alt_dcache_flush(desc, sizeof(*desc));
+  }
 
   context = alt_irq_disable_all();
 
-  if (next_chain)
+  for (i = 0; i < nqueues; ++i)
   {
-    // Append to chain
-    chain_last->next = ENABLE_DESC(desc);
-    chain_last = desc;
-  }
-  else
-  {
-    // New chain
-    if (chain_last)
-    {
-      chain_last->next = desc;
-    }
-    next_chain = chain_last = desc;
+    desc = descs[i];
 
-    if (!chain_all)
+    if (next_chain)
     {
-      chain_all = desc;
+      // Append to chain
+      chain_last->next = ENABLE_DESC(desc);
+      chain_last = desc;
+    }
+    else
+    {
+      // New chain
+      if (chain_last)
+      {
+        chain_last->next = desc;
+      }
+      next_chain = chain_last = desc;
+
+      if (!chain_all)
+      {
+        chain_all = desc;
+      }
     }
   }
 

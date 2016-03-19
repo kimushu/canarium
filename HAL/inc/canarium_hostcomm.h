@@ -63,6 +63,7 @@ canarium_hostcomm_desc;
 
 extern void canarium_hostcomm_init(void);
 extern void canarium_hostcomm_queue(canarium_hostcomm_desc *desc, int timeout);
+extern void canarium_hostcomm_queue_multiple(canarium_hostcomm_desc **descs, int nqueues, int timeout);
 extern int canarium_hostcomm_c2h(canarium_hostcomm_svc *service,
     const void *data, size_t length, size_t *written, int timeout);
 extern int canarium_hostcomm_h2c(canarium_hostcomm_svc *service,
