@@ -73,6 +73,12 @@ class Canarium.Errno
   @define("ENOSYS", 134)
 
   ###*
+  @static @readonly @property {number} EILSEQ
+    シーケンスが異常である
+  ###
+  @define("EILSEQ", 138)
+
+  ###*
   @static @readonly @property {number} EWOULDBLOCK
     ブロック状態である({@link #EAGAIN}の別名)
   ###

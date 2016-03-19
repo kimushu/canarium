@@ -1,10 +1,11 @@
 TARGETS = ../canarium.js ../canarium.min.js
 SOURCE = \
-	header.coffee \
+	header.coffee endian.coffee \
 	canarium.coffee errno.coffee \
 	basecomm.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
 	hostcomm.coffee port.coffee serial.coffee \
+	fdport.coffee \
 	footer.coffee
 	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
 	# hostfs.coffee hostnet.coffee

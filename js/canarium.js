@@ -22,7 +22,7 @@ canarium.jsの先頭に配置されるスクリプト。
  */
 
 (function() {
-  var Canarium, FIFOBuffer, TimeLimit, finallyPromise, hexDump, invokeCallback, oldProperty, str2ab, tryPromise, waitPromise,
+  var Canarium, FIFOBuffer, TimeLimit, be16toh, be32toh, finallyPromise, hexDump, htobe16, htobe32, htole16, htole32, invokeCallback, le16toh, le32toh, oldProperty, str2ab, tryPromise, waitPromise,
     slice = [].slice,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
@@ -384,6 +384,47 @@ canarium.jsの先頭に配置されるスクリプト。
     return FIFOBuffer;
 
   })();
+
+
+  /*
+  エンディアン変換関数
+   */
+
+  if (new Uint16Array(new Uint8Array([0, 1]).buffer)[0] === 256) {
+    htole16 = function(v) {
+      return v;
+    };
+    htobe16 = function(v) {
+      return ((v & 0xff00) >>> 8) | ((v & 0xff) << 8);
+    };
+    htole32 = function(v) {
+      return v;
+    };
+    htobe32 = function(v) {
+      return ((v & 0xff000000) >>> 24) | ((v & 0xff0000) >>> 8) | ((v & 0xff00) << 8) | ((v & 0xff) << 24);
+    };
+  } else {
+    htobe16 = function(v) {
+      return v;
+    };
+    htole16 = function(v) {
+      return ((v & 0xff00) >>> 8) | ((v & 0xff) << 8);
+    };
+    htobe32 = function(v) {
+      return v;
+    };
+    htole32 = function(v) {
+      return ((v & 0xff000000) >>> 24) | ((v & 0xff0000) >>> 8) | ((v & 0xff00) << 8) | ((v & 0xff) << 24);
+    };
+  }
+
+  le16toh = htole16;
+
+  be16toh = htobe16;
+
+  le32toh = htole32;
+
+  be32toh = htobe32;
 
 
   /**
@@ -1118,6 +1159,134 @@ canarium.jsの先頭に配置されるスクリプト。
     };
 
     return Canarium;
+
+  })();
+
+
+  /**
+  @class Canarium.Errno
+    Canariumエラーコード定義(Nios II側のerrno定義と値を一致させてある)
+   */
+
+  Canarium.Errno = (function() {
+    null;
+
+    Errno.define = function(name, value) {
+      return Object.defineProperty(this, name, {
+        value: value
+      });
+    };
+
+
+    /**
+    @static @readonly @property {number} EPERM
+      操作をする権限がない
+     */
+
+    Errno.define("EPERM", 1);
+
+
+    /**
+    @static @readonly @property {number} ENOENT
+      指定されたエントリが存在しない
+     */
+
+    Errno.define("ENOENT", 2);
+
+
+    /**
+    @static @readonly @property {number} EIO
+      入出力エラー
+     */
+
+    Errno.define("EIO", 5);
+
+
+    /**
+    @static @readonly @property {number} EBADF
+      ファイルディスクリプタが不正である
+     */
+
+    Errno.define("EBADF", 9);
+
+
+    /**
+    @static @readonly @property {number} EAGAIN
+      再度実行が必要である
+     */
+
+    Errno.define("EAGAIN", 11);
+
+
+    /**
+    @static @readonly @property {number} EACCES
+      ファイルへのアクセス権がない
+     */
+
+    Errno.define("EACCES", 13);
+
+
+    /**
+    @static @readonly @property {number} EINVAL
+      引数が不正である
+     */
+
+    Errno.define("EINVAL", 22);
+
+
+    /**
+    @static @readonly @property {number} EROFS
+      ファイルシステムは読み込み専用である
+     */
+
+    Errno.define("EROFS", 30);
+
+
+    /**
+    @static @readonly @property {number} ENOSYS
+      要求された操作を処理するシステムが存在しない
+     */
+
+    Errno.define("ENOSYS", 88);
+
+
+    /**
+    @static @readonly @property {number} ENOTSUP
+      要求された操作はサポートされていない
+     */
+
+    Errno.define("ENOSYS", 134);
+
+
+    /**
+    @static @readonly @property {number} EILSEQ
+      シーケンスが異常である
+     */
+
+    Errno.define("EILSEQ", 138);
+
+
+    /**
+    @static @readonly @property {number} EWOULDBLOCK
+      ブロック状態である({@link #EAGAIN}の別名)
+     */
+
+    Errno.define("EWOULDBLOCK", Errno.EAGAIN);
+
+
+    /**
+    @private
+    @method constructor
+      コンストラクタ(インスタンス生成禁止)
+     */
+
+    function Errno() {
+      throw "Canarium.Errno cannot be instanciated.";
+    }
+
+    delete Errno.define;
+
+    return Errno;
 
   })();
 
@@ -3071,7 +3240,7 @@ canarium.jsの先頭に配置されるスクリプト。
             this._log(1, "_delegate", "error(desc=" + (hexDump(desc.address)) + ")", desc);
             promise = port.promise.then((function(_this) {
               return function() {
-                return Promise.reject(134);
+                return Promise.reject(Canarium.Errno.ENOTSUP);
               };
             })(this));
         }
@@ -3087,7 +3256,7 @@ canarium.jsの先頭に配置されるスクリプト。
           return function(status) {
             if (typeof status !== "number") {
               console.log("error:" + status);
-              status = 5;
+              status = Canarium.Errno.EIO;
             }
             desc.response = RESP_ERROR;
             return desc.status = status;
@@ -3211,7 +3380,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Port.prototype.processHostWrite = function(length) {
-      return Promise.reject(88);
+      return Promise.reject(Canarium.Errno.ENOSYS);
     };
 
 
@@ -3229,7 +3398,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Port.prototype.processHostRead = function(buffer) {
-      return Promise.reject(88);
+      return Promise.reject(Canarium.Errno.ENOSYS);
     };
 
 
@@ -3584,7 +3753,7 @@ canarium.jsの先頭に配置されるスクリプト。
       if (length > 0) {
         return Promise.resolve(this._txBuffer.shift(length));
       }
-      return Promise.reject(11);
+      return Promise.reject(Canarium.Errno.EWOULDBLOCK);
     };
 
 
@@ -3667,6 +3836,320 @@ canarium.jsの先頭に配置されるスクリプト。
     };
 
     return Serial;
+
+  })(Canarium.Port);
+
+
+  /**
+  @class Canarium.FDPort
+    PERIDOTボード ホスト通信ポート基底クラス
+  @extends Canarium.Port
+   */
+
+  Canarium.FDPort = (function(superClass) {
+    var NR_CLOSE, NR_FSTAT, NR_IOCTL, NR_LSEEK, NR_OPEN, NR_READ, NR_WRITE;
+
+    extend(FDPort, superClass);
+
+    null;
+
+
+    /**
+    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
+
+    FDPort.verbosity = 0;
+
+
+    /**
+    @private
+    @property {Object/null} _request
+      処理中のリクエスト情報
+     */
+
+
+    /**
+    @private
+    @property {Object} _files
+      オープンされているファイルディスクリプタの集合
+     */
+
+
+    /**
+    @private
+    @property {number} _nextFd
+      次のファイルディスクリプタ番号
+     */
+
+    NR_READ = 3;
+
+    NR_WRITE = 4;
+
+    NR_OPEN = 5;
+
+    NR_CLOSE = 6;
+
+    NR_LSEEK = 19;
+
+    NR_FSTAT = 28;
+
+    NR_IOCTL = 54;
+
+
+    /**
+    @protected
+    @template
+    @method
+      open()の処理
+    @param {Object} fd
+      ファイルディスクリプタ
+    @param {number} fd.flags
+      フラグ(O_xxx)
+    @param {number} fd.mode
+      モード
+    @param {string} fd.path
+      ファイルパス
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined/number} return.PromiseValue
+      成功時はデータ不要(resolve)またはエラーコード(reject)
+     */
+
+    FDPort.prototype.onOpen = function(fd) {
+      return Promise.resolve();
+    };
+
+
+    /**
+    @protected
+    @template
+    @method
+      close()の処理
+    @param {Object} fd
+      ファイルディスクリプタ
+    @param {number} fd.flags
+      フラグ(O_xxx)
+    @param {number} fd.mode
+      モード
+    @param {string} fd.path
+      ファイルパス
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined/number} return.PromiseValue
+      成功時はデータ不要(resolve)またはエラーコード(reject)
+     */
+
+    FDPort.prototype.onClose = function(fd) {
+      return Promise.resolve();
+    };
+
+
+    /**
+    @protected
+    @method
+      ホストが書き込み(ホスト→クライアント)
+    @param {number} length
+      要求バイト数
+    @return {Promise}
+      Promiseオブジェクト
+    @return {ArrayBuffer/number} return.PromiseValue
+      読み取ったデータ(resolve)またはエラーコード(reject)
+     */
+
+    FDPort.prototype.processHostWrite = function(length) {
+      var ref;
+      switch (((ref = this._request) != null ? ref.nr : void 0) != null) {
+        case NR_OPEN:
+        case NR_READ:
+        case NR_LSEEK:
+        case NR_FSTAT:
+          return this._request.process(length);
+        case NR_CLOSE:
+        case NR_WRITE:
+          return Promise.reject(Canarium.Errno.EILSEQ);
+      }
+      return Promise.reject(Canarium.Errno.ENOSYS);
+    };
+
+
+    /**
+    @protected
+    @method
+      ホストが読み込み(クライアント→ホスト)
+    @param {ArrayBuffer} buffer
+      転送要求データ
+    @return {Promise}
+      Promiseオブジェクト
+    @return {number} return.PromiseValue
+      読み込み完了したバイト数(resolve)またはエラーコード(reject)
+     */
+
+    FDPort.prototype.processHostRead = function(buffer) {
+      if (this._request == null) {
+        return this._newRequest(buffer);
+      }
+      switch (this._request.nr != null) {
+        case NR_OPEN:
+        case NR_CLOSE:
+        case NR_READ:
+        case NR_LSEEK:
+        case NR_FSTAT:
+          return Promise.reject(Canarium.Errno.EILSEQ);
+        case NR_WRITE:
+          return this._request.process(buffer);
+      }
+      return Promise.reject(Canarium.Errno.ENOSYS);
+    };
+
+
+    /**
+    @protected
+    @method constructor
+      コンストラクタ
+     */
+
+    function FDPort() {
+      FDPort.__super__.constructor.apply(this, arguments);
+      this._nextHandle = 1;
+      return;
+    }
+
+
+    /**
+    @private
+    @method
+      新しいリクエストを受信
+    @param {ArrayBuffer} buffer
+      リクエスト構造体
+    @return {Promise}
+      Promiseオブジェクト
+    @return {number} return.PromiseValue
+      読み込み完了したバイト数(resolve)またはエラーコード(reject)
+     */
+
+    FDPort.prototype._newRequest = function(buffer) {
+      var fd, nr, path, req, src;
+      src = new Uint32Array(buffer);
+      req = null;
+      nr = le32toh(src[0]);
+      switch (nr) {
+        case NR_OPEN:
+          if (buffer.byteLength >= 13) {
+            path = new Uint8Array(buffer).subarray(12);
+            req = {
+              flags: le32toh(src[1]),
+              mode: le32toh(src[2]),
+              path: String.fromCharCode.apply(null, path)
+            };
+          }
+          break;
+        case NR_CLOSE:
+        case NR_FSTAT:
+          if (buffer.byteLength === 4) {
+            req = {
+              fd: le32toh(src[1])
+            };
+          }
+          break;
+        case NR_READ:
+        case NR_WRITE:
+          if (buffer.byteLength === 8) {
+            req = {
+              fd: le32toh(src[1]),
+              len: le32toh(src[2])
+            };
+          }
+          break;
+        case NR_LSEEK:
+          if (buffer.byteLength === 12) {
+            req = {
+              fd: le32toh(src[1]),
+              ptr: le32toh(src[2]),
+              dir: le32toh(src[3])
+            };
+          }
+          break;
+        default:
+          return Promise.reject(Canarium.Errno.ENOTSUP);
+      }
+      if (req == null) {
+        return Promise.reject(Canarium.Errno.EILSEQ);
+      }
+      req.nr = nr;
+      this._request = req;
+      if (nr === NR_OPEN) {
+        fd = {
+          number: this._nextFd++,
+          flags: req.flags,
+          mode: req.mode,
+          path: req.path
+        };
+        return this.onOpen(fd).then((function(_this) {
+          return function() {
+            req.fd = fd.number;
+            _this._files[fd.number] = fd;
+            return buffer.byteLength;
+          };
+        })(this));
+      }
+      fd = this._files[req.fd];
+      if (fd == null) {
+        return Promise.reject(Canarium.Errno.EBADF);
+      }
+      switch (nr) {
+        case NR_CLOSE:
+          return this.onClose(fd).then((function(_this) {
+            return function() {
+              fd.number = null;
+              delete _this._files[fd.number];
+              return buffer.byteLength;
+            };
+          })(this));
+        case NR_READ:
+          return this.onRead(fd, req.len).then((function(_this) {
+            return function(readData) {
+              req.process = function(length) {
+                return Promise.resolve(readData);
+              };
+              return buffer.byteLength;
+            };
+          })(this));
+        case NR_WRITE:
+          req.promise = (function(_this) {
+            return function(writeData) {
+              return _this.onWrite(fd, writeData);
+            };
+          })(this);
+          return buffer.byteLength;
+      }
+      return Promise.reject(Canarium.Errno.ENOSYS);
+    };
+
+
+    /**
+    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
+
+    FDPort.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity >= lvl) {
+        Canarium._log("Port", func, msg, data);
+      }
+    };
+
+    return FDPort;
 
   })(Canarium.Port);
 
