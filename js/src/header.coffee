@@ -225,7 +225,7 @@ class TimeLimit
     return window.performance.now()
   ) else if IS_NODEJS then (->
     t = process.hrtime()
-    return Math.round(t[0] * 1000000 + t[1] / 1000)
+    return Math.round(t[0] * 1000000 + t[1] / 1000) / 1000
   ))
 
   ###*
