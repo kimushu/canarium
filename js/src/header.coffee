@@ -8,6 +8,30 @@ canarium.jsの先頭に配置されるスクリプト。
 if false
   Uint8Array::hexDump = -> hexDump(this)
 
+###
+@private
+@property {boolean}
+  Chromeかどうかの判定
+###
+IS_CHROME = (chrome?.runtime?)
+
+###
+@private
+@property {boolean}
+  Node.jsかどうかの判定
+###
+IS_NODEJS = (process? and require?)
+
+###
+@private
+@property {Function}
+  Promiseクラス
+###
+if IS_CHROME
+  Promise = window.Promise
+else if IS_NODEJS
+  Promise = require("es6-promise").Promise
+
 # 既にpropertyが定義されていた場合、canarium.jsロード後に
 # 元の定義に戻すために一旦別名保存する。
 # (戻す処理はfooter.coffeeにて行う)
@@ -94,7 +118,7 @@ invokeCallback = (callback, promise) ->
 ###
 waitPromise = (dulation, value) ->
   return new Promise((resolve) ->
-    window.setTimeout((-> resolve(value)), dulation)
+    setTimeout((-> resolve(value)), dulation)
   )
 
 ###*
@@ -126,7 +150,7 @@ tryPromise = (timeout, promiser, maxTries) ->
   # log("tryPromise(#{timeout} ms)")
   return new Promise((resolve, reject) ->
     lastReason = undefined
-    window.setTimeout(
+    setTimeout(
       ->
         # tryPromise.pended--
         # if fin
@@ -197,9 +221,12 @@ class TimeLimit
     現在時刻(残り時間ではない)
   @readonly
   ###
-  @property("now", get: ->
+  @property("now", get: if IS_CHROME then (->
     return window.performance.now()
-  )
+  ) else if IS_NODEJS then (->
+    t = process.hrtime()
+    return Math.round(t[0] * 1000000 + t[1] / 1000)
+  ))
 
   ###*
   @property {number} left
