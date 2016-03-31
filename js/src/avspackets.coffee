@@ -99,8 +99,9 @@ class Canarium.AvsPackets
     return @_base.transData(txdata, eopFinder).then((rxdata) =>
       src = new Uint8Array(rxdata)
       @_log(1, "transPacket", "recv", {encoded: src})
-      unless src.subarray(0, header.length).join(",") == header.join(",")
-        return Promise.reject(Error("Illegal packetize control bytes"))
+      for i in [0...header.length]
+        unless src[i] == header[i]
+          return Promise.reject(Error("Illegal packetize control bytes"))
       src = src.subarray(header.length)
       dst = new Uint8Array(rxsize)
       pos = 0
