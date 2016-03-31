@@ -1,17 +1,11 @@
 
-TARGETS = canarium.js chromeapptest.js cases.js
+NODEFLAGS =
+ifneq ($(DEBUG),)
+ifneq ($(DEBUG),0)
+NODEFLAGS += --debug-brk
+endif
+endif
 
-test: $(TARGETS)
-
-clean:
-	rm -f $(TARGETS)
-
-canarium.js: ../canarium.js
-	cp $< $@
-
-../canarium.js:
-	$(MAKE) -C $(dir $@) $(notdir $@)
-
-%.js: %.coffee
-	coffee -b -c -m $< || (rm -f $@; false)
+nodejs:
+	mocha $(NODEFLAGS) --compilers coffee:coffee-script/register test.coffee
 

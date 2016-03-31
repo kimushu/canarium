@@ -605,15 +605,25 @@ new ChromeAppTest("Canarium Test", (c = new Canarium()).version).setup(->
     body: (callback) ->
       callback(if c._base.configured then @PASS else @FAIL)
   )
+  t = null
   @add(
-    category: "切断(正常系)"
-    description: "PERIDOTから切断"
+    category: "環境整備(手動操作)"
+    description :"PERIDOTを切断する(自動切断検知)"
     setup: (callback) ->
-      callback(if c then @PASS else @FAIL)
-    body: (callback) ->
-      c.close((result) =>
-        callback(if result then @PASS else @FAIL)
-      )
+      @prompt("PERIDOTデバイスを切断してから[PASS]をクリックしてください")
+      t = setInterval((=>
+        return if c.connected
+        @print("PERIDOTデバイスの切断を検知しました")
+        clearInterval(t)
+        t = null
+      ), 100)
+      callback(@PASS)
+    epilogue: (callback) ->
+      clearInterval(t) if t?
+      if c.connected
+        @print("PERIDOTデバイスが切断されていません")
+        return callback(@FAIL)
+      callback(@PASS)
   )
   @start()
 )
