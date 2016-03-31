@@ -37,6 +37,17 @@ class Canarium
     get: -> @_base.bitrate
     set: (v) -> @_base.bitrate = v
 
+  ###*
+  @property {boolean} connected
+    接続状態({@link Canarium.BaseComm#connected}のアクセサとして定義)
+
+    - true: 接続済み
+    - false: 未接続
+  @readonly
+  ###
+  @property "connected",
+    get: -> @_base.connected
+
   ###
   @property {Canarium.Channel[]} channels
     チャネル[0～255]
@@ -504,7 +515,7 @@ class Canarium
   ###
   @_log: (cls, func, msg, data) ->
     return if SUPPRESS_ALL_LOGS? and SUPPRESS_ALL_LOGS
-    time = window.performance.now().toFixed(3)
+    time = getCurrentTime().toFixed(3)
     out = {
       time: time
       "#{cls}##{func}": msg

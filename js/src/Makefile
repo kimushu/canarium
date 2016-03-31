@@ -2,13 +2,13 @@ TARGETS = ../canarium.js ../canarium.min.js
 SOURCE = \
 	header.coffee \
 	canarium.coffee \
-	basecomm.coffee i2ccomm.coffee \
+	basecomm.coffee serialwrapper.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
 	footer.coffee
 	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
 	# hostfs.coffee hostnet.coffee
 PREAMBLE = license.js
-JS_TYPES = ArrayBuffer chrome.serial Uint8Array DirectoryEntry Promise
+JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort
 
 comma := ,
 empty :=
