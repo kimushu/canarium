@@ -261,7 +261,9 @@ class Canarium
     timeLimit = undefined
     return Promise.resolve(
     ).then(=>
-      return if boardInfo or (@boardInfo.id and @boardInfo.serialcode)
+      return @_base.assertConnection()
+    ).then(=>
+      return if !boardInfo or (@boardInfo?.id and @boardInfo?.serialcode)
       # まだボード情報が読み込まれていないので先に読み込む
       return @getinfo()
     ).then(=>
@@ -379,6 +381,8 @@ class Canarium
   getinfo: (callback) ->
     return invokeCallback(callback, @getinfo()) if callback?
     return Promise.resolve(
+    ).then(=>
+      return @_base.assertConnection()
     ).then(=>
       switch @_boardInfo?.version
         when undefined
