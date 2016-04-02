@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles-3eba09980fa05ead185cb17d9c0deb0f.css" type="text/css" />
 
   <script type="text/javascript" src="extjs/ext-all.js"></script>
-  <script type="text/javascript" src="data-d5ea7a54d0ae57a50a9c67a35d16b08a.js"></script>
+  <script type="text/javascript" src="data-11424de6af7396d7c53a6b2e78128873.js"></script>
 
   <script type="text/javascript" src="app-0c945a27f43452df695771ddb60b3d14.js"></script>
 
@@ -27,9 +27,9 @@
   <div id="header-content"><strong>Documentation</strong> JSDuck</div>
   <div id='welcome-content' style='display:none'><body>
   <div class="class-categories" style="margin: 20px;">
-    <h1 class="top" style="padding-bottom: 10px">Canarium - Chromeアプリ用PERIDOTボードドライバ 0.9.7</h1>
+    <h1 class="top" style="padding-bottom: 10px">Canarium - Chrome/Node.jsアプリ用PERIDOTボードドライバ 0.9.8</h1>
 
-    <p>Canariumは、Chromeアプリ開発者向けに用意されたPERIDOTボードのドライバライブラリです。</p>
+    <p>Canariumは、Chrome/Node.jsアプリの開発者向けに用意されたPERIDOTボードのドライバライブラリです。</p>
     <p>本ライブラリは、<a href="https://github.com/osafune/peridot/tree/master/sample_apps/lib" target="blank">PERIDOTボード本家リポジトリ</a>に含まれているCanarium(0.9.5)をベースとして、<a href="http://coffeescript.org">CoffeeScript</a>で書き直したものです。</p>
     <p>&nbsp;</p>
 
@@ -39,14 +39,30 @@
     </div>
 
     <div class="section">
-      <h1 style="padding-bottom: 10px">このバージョンの機能</h1>
-      <p>本家Canarium(0.9.5)からの差分は以下のとおりです。</p>
+      <h1 style="padding-bottom: 10px">リリース履歴</h1>
       <ul style="padding-left: 20px">
-        <li style="list-style-type: square">JavaScriptにコンパイルされたライブラリ本体は、canarium.jsとcanarium.min.jsの2種類で提供されるようになりました。どちらも機能は同じですが、後者はサイズを減らすために圧縮されています。</li>
-        <li style="list-style-type: square">非同期処理を行うすべての関数は、コールバック関数の指定を省略する(またはundefinedやnullを渡す)ことで、Promiseオブジェクトを返す仕様になります。</li>
-        <li style="list-style-type: square">ASモードでの接続時はコンフィグレーション済みとして扱い、接続直後からavmの使用が許可されます。</li>
-        <li style="list-style-type: square">avm.optionにてfastAcknowledge=trueを設定しても、chrome.serial.flushを行いません。</li>
+        <li style="list-style-type: circle">Version 0.9.8
+          <ul style="padding-left: 20px">
+            <li style="list-style-type: square">Node.jsでも利用可能になりました。(シリアル通信は serialport モジュールに依存します。)</li>
+            <li style="list-style-type: square">強制切断時の自動検知が可能になりました。それに伴い <a href="#!/api/Canarium-property-onClosed">onClosed</a> プロパティを追加しました。</li>
+            <li style="list-style-type: square">未接続時に通信関数を呼び出した時の振る舞い(返却するエラーメッセージ)を統一しました。</li>
+            <li style="list-style-type: square">安定性向上のため、リトライ処理で再帰呼び出しのネストが深くなる問題を修正しました。</li>
+          </ul>
+        </li>
+        <li style="list-style-type: circle">Version 0.9.7 (本家Canarium 0.9.5 からの差分)
+          <ul style="padding-left: 20px">
+            <li style="list-style-type: square">JavaScriptにコンパイルされたライブラリ本体は、canarium.jsとcanarium.min.jsの2種類で提供されるようになりました。どちらも機能は同じですが、後者はサイズを減らすために圧縮されています。</li>
+            <li style="list-style-type: square">非同期処理を行うすべての関数は、コールバック関数の指定を省略する(またはundefinedやnullを渡す)ことで、Promiseオブジェクトを返す仕様になります。</li>
+            <li style="list-style-type: square">ASモードでの接続時はコンフィグレーション済みとして扱い、接続直後からavmの使用が許可されます。</li>
+            <li style="list-style-type: square">avm.optionにてfastAcknowledge=trueを設定しても、chrome.serial.flushを行いません。</li>
+          </ul>
+        </li>
       </ul>
+    </div>
+
+    <div class="section">
+      <h1 style="padding-bottom: 10px">ライセンス</h1>
+      本ライブラリは、The MIT Lisence にて公開されています。
     </div>
 
     <div class="section">
@@ -60,16 +76,20 @@
             <div class='section'>
 <h1>Canarium</h1>
 <div class='left-column'>
+<h3>BaseComm</h3>
+<ul class='links'>
+<li><a href="#!/api/Canarium.BaseComm" rel="Canarium.BaseComm" class="docClass">Canarium.BaseComm</a></li>
+<li><a href="#!/api/Canarium.BaseComm.SerialWrapper" rel="Canarium.BaseComm.SerialWrapper" class="docClass">Canarium.BaseComm.SerialWrapper</a></li>
+</ul>
+</div>
+<div class='middle-column'>
 <h3>Others...</h3>
 <ul class='links'>
 <li><a href="#!/api/Canarium" rel="Canarium" class="docClass">Canarium</a></li>
 <li><a href="#!/api/Canarium.AvmTransactions" rel="Canarium.AvmTransactions" class="docClass">Canarium.AvmTransactions</a></li>
 <li><a href="#!/api/Canarium.AvsPackets" rel="Canarium.AvsPackets" class="docClass">Canarium.AvsPackets</a></li>
-<li><a href="#!/api/Canarium.BaseComm" rel="Canarium.BaseComm" class="docClass">Canarium.BaseComm</a></li>
 <li><a href="#!/api/Canarium.I2CComm" rel="Canarium.I2CComm" class="docClass">Canarium.I2CComm</a></li>
 </ul>
-</div>
-<div class='middle-column'>
 </div>
 <div class='right-column'>
 </div>
@@ -93,7 +113,7 @@
 
   
   
-  <div id='footer-content' style='display: none'>Generated on Thu 07 Jan 2016 07:06:07 by <a href='https://github.com/senchalabs/jsduck'>JSDuck</a> 5.3.4.</div>
+  <div id='footer-content' style='display: none'>Generated on Sat 02 Apr 2016 13:25:23 by <a href='https://github.com/senchalabs/jsduck'>JSDuck</a> 5.3.4.</div>
 
   
 
