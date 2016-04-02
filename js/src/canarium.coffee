@@ -14,7 +14,7 @@ class Canarium
     ライブラリのバージョン
   ###
   @property "version",
-    value: "0.9.7"
+    value: "0.9.8"
 
   ###*
   @property {Object}  boardInfo
@@ -36,6 +36,17 @@ class Canarium
   @property "serialBitrate",
     get: -> @_base.bitrate
     set: (v) -> @_base.bitrate = v
+
+  ###*
+  @property {boolean} connected
+    接続状態({@link Canarium.BaseComm#connected}のアクセサとして定義)
+
+    - true: 接続済み
+    - false: 未接続
+  @readonly
+  ###
+  @property "connected",
+    get: -> @_base.connected
 
   ###
   @property {Canarium.Channel[]} channels
@@ -68,6 +79,14 @@ class Canarium
   ###
   @property "avm",
     get: -> @_avm
+
+  ###*
+  @property {function()} onClosed
+  @inheritdoc Canarium.BaseComm#onClosed
+  ###
+  @property "onClosed",
+    get: -> @_base.onClosed
+    set: (v) -> @_base.onClosed = v
 
   ###*
   @static
@@ -250,7 +269,9 @@ class Canarium
     timeLimit = undefined
     return Promise.resolve(
     ).then(=>
-      return if boardInfo or (@boardInfo.id and @boardInfo.serialcode)
+      return @_base.assertConnection()
+    ).then(=>
+      return if !boardInfo or (@boardInfo?.id and @boardInfo?.serialcode)
       # まだボード情報が読み込まれていないので先に読み込む
       return @getinfo()
     ).then(=>
@@ -368,6 +389,8 @@ class Canarium
   getinfo: (callback) ->
     return invokeCallback(callback, @getinfo()) if callback?
     return Promise.resolve(
+    ).then(=>
+      return @_base.assertConnection()
     ).then(=>
       switch @_boardInfo?.version
         when undefined
@@ -504,7 +527,7 @@ class Canarium
   ###
   @_log: (cls, func, msg, data) ->
     return if SUPPRESS_ALL_LOGS? and SUPPRESS_ALL_LOGS
-    time = window.performance.now().toFixed(3)
+    time = getCurrentTime().toFixed(3)
     out = {
       time: time
       "#{cls}##{func}": msg

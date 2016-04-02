@@ -1,33 +1,87 @@
-// ******************************************************************* //
-// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.7)             //
-// Copyright (C) 2015 @kimu_shu and @s_osafune                         //
-// ------------------------------------------------------------------- //
-// The original version of Canarium (below version 0.9.6) is written   //
-// by @s_osafune and distributed under the following license:          //
-//                                                                     //
-//     Copyright (C) 2014, J-7SYSTEM Works.  All rights Reserved.      //
-//                                                                     //
-// * This module is a free sourcecode and there is NO WARRANTY.        //
-// * No restriction on use. You can use, modify and redistribute it    //
-//   for personal, non-profit or commercial products UNDER YOUR        //
-//   RESPONSIBILITY.                                                   //
-// * Redistributions of source code must retain the above copyright    //
-//   notice.                                                           //
-//                                                                     //
-//         PERIDOT Project - https://github.com/osafune/peridot        //
-// ******************************************************************* //
+// ***************************************************************************** //
+// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.8)                       //
+// Copyright (C) 2016 @kimu_shu and @s_osafune                                   //
+// ----------------------------------------------------------------------------- //
+// Additional part of Canarium (since version 0.9.7) is distributed under the    //
+// following license:                                                            //
+//                                                                               //
+// The MIT License (MIT)                                                         //
+//                                                                               //
+// Copyright (c) 2016 Shuta Kimura (@kimu_shu)                                   //
+//                                                                               //
+// Permission is hereby granted, free of charge, to any person obtaining a copy  //
+// of this software and associated documentation files (the "Software"), to deal //
+// in the Software without restriction, including without limitation the rights  //
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell     //
+// copies of the Software, and to permit persons to whom the Software is         //
+// furnished to do so, subject to the following conditions:                      //
+//                                                                               //
+// The above copyright notice and this permission notice shall be included in    //
+// all copies or substantial portions of the Software.                           //
+//                                                                               //
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR    //
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,      //
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE   //
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER        //
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, //
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN     //
+// THE SOFTWARE.                                                                 //
+// ----------------------------------------------------------------------------- //
+// The original version of Canarium (below version 0.9.6) is written by          //
+// @s_osafune and distributed under the following license:                       //
+//                                                                               //
+//     Copyright (C) 2014, J-7SYSTEM Works.  All rights Reserved.                //
+//                                                                               //
+// * This module is a free sourcecode and there is NO WARRANTY.                  //
+// * No restriction on use. You can use, modify and redistribute it for          //
+//   personal, non-profit or commercial products UNDER YOUR RESPONSIBILITY.      //
+// * Redistributions of source code must retain the above copyright notice.      //
+//                                                                               //
+//         PERIDOT Project - https://github.com/osafune/peridot                  //
+// ***************************************************************************** //
 /*
 canarium.jsの先頭に配置されるスクリプト。
 共通関数定義を行う。
  */
 
 (function() {
-  var Canarium, TimeLimit, finallyPromise, hexDump, invokeCallback, oldProperty, tryPromise, waitPromise;
+  var Canarium, IS_CHROME, IS_NODEJS, Promise, TimeLimit, finallyPromise, getCurrentTime, hexDump, invokeCallback, oldProperty, tryPromise, waitPromise;
 
   if (false) {
     Uint8Array.prototype.hexDump = function() {
       return hexDump(this);
     };
+  }
+
+
+  /*
+  @private
+  @property {boolean}
+    Chromeかどうかの判定
+   */
+
+  IS_CHROME = ((typeof chrome !== "undefined" && chrome !== null ? chrome.runtime : void 0) != null);
+
+
+  /*
+  @private
+  @property {boolean}
+    Node.jsかどうかの判定
+   */
+
+  IS_NODEJS = !IS_CHROME && (typeof process !== "undefined" && process !== null) && (typeof require !== "undefined" && require !== null);
+
+
+  /*
+  @private
+  @property {Function}
+    Promiseクラス
+   */
+
+  if (IS_CHROME) {
+    Promise = window.Promise;
+  } else if (IS_NODEJS) {
+    Promise = require("es6-promise").Promise;
   }
 
   oldProperty = Function.prototype.property;
@@ -140,7 +194,7 @@ canarium.jsの先頭に配置されるスクリプト。
 
   waitPromise = function(dulation, value) {
     return new Promise(function(resolve) {
-      return window.setTimeout((function() {
+      return setTimeout((function() {
         return resolve(value);
       }), dulation);
     });
@@ -167,9 +221,6 @@ canarium.jsの先頭に配置されるスクリプト。
     return new Promise(function(resolve, reject) {
       var lastReason, next;
       lastReason = void 0;
-      window.setTimeout(function() {
-        return reject(lastReason || Error("Operation timed out after " + count + " tries"));
-      }, timeout);
       next = function() {
         return promiser().then(function(value) {
           return resolve(value);
@@ -179,9 +230,15 @@ canarium.jsの先頭に配置されるスクリプト。
           if ((maxTries != null) && count >= maxTries) {
             return reject(lastReason);
           }
-          return next();
+          return setTimeout(function() {
+            return typeof next === "function" ? next() : void 0;
+          }, 0);
         });
       };
+      setTimeout(function() {
+        next = null;
+        return reject(lastReason || Error("Operation timed out after " + count + " tries"));
+      }, timeout);
       return next();
     });
   };
@@ -207,6 +264,23 @@ canarium.jsの先頭に配置されるスクリプト。
       }
     ];
   };
+
+
+  /**
+  @private
+  @method
+    パフォーマンス計測用の現在時刻取得(ミリ秒単位)
+  @return {number}
+    時刻情報
+   */
+
+  getCurrentTime = IS_CHROME ? (function() {
+    return window.performance.now();
+  }) : IS_NODEJS ? (function() {
+    var t;
+    t = process.hrtime();
+    return Math.round(t[0] * 1000000 + t[1] / 1000) / 1000;
+  }) : void 0;
 
 
   /**
@@ -237,9 +311,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     TimeLimit.property("now", {
-      get: function() {
-        return window.performance.now();
-      }
+      get: getCurrentTime
     });
 
 
@@ -277,7 +349,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Canarium.property("version", {
-      value: "0.9.7"
+      value: "0.9.8"
     });
 
 
@@ -310,6 +382,22 @@ canarium.jsの先頭に配置されるスクリプト。
       },
       set: function(v) {
         return this._base.bitrate = v;
+      }
+    });
+
+
+    /**
+    @property {boolean} connected
+      接続状態({@link Canarium.BaseComm#connected}のアクセサとして定義)
+    
+      - true: 接続済み
+      - false: 未接続
+    @readonly
+     */
+
+    Canarium.property("connected", {
+      get: function() {
+        return this._base.connected;
       }
     });
 
@@ -362,6 +450,21 @@ canarium.jsの先頭に配置されるスクリプト。
     Canarium.property("avm", {
       get: function() {
         return this._avm;
+      }
+    });
+
+
+    /**
+    @property {function()} onClosed
+    @inheritdoc Canarium.BaseComm#onClosed
+     */
+
+    Canarium.property("onClosed", {
+      get: function() {
+        return this._base.onClosed;
+      },
+      set: function(v) {
+        return this._base.onClosed = v;
       }
     });
 
@@ -585,7 +688,12 @@ canarium.jsの先頭に配置されるスクリプト。
       timeLimit = void 0;
       return (ref = Promise.resolve().then((function(_this) {
         return function() {
-          if (boardInfo || (_this.boardInfo.id && _this.boardInfo.serialcode)) {
+          return _this._base.assertConnection();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          var ref1, ref2;
+          if (!boardInfo || (((ref1 = _this.boardInfo) != null ? ref1.id : void 0) && ((ref2 = _this.boardInfo) != null ? ref2.serialcode : void 0))) {
             return;
           }
           return _this.getinfo();
@@ -736,6 +844,10 @@ canarium.jsの先頭に配置されるスクリプト。
       }
       return Promise.resolve().then((function(_this) {
         return function() {
+          return _this._base.assertConnection();
+        };
+      })(this)).then((function(_this) {
+        return function() {
           var ref;
           switch ((ref = _this._boardInfo) != null ? ref.version : void 0) {
             case void 0:
@@ -756,7 +868,7 @@ canarium.jsの先頭に配置されるスクリプト。
               });
             case 2:
               return _this._eepromRead(0x04, 22).then(function(readData) {
-                var bid, i, info, j, k, s;
+                var bid, i, info, j, l, s;
                 info = new Uint8Array(readData);
                 _this._log(1, "getinfo", "ver2", info);
                 bid = "";
@@ -764,7 +876,7 @@ canarium.jsの先頭に配置されるスクリプト。
                   bid += String.fromCharCode(info[i]);
                 }
                 s = "";
-                for (i = k = 4; k < 22; i = ++k) {
+                for (i = l = 4; l < 22; i = ++l) {
                   s += String.fromCharCode(info[i]);
                 }
                 _this._boardInfo.id = "" + bid;
@@ -912,7 +1024,7 @@ canarium.jsの先頭に配置されるスクリプト。
       if ((typeof SUPPRESS_ALL_LOGS !== "undefined" && SUPPRESS_ALL_LOGS !== null) && SUPPRESS_ALL_LOGS) {
         return;
       }
-      time = window.performance.now().toFixed(3);
+      time = getCurrentTime().toFixed(3);
       out = (
         obj = {
           time: time
@@ -957,7 +1069,7 @@ canarium.jsの先頭に配置されるスクリプト。
   /**
   @class Canarium.BaseComm
     PERIDOTボード下位層通信クラス
-  @uses chrome.serial
+  @uses Canarium.BaseComm.SerialWrapper
    */
 
   Canarium.BaseComm = (function() {
@@ -977,7 +1089,7 @@ canarium.jsの先頭に配置されるスクリプト。
 
     BaseComm.property("connected", {
       get: function() {
-        return this._connected;
+        return this._connection != null;
       }
     });
 
@@ -1037,6 +1149,22 @@ canarium.jsの先頭に配置されるスクリプト。
 
 
     /**
+    @property {function()} onClosed
+      クローズされた時に呼び出されるコールバック関数
+      (明示的にclose()した場合と、ボードが強制切断された場合の両方で呼び出される)
+     */
+
+    BaseComm.property("onClosed", {
+      get: function() {
+        return this._onClosed;
+      },
+      set: function(v) {
+        return this._onClosed = v;
+      }
+    });
+
+
+    /**
     @static
     @property {number}
       デバッグ出力の細かさ(0で出力無し)
@@ -1047,15 +1175,8 @@ canarium.jsの先頭に配置されるスクリプト。
 
     /**
     @private
-    @property {boolean} _connected
-    @inheritdoc #connected
-     */
-
-
-    /**
-    @private
-    @property {string} _path
-    @inheritdoc #path
+    @property {Canarium.BaseComm.SerialWrapper} _connection
+      シリアル接続クラスのインスタンス
      */
 
 
@@ -1063,13 +1184,6 @@ canarium.jsの先頭に配置されるスクリプト。
     @private
     @property {number} _bitrate
     @inheritdoc #bitrate
-     */
-
-
-    /**
-    @private
-    @property {number} _cid
-      シリアル接続ID
      */
 
 
@@ -1084,20 +1198,6 @@ canarium.jsの先頭に配置されるスクリプト。
     @private
     @property {boolean} _configured
     @inheritdoc #configured
-     */
-
-
-    /**
-    @private
-    @property {Function} _onReceive
-      受信コールバック関数(thisバインド付きの関数オブジェクト)
-     */
-
-
-    /**
-    @private
-    @property {Function} _onReceiveError
-      受信エラーコールバック関数(thisバインド付きの関数オブジェクト)
      */
 
 
@@ -1152,32 +1252,28 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     BaseComm.enumerate = function() {
-      var getName;
-      getName = function(port) {
+      var getFriendlyName;
+      getFriendlyName = function(port) {
         var name, path;
-        name = port.displayName;
+        name = port.manufacturer;
         path = port.path;
-        if (name) {
+        if (name && name !== "") {
           return name + " (" + path + ")";
         }
         return "" + path;
       };
-      return new Promise((function(_this) {
-        return function(resolve) {
-          return chrome.serial.getDevices(function(ports) {
-            var devices, j, len1, port;
-            devices = [];
-            for (j = 0, len1 = ports.length; j < len1; j++) {
-              port = ports[j];
-              devices.push({
-                path: "" + port.path,
-                name: getName(port)
-              });
-            }
-            return resolve(devices);
+      return BaseComm.SerialWrapper.list().then(function(ports) {
+        var devices, j, len1, port;
+        devices = [];
+        for (j = 0, len1 = ports.length; j < len1; j++) {
+          port = ports[j];
+          devices.push({
+            path: "" + port.path,
+            name: getFriendlyName(port)
           });
-        };
-      })(this));
+        }
+        return devices;
+      });
     };
 
 
@@ -1187,22 +1283,10 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     function BaseComm() {
-      this._connected = false;
-      this._path = null;
+      this._connection = null;
       this._bitrate = 115200;
       this._sendImmediate = false;
       this._configured = false;
-      this._cid = null;
-      this._onReceive = (function(_this) {
-        return function(info) {
-          return _this._onReceiveHandler(info);
-        };
-      })(this);
-      this._onReceiveError = (function(_this) {
-        return function(info) {
-          return _this._onReceiveErrorHandler(info);
-        };
-      })(this);
       return;
     }
 
@@ -1217,34 +1301,33 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     BaseComm.prototype.connect = function(path) {
-      if (this._connected) {
+      if (this._connection != null) {
         return Promise.reject(Error("Already connected"));
       }
-      this._connected = true;
-      this._path = null;
-      return new Promise((function(_this) {
-        return function(resolve, reject) {
-          return chrome.serial.connect(path, {
-            bitrate: _this._bitrate
-          }, function(connectionInfo) {
-
-            /*
-            Windows: 接続失敗時はundefinedでcallbackが呼ばれる @ chrome47
-             */
-            if (!connectionInfo) {
-              _this._connected = false;
-              return reject(Error(chrome.runtime.lastError));
+      this._connection = new BaseComm.SerialWrapper(path, {
+        baudRate: this._bitrate
+      });
+      this._receiver = null;
+      return this._connection.open().then((function(_this) {
+        return function() {
+          _this._connection.onClosed = function() {
+            var base;
+            _this._connection = null;
+            if (typeof (base = _this._onClosed) === "function") {
+              base();
             }
-            _this._path = "" + path;
-            _this._sendImmediate = false;
-            _this._configured = false;
-            _this._cid = connectionInfo.connectionId;
-            _this._rxBuffer = null;
-            _this._receiver = null;
-            chrome.serial.onReceive.addListener(_this._onReceive);
-            chrome.serial.onReceiveError.addListener(_this._onReceiveError);
-            return resolve();
-          });
+          };
+          _this._connection.onReceived = function(data) {
+            if (typeof _this._receiver === "function") {
+              _this._receiver(data);
+            }
+          };
+        };
+      })(this))["catch"]((function(_this) {
+        return function(error) {
+          _this._connection = null;
+          _this._receiver = null;
+          return Promise.reject(error);
         };
       })(this));
     };
@@ -1264,7 +1347,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     BaseComm.prototype.option = function(option) {
-      if (!this._connected) {
+      if (this._connection == null) {
         return Promise.reject(Error("Not connected"));
       }
       return Promise.resolve().then((function(_this) {
@@ -1298,24 +1381,27 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     BaseComm.prototype.disconnect = function() {
-      if (!this._connected) {
-        return Promise.reject(Error("Not connected"));
-      }
-      return new Promise((function(_this) {
-        return function(resolve, reject) {
-          return chrome.serial.disconnect(_this._cid, function(result) {
-            if (!result) {
-              return reject(Error(chrome.runtime.lastError));
-            }
-            chrome.serial.onReceive.removeListener(_this._onReceive);
-            chrome.serial.onReceiveError.removeListener(_this._onReceiveError);
-            _this._connected = false;
-            _this._path = null;
-            _this._cid = null;
-            return resolve();
-          });
+      return this.assertConnection().then((function(_this) {
+        return function() {
+          _this._receiver = null;
+          return _this._connection.close();
         };
       })(this));
+    };
+
+
+    /**
+    @method
+      接続されていることを確認する
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    BaseComm.prototype.assertConnection = function() {
+      if (this._connection == null) {
+        return Promise.reject(Error("Not connected"));
+      }
+      return Promise.resolve();
     };
 
 
@@ -1435,10 +1521,10 @@ canarium.jsの先頭に配置されるスクリプト。
 
     BaseComm.prototype._transSerial = function(txdata, estimator) {
       var promise, txsize, x;
-      if (!this._connected) {
+      if (this._connection == null) {
         return Promise.reject(Error("Not connected"));
       }
-      if (this._receiver) {
+      if (this._receiver != null) {
         return Promise.reject(Error("Operation is in progress"));
       }
       promise = new Promise((function(_this) {
@@ -1448,7 +1534,7 @@ canarium.jsの先頭に配置されるスクリプト。
             if (rxdata != null) {
               offset = ((ref = _this._rxBuffer) != null ? ref.byteLength : void 0) || 0;
               newArray = new Uint8Array(offset + rxdata.byteLength);
-              if (_this._rxBuffer) {
+              if (_this._rxBuffer != null) {
                 newArray.set(new Uint8Array(_this._rxBuffer));
               }
               newArray.set(new Uint8Array(rxdata), offset);
@@ -1482,32 +1568,22 @@ canarium.jsの先頭に配置されるスクリプト。
       })()).reduce((function(_this) {
         return function(sequence, pos) {
           return sequence.then(function() {
-            return new Promise(function(resolve, reject) {
-              var data, size;
-              data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH);
-              size = data.byteLength;
-              return chrome.serial.send(_this._cid, data, function(writeInfo) {
-                var b, e;
-                e = writeInfo.error;
-                if (e != null) {
-                  return reject(Error("Serial error: " + e));
-                }
-                b = writeInfo.bytesSent;
-                if (b !== size) {
-                  return reject(Error("bytesSent(" + b + ") != bytesRequested(" + size + ")"));
-                }
-                _this._log(1, "_transSerial", "sent", new Uint8Array(data));
-                if (!(SUCCESSIVE_TX_WAIT_MS > 0)) {
-                  return resolve();
-                }
-                return window.setTimeout(resolve, SUCCESSIVE_TX_WAIT_MS);
-              });
+            var data, size;
+            data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH);
+            size = data.byteLength;
+            return _this._connection.write(data).then(function() {
+              return _this._log(1, "_transSerial", "sent", new Uint8Array(data));
+            }).then(function() {
+              if (!(SUCCESSIVE_TX_WAIT_MS > 0)) {
+                return;
+              }
+              return waitPromise(SUCCESSIVE_TX_WAIT_MS);
             });
           });
         };
       })(this), Promise.resolve()).then((function(_this) {
         return function() {
-          if (!estimator) {
+          if (estimator == null) {
             _this._receiver = null;
             return new ArrayBuffer(0);
           }
@@ -1517,70 +1593,536 @@ canarium.jsの先頭に配置されるスクリプト。
       })(this));
     };
 
+    return BaseComm;
+
+  })();
+
+
+  /**
+  @class Canarium.BaseComm.SerialWrapper
+    シリアル通信のラッパ(Chrome/NodeJS両対応用)
+  @uses chrome.serial
+  @uses SerialPort
+   */
+
+  Canarium.BaseComm.SerialWrapper = (function() {
+    var cidMap, nodeModule;
+
+    null;
+
+
+    /**
+    @property {function():undefined} onClosed
+      ポートが閉じられたときに呼び出されるコールバック関数
+      (不意の切断とclose()呼び出しのどちらで閉じても呼び出される)
+     */
+
+
+    /**
+    @property {function(ArrayBuffer):undefined} onReceived
+      データを受信したときに呼び出されるコールバック関数
+      (もし登録されていない場合、受信したデータは破棄される)
+     */
+
+    if (IS_NODEJS) {
+      nodeModule = require("serialport");
+    }
+
+    if (IS_CHROME) {
+      cidMap = {};
+    }
+
+
+    /**
+    @static
+    @method
+      ポートを列挙する
+    @return {Promise}
+      Promiseオブジェクト
+    @return {Object[]} return.PromiseValue
+      ポート情報の配列
+    @return {string} return.PromiseValue.path
+      パス (必ず格納される)
+    @return {string} return.PromiseValue.manufacturer
+      製造者 (環境によってはundefinedになりうる)
+    @return {string} return.PromiseValue.serialNumber
+      シリアル番号 (環境によってはundefinedになりうる)
+    @return {string} return.PromiseValue.vendorId
+      Vendor ID (環境によってはundefinedになりうる)
+    @return {string} return.PromiseValue.productId
+      Product ID (環境によってはundefinedになりうる)
+     */
+
+    SerialWrapper.list = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          return chrome.serial.getDevices(function(ports) {
+            var port;
+            return resolve((function() {
+              var j, len1, results;
+              results = [];
+              for (j = 0, len1 = ports.length; j < len1; j++) {
+                port = ports[j];
+                results.push({
+                  path: "" + port.path,
+                  manufacturer: "" + port.displayName,
+                  serialNumber: void 0,
+                  vendorId: "" + port.vendorId,
+                  productId: "" + port.productId
+                });
+              }
+              return results;
+            })());
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          return nodeModule.list(function(error, ports) {
+            var port;
+            if (error != null) {
+              return reject(Error(error));
+            }
+            return resolve((function() {
+              var j, len1, results;
+              results = [];
+              for (j = 0, len1 = ports.length; j < len1; j++) {
+                port = ports[j];
+                if (port.pnpId != null) {
+                  results.push({
+                    path: "" + port.comName,
+                    manufacturer: "" + port.manufacturer,
+                    serialNumber: "" + port.serialNumber,
+                    vendorId: "" + port.vendorId,
+                    productId: "" + port.productId
+                  });
+                }
+              }
+              return results;
+            })());
+          });
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method constructor
+      コンストラクタ
+    @param {string} _path
+      接続先ポートのパス
+    @param {Object} _options
+      接続時のオプション
+    @param {number} [_options.baudRate=115200]
+      ボーレート
+    @param {number} [_options.dataBits=8]
+      データのビット幅
+    @param {number} [_options.stopBits=1]
+      ストップビット幅
+     */
+
+    function SerialWrapper(_path, _options) {
+      var base, base1, base2;
+      this._path = _path;
+      this._options = _options;
+      this._options || (this._options = {});
+      (base = this._options).baudRate || (base.baudRate = 115200);
+      (base1 = this._options).dataBits || (base1.dataBits = 8);
+      (base2 = this._options).stopBits || (base2.stopBits = 1);
+      this.onClosed = void 0;
+      this.onReceived = void 0;
+      return;
+    }
+
+
+    /**
+    @method
+      接続する
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.open = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          var opts;
+          opts = {
+            bitrate: _this._options.baudRate,
+            receiveTimeout: 500
+          };
+          return chrome.serial.connect(_this._path, opts, function(connectionInfo) {
+            if (connectionInfo == null) {
+              return reject(Error(chrome.runtime.lastError.message));
+            }
+            _this._cid = connectionInfo.connectionId;
+            cidMap[_this._cid] = _this;
+            return resolve();
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          var k, opts, ref, v;
+          if (_this._sp == null) {
+            opts = {
+              dataCallback: function(data) {
+                return _this._dataHandler(data);
+              },
+              disconnectedCallback: function() {
+                return _this._closeHandler();
+              }
+            };
+            ref = _this._options;
+            for (k in ref) {
+              v = ref[k];
+              opts[k] = v;
+            }
+            _this._sp = new nodeModule.SerialPort(_this._path, opts, false, function() {});
+          }
+          return _this._sp.open(function(error) {
+            if (error != null) {
+              return reject(Error(error));
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method
+      データの書き込み(送信)
+    @param {ArrayBuffer} data
+      送信するデータ
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.write = IS_CHROME ? (function(data) {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._cid == null) {
+            return reject(Error("disconnected"));
+          }
+          return chrome.serial.send(_this._cid, data, function(sendInfo) {
+            if (sendInfo.error != null) {
+              return reject(Error(sendInfo.error));
+            }
+            if (sendInfo.bytesSent < data.byteLength) {
+              return reject(Error("pending"));
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function(data) {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._sp == null) {
+            return reject(Error("disconnected"));
+          }
+          return _this._sp.write(new Buffer(new Uint8Array(data)), function(error) {
+            if (error != null) {
+              return reject(error);
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method
+      接続を一時停止状態にする
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.pause = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._cid == null) {
+            return reject(Error("disconnected"));
+          }
+          return chrome.serial.setPaused(_this._cid, true, function() {
+            return resolve();
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._sp == null) {
+            return reject(Error("disconnected"));
+          }
+          _this._sp.pause();
+          return resolve();
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method
+      接続の一時停止を解除する
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.resume = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._cid == null) {
+            return reject(Error("disconnected"));
+          }
+          return chrome.serial.setPaused(_this._cid, false, function() {
+            return resolve();
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._sp == null) {
+            return reject(Error("disconnected"));
+          }
+          _this._sp.resume();
+          return resolve();
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method
+      送受信待ちのバッファを破棄する(送受信データが欠落する可能性がある)
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.flush = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._cid == null) {
+            return reject(Error("disconnected"));
+          }
+          return chrome.serial.flush(_this._cid, function(result) {
+            if (!result) {
+              return reject(Error("unknown_error"));
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._sp == null) {
+            return reject(Error("disconnected"));
+          }
+          return _this._sp.flush(function(error) {
+            if (error != null) {
+              return reject(error);
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method
+      送受信待ちのバッファを強制的に吐き出す(送受信データは欠落しない)
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.drain = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._cid == null) {
+            return reject(Error("disconnected"));
+          }
+          return resolve();
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._sp == null) {
+            return reject(Error("disconnected"));
+          }
+          return _this._sp.drain(function(error) {
+            if (error != null) {
+              return reject(error);
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @method
+      切断する
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    SerialWrapper.prototype.close = IS_CHROME ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._cid == null) {
+            return reject(Error("disconnected"));
+          }
+          return chrome.serial.disconnect(_this._cid, function(result) {
+            var base;
+            if (!result) {
+              return reject(Error("unknown_error"));
+            }
+            delete cidMap[_this._cid];
+            _this._cid = null;
+            if (typeof (base = _this.onClosed) === "function") {
+              base();
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : IS_NODEJS ? (function() {
+      return new Promise((function(_this) {
+        return function(resolve, reject) {
+          if (_this._sp == null) {
+            return reject(Error("disconnected"));
+          }
+          return _this._sp.close(function(error) {
+            var base;
+            if (error != null) {
+              return reject(error);
+            }
+            _this._sp.fd = void 0;
+            _this._sp = null;
+            if (typeof (base = _this.onClosed) === "function") {
+              base();
+            }
+            return resolve();
+          });
+        };
+      })(this));
+    }) : void 0;
+
 
     /**
     @private
     @method
-      シリアル受信時のデータ格納と処理予約を行う
+      データ受信ハンドラ(NodeJSのみ)
+    @param {Buffer} data
+      受信したデータ
+    @return {undefined}
+     */
+
+    SerialWrapper.prototype._dataHandler = IS_NODEJS ? (function(data) {
+      var base;
+      if (typeof (base = this.onReceived) === "function") {
+        base(new Uint8Array(data).buffer);
+      }
+    }) : void 0;
+
+
+    /**
+    @private
+    @method
+      切断検知ハンドラ(NodeJSのみ)
+    @return {undefined}
+     */
+
+    SerialWrapper.prototype._closeHandler = IS_NODEJS ? (function() {
+      this.close()["catch"]((function(_this) {
+        return function() {};
+      })(this));
+    }) : void 0;
+
+
+    /**
+    @private
+    @static
+    @method
+      データ受信ハンドラ(chromeのみ)
     @param {Object} info
       受信情報
     @param {number} info.connectionId
-      接続ID
+      受信したコネクションの番号
     @param {ArrayBuffer} info.data
-      受信データ
+      受信したデータ
     @return {undefined}
      */
 
-    BaseComm.prototype._onReceiveHandler = function(info) {
-      if (!(info.connectionId === this._cid && this._connected)) {
+    SerialWrapper._receiveHandler = IS_CHROME ? (function(info) {
+      var base, self;
+      self = cidMap[info.connectionId];
+      if (self == null) {
         return;
       }
-      Promise.resolve().then((function(_this) {
-        return function() {
-          if (_this._receiver) {
-            _this._receiver(info.data);
-          } else {
-            _this._log(1, "_onReceiveHandler", "dropped", new Uint8Array(info.data));
-          }
-        };
-      })(this));
-    };
+      if (typeof (base = self.onReceived) === "function") {
+        base(info.data);
+      }
+    }) : void 0;
 
 
     /**
     @private
+    @static
     @method
-      受信エラーハンドラ
+      エラー受信ハンドラ(chromeのみ)
     @param {Object} info
-      エラー情報
+      受信情報
     @param {number} info.connectionId
-      接続ID
-    @param {"disconnected"/"timeout"/"device_lost"/"break"/
-            "frame_error"/"overrun"/"buffer_overflow"/
-            "parity_error"/"system_error"} info.error
-      エラー種別を示す文字列
+      エラーが発生したコネクションの番号
+    @param {string} info.error
+      発生したエラーの種類
     @return {undefined}
      */
 
-    BaseComm.prototype._onReceiveErrorHandler = function(info) {
-      if (!(info.connectionId === this._cid && this._connected)) {
+    SerialWrapper._receiveErrorHandler = IS_CHROME ? (function(info) {
+      var self;
+      self = cidMap[info.connectionId];
+      if (self == null) {
         return;
       }
-      Promise.resolve().then((function(_this) {
-        return function() {
-          var error;
-          _this.disconnect();
-          error = "Serial error: " + info.error;
-          if (_this._receiver) {
-            return _this._receiver(null, Error(error));
-          } else {
-            return _this._log(1, "_onReceiveErrorHandler", "dropped", error);
-          }
-        };
-      })(this));
-    };
+      switch (info.error) {
+        case "timeout":
+          null;
+          break;
+        case "disconnected":
+        case "device_lost":
+        case "break":
+        case "frame_error":
+          self.close();
+      }
+    }) : void 0;
 
-    return BaseComm;
+    if (IS_CHROME) {
+      chrome.serial.onReceive.addListener(SerialWrapper._receiveHandler);
+    }
+
+    if (IS_CHROME) {
+      chrome.serial.onReceiveError.addListener(SerialWrapper._receiveErrorHandler);
+    }
+
+    return SerialWrapper;
 
   })();
 
@@ -2053,9 +2595,9 @@ canarium.jsの先頭に配置されるスクリプト。
       });
       eopFinder = (function(_this) {
         return function(rxdata, offset) {
-          var array, k, pos, ref1, ref2;
+          var array, l, pos, ref1, ref2;
           array = new Uint8Array(rxdata);
-          for (pos = k = ref1 = offset, ref2 = array.length; ref1 <= ref2 ? k < ref2 : k > ref2; pos = ref1 <= ref2 ? ++k : --k) {
+          for (pos = l = ref1 = offset, ref2 = array.length; ref1 <= ref2 ? l < ref2 : l > ref2; pos = ref1 <= ref2 ? ++l : --l) {
             if ((array[pos - 1] === 0x7b && array[pos - 0] !== 0x7d) || (array[pos - 2] === 0x7b && array[pos - 1] === 0x7d)) {
               return pos + 1;
             }
@@ -2064,20 +2606,22 @@ canarium.jsの先頭に配置されるスクリプト。
       })(this);
       return this._base.transData(txdata, eopFinder).then((function(_this) {
         return function(rxdata) {
-          var k, len2, pos, xor;
+          var i, l, len2, m, pos, ref1, xor;
           src = new Uint8Array(rxdata);
           _this._log(1, "transPacket", "recv", {
             encoded: src
           });
-          if (src.subarray(0, header.length).join(",") !== header.join(",")) {
-            return Promise.reject(Error("Illegal packetize control bytes"));
+          for (i = l = 0, ref1 = header.length; 0 <= ref1 ? l < ref1 : l > ref1; i = 0 <= ref1 ? ++l : --l) {
+            if (src[i] !== header[i]) {
+              return Promise.reject(Error("Illegal packetize control bytes"));
+            }
           }
           src = src.subarray(header.length);
           dst = new Uint8Array(rxsize);
           pos = 0;
           xor = 0x00;
-          for (k = 0, len2 = src.length; k < len2; k++) {
-            byte = src[k];
+          for (m = 0, len2 = src.length; m < len2; m++) {
+            byte = src[m];
             if (pos === rxsize) {
               return Promise.reject(Error("Received data is too large"));
             }
@@ -2218,33 +2762,35 @@ canarium.jsの先頭に配置されるスクリプト。
       if (callback != null) {
         return invokeCallback(callback, this.read(address, bytenum));
       }
-      return this._queue((function(_this) {
+      return this._avs.base.assertConnection().then((function(_this) {
         return function() {
-          var dest, x;
-          _this._log(1, "read", "begin(address=" + (hexDump(address)) + ")");
-          if (!_this._avs.base.configured) {
-            return Promise.reject("Device is not configured");
-          }
-          dest = new Uint8Array(bytenum);
-          return ((function() {
-            var j, ref, ref1, results;
-            results = [];
-            for (x = j = 0, ref = bytenum, ref1 = AVM_TRANS_MAX_BYTES; ref1 > 0 ? j < ref : j > ref; x = j += ref1) {
-              results.push(x);
+          return _this._queue(function() {
+            var dest, x;
+            _this._log(1, "read", "begin(address=" + (hexDump(address)) + ")");
+            if (!_this._avs.base.configured) {
+              return Promise.reject(Error("Device is not configured"));
             }
-            return results;
-          })()).reduce(function(sequence, pos) {
-            return sequence.then(function() {
-              var partialSize;
-              partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
-              _this._log(2, "read", "partial(offset=" + (hexDump(pos)) + ",size=" + (hexDump(partialSize)) + ")");
-              return _this._trans(0x14, address + pos, void 0, partialSize).then(function(partialData) {
-                return dest.set(new Uint8Array(partialData), pos);
+            dest = new Uint8Array(bytenum);
+            return ((function() {
+              var j, ref, ref1, results;
+              results = [];
+              for (x = j = 0, ref = bytenum, ref1 = AVM_TRANS_MAX_BYTES; ref1 > 0 ? j < ref : j > ref; x = j += ref1) {
+                results.push(x);
+              }
+              return results;
+            })()).reduce(function(sequence, pos) {
+              return sequence.then(function() {
+                var partialSize;
+                partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
+                _this._log(2, "read", "partial(offset=" + (hexDump(pos)) + ",size=" + (hexDump(partialSize)) + ")");
+                return _this._trans(0x14, address + pos, void 0, partialSize).then(function(partialData) {
+                  return dest.set(new Uint8Array(partialData), pos);
+                });
               });
+            }, Promise.resolve()).then(function() {
+              _this._log(1, "read", "end", dest);
+              return dest.buffer;
             });
-          }, Promise.resolve()).then(function() {
-            _this._log(1, "read", "end", dest);
-            return dest.buffer;
           });
         };
       })(this));
@@ -2270,29 +2816,31 @@ canarium.jsの先頭に配置されるスクリプト。
         return invokeCallback(callback, this.write(address, writedata));
       }
       src = new Uint8Array(writedata.slice(0));
-      return this._queue((function(_this) {
+      return this._avs.base.assertConnection().then((function(_this) {
         return function() {
-          var x;
-          _this._log(1, "write", "begin(address=" + (hexDump(address)) + ")", src);
-          if (!_this._avs.base.configured) {
-            return Promise.reject("Device is not configured");
-          }
-          return ((function() {
-            var j, ref, ref1, results;
-            results = [];
-            for (x = j = 0, ref = src.byteLength, ref1 = AVM_TRANS_MAX_BYTES; ref1 > 0 ? j < ref : j > ref; x = j += ref1) {
-              results.push(x);
+          return _this._queue(function() {
+            var x;
+            _this._log(1, "write", "begin(address=" + (hexDump(address)) + ")", src);
+            if (!_this._avs.base.configured) {
+              return Promise.reject(Error("Device is not configured"));
             }
-            return results;
-          })()).reduce(function(sequence, pos) {
-            return sequence.then(function() {
-              var partialData;
-              partialData = src.subarray(pos, pos + AVM_TRANS_MAX_BYTES);
-              _this._log(2, "write", "partial(offset=" + (hexDump(pos)) + ")", partialData);
-              return _this._trans(0x04, address + pos, partialData, void 0);
+            return ((function() {
+              var j, ref, ref1, results;
+              results = [];
+              for (x = j = 0, ref = src.byteLength, ref1 = AVM_TRANS_MAX_BYTES; ref1 > 0 ? j < ref : j > ref; x = j += ref1) {
+                results.push(x);
+              }
+              return results;
+            })()).reduce(function(sequence, pos) {
+              return sequence.then(function() {
+                var partialData;
+                partialData = src.subarray(pos, pos + AVM_TRANS_MAX_BYTES);
+                _this._log(2, "write", "partial(offset=" + (hexDump(pos)) + ")", partialData);
+                return _this._trans(0x04, address + pos, partialData, void 0);
+              });
+            }, Promise.resolve()).then(function() {
+              _this._log(1, "write", "end");
             });
-          }, Promise.resolve()).then(function() {
-            _this._log(1, "write", "end");
           });
         };
       })(this));
@@ -2318,18 +2866,20 @@ canarium.jsの先頭に配置されるスクリプト。
       if (callback != null) {
         return invokeCallback(callback, this.iord(address, offset));
       }
-      return this._queue((function(_this) {
+      return this._avs.base.assertConnection().then((function(_this) {
         return function() {
-          _this._log(1, "iord", "begin(address=" + (hexDump(address)) + "+" + offset + ")");
-          if (!_this._avs.base.configured) {
-            return Promise.reject("Device is not configured");
-          }
-          return _this._trans(0x10, (address & 0xfffffffc) + (offset << 2), void 0, 4).then(function(rxdata) {
-            var readData, src;
-            src = new Uint8Array(rxdata);
-            readData = (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0);
-            _this._log(1, "iord", "end", readData);
-            return readData;
+          return _this._queue(function() {
+            _this._log(1, "iord", "begin(address=" + (hexDump(address)) + "+" + offset + ")");
+            if (!_this._avs.base.configured) {
+              return Promise.reject(Error("Device is not configured"));
+            }
+            return _this._trans(0x10, (address & 0xfffffffc) + (offset << 2), void 0, 4).then(function(rxdata) {
+              var readData, src;
+              src = new Uint8Array(rxdata);
+              readData = (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0);
+              _this._log(1, "iord", "end", readData);
+              return readData;
+            });
           });
         };
       })(this));
@@ -2355,20 +2905,22 @@ canarium.jsの先頭に配置されるスクリプト。
       if (callback != null) {
         return invokeCallback(callback, this.iowr(address, offset, writedata));
       }
-      return this._queue((function(_this) {
+      return this._avs.base.assertConnection().then((function(_this) {
         return function() {
-          var src;
-          _this._log(1, "iowr", "begin(address=" + (hexDump(address)) + "+" + offset + ")", writedata);
-          if (!_this._avs.base.configured) {
-            return Promise.reject("Device is not configured");
-          }
-          src = new Uint8Array(4);
-          src[0] = (writedata >>> 0) & 0xff;
-          src[1] = (writedata >>> 8) & 0xff;
-          src[2] = (writedata >>> 16) & 0xff;
-          src[3] = (writedata >>> 24) & 0xff;
-          return _this._trans(0x00, (address & 0xfffffffc) + (offset << 2), src, void 0).then(function() {
-            _this._log(1, "iowr", "end");
+          return _this._queue(function() {
+            var src;
+            _this._log(1, "iowr", "begin(address=" + (hexDump(address)) + "+" + offset + ")", writedata);
+            if (!_this._avs.base.configured) {
+              return Promise.reject(Error("Device is not configured"));
+            }
+            src = new Uint8Array(4);
+            src[0] = (writedata >>> 0) & 0xff;
+            src[1] = (writedata >>> 8) & 0xff;
+            src[2] = (writedata >>> 16) & 0xff;
+            src[3] = (writedata >>> 24) & 0xff;
+            return _this._trans(0x00, (address & 0xfffffffc) + (offset << 2), src, void 0).then(function() {
+              _this._log(1, "iowr", "end");
+            });
           });
         };
       })(this));
@@ -2394,9 +2946,11 @@ canarium.jsの先頭に配置されるスクリプト。
       if (callback != null) {
         return invokeCallback(callback, this.option(option));
       }
-      return this._queue((function(_this) {
+      return this._avs.base.assertConnection().then((function(_this) {
         return function() {
-          return _this._avs.base.option(option);
+          return _this._queue(function() {
+            return _this._avs.base.option(option);
+          });
         };
       })(this));
     };
