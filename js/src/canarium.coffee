@@ -81,6 +81,14 @@ class Canarium
     get: -> @_avm
 
   ###*
+  @property {function()} onClosed
+  @inheritdoc Canarium.BaseComm#onClosed
+  ###
+  @property "onClosed",
+    get: -> @_base.onClosed
+    set: (v) -> @_base.onClosed = v
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)

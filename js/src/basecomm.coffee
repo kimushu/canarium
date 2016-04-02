@@ -54,6 +54,15 @@ class Canarium.BaseComm
     get: -> @_configured
 
   ###*
+  @property {function()} onClosed
+    クローズされた時に呼び出されるコールバック関数
+    (明示的にclose()した場合と、ボードが強制切断された場合の両方で呼び出される)
+  ###
+  @property "onClosed",
+    get: -> @_onClosed
+    set: (v) -> @_onClosed = v
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
@@ -174,8 +183,13 @@ class Canarium.BaseComm
     @_connection = new BaseComm.SerialWrapper(path, {baudRate: @_bitrate})
     @_receiver = null
     return @_connection.open().then(=>
-      @_connection.onClosed = (=> @_connection = null)
-      @_connection.onReceived = ((data) => @_receiver?(data))
+      @_connection.onClosed = =>
+        @_connection = null
+        (@_onClosed)?()
+        return
+      @_connection.onReceived = (data) =>
+        @_receiver?(data)
+        return
       return
     ).catch((error) =>
       @_connection = null
