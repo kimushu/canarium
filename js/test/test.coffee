@@ -429,14 +429,24 @@ describe "Canarium @ PSモード接続", ->
       )
 
   describe "#close()", ->
+    cb = 0
+
     it "PERIDOTからの切断に成功すること", ->
+      canarium.onClosed = (=> ++cb)
       return canarium.close()
+
+    it "切断後は切断時コールバックが1回呼び出されていること", ->
+      assert.equal(cb, 1)
 
     it "切断後は未接続状態になっていること", ->
       assert(!canarium.connected)
 
     it "切断済みの状態で再度切断を試みても失敗し、エラー(Not connected)を返すこと", ->
+      cb = 0
       return canarium.close().then(expect_not_connected...)
+
+    it "切断失敗時は切断時コールバックが呼び出されていないこと", ->
+      assert.equal(cb, 0)
 
 describe "Canarium @ ASモード接続", ->
   ign_devs = null
@@ -454,16 +464,23 @@ describe "Canarium @ ASモード接続", ->
       assert(canarium._base.configured)
 
 describe "Canarium @ 自動切断検知", ->
+  cb = 0
+
   it "接続済み状態であること", ->
+    canarium.onClosed = (=> ++cb)
     assert(canarium.connected)
 
   it "(手動操作) PERIDOTの切断", ->
     manual.confirm(@, "PERIDOTを切断してください")
 
   it "自動的に未接続状態に移行していること", ->
+    @timeout(3000)
     return new Promise((resolve) =>
-      setTimeout(resolve, 500)
+      setTimeout(resolve, 1000)
     ).then(=>
       assert(!canarium.connected)
     )
+
+  it "切断時のコールバックが1回呼び出されていること", ->
+    assert.equal(cb, 1)
 
