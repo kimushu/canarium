@@ -285,6 +285,7 @@ class Canarium.BaseComm.SerialWrapper
       return reject(Error("disconnected")) unless @_sp?
       @_sp.close((error) =>
         return reject(error) if error?
+        @_sp.fd = undefined # This is a workaround for incorrect close of fd=0
         @_sp = null
         (@onClosed)?()
         return resolve()
