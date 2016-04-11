@@ -8,6 +8,30 @@ canarium.jsの先頭に配置されるスクリプト。
 if false
   Uint8Array::hexDump = -> hexDump(this)
 
+###
+@private
+@property {boolean}
+  Chromeかどうかの判定
+###
+IS_CHROME = (chrome?.runtime?)
+
+###
+@private
+@property {boolean}
+  Node.jsかどうかの判定
+###
+IS_NODEJS = (!IS_CHROME and process? and require?)
+
+###
+@private
+@property {Function}
+  Promiseクラス
+###
+if IS_CHROME
+  Promise = window.Promise
+else if IS_NODEJS
+  Promise = require("es6-promise").Promise
+
 # 既にpropertyが定義されていた場合、canarium.jsロード後に
 # 元の定義に戻すために一旦別名保存する。
 # (戻す処理はfooter.coffeeにて行う)
@@ -127,7 +151,7 @@ invokeCallback = (callback, promise) ->
 ###
 waitPromise = (dulation, value) ->
   return new Promise((resolve) ->
-    window.setTimeout((-> resolve(value)), dulation)
+    setTimeout((-> resolve(value)), dulation)
   )
 
 ###*
@@ -145,49 +169,28 @@ waitPromise = (dulation, value) ->
 ###
 tryPromise = (timeout, promiser, maxTries) ->
   count = 0
-  # tryPromise.count or= 0
-  # tryPromise.pended or= 0
-  # self = tryPromise.count++
-  # pend = tryPromise.pended++
-  # fin = false
-  # log = (msg) ->
-  #   return
-  #   console.log({
-  #     msg: " ".repeat(pend) + "[#{self}] #{parseInt(window.performance.now())} #{msg}"
-  #     stack: new Error().stack.split("\n    ").slice(1)
-  #   })
-  # log("tryPromise(#{timeout} ms)")
   return new Promise((resolve, reject) ->
     lastReason = undefined
-    window.setTimeout(
-      ->
-        # tryPromise.pended--
-        # if fin
-        #   log("already done")
-        # else
-        #   log("timeout!")
-        reject(lastReason or Error("Operation timed out after #{count} tries"))
-      timeout
-    )
     next = ->
-      # log("try##{count}")
       promiser().then(
         (value) ->
-          # fin = true
-          # log("succ##{count}")
-          # tryPromise.pended--
           resolve(value)
         (reason) ->
-          # fin = true
-          # log("fail##{count}")
           lastReason = reason
           count++
           if maxTries? and count >= maxTries
-            # log("over")
-            # tryPromise.pended--
             return reject(lastReason)
-          next()
+          setTimeout(
+            -> next?()
+            0
+          )
       ) # promiser().then()
+    setTimeout(
+      ->
+        next = null
+        reject(lastReason or Error("Operation timed out after #{count} tries"))
+      timeout
+    )
     next()
   ) # return new Promise()
 
@@ -211,6 +214,20 @@ finallyPromise = (action) ->
 
 ###*
 @private
+@method
+  パフォーマンス計測用の現在時刻取得(ミリ秒単位)
+@return {number}
+  時刻情報
+###
+getCurrentTime = if IS_CHROME then (->
+  return window.performance.now()
+) else if IS_NODEJS then (->
+  t = process.hrtime()
+  return Math.round(t[0] * 1000000 + t[1] / 1000) / 1000
+)
+
+###*
+@private
 @class TimeLimit
   タイムアウト検出クラス
 ###
@@ -230,9 +247,7 @@ class TimeLimit
     現在時刻(残り時間ではない)
   @readonly
   ###
-  @property("now", get: ->
-    return window.performance.now()
-  )
+  @property("now", get: getCurrentTime)
 
   ###*
   @property {number} left
