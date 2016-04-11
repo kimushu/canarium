@@ -67,6 +67,12 @@ class Canarium.Errno
   @define("ENOSYS", 88)
 
   ###*
+  @static @readonly @property {number} EPROTO
+    プロトコルが異常である
+  ###
+  @define("EPROTO", 71)
+
+  ###*
   @static @readonly @property {number} ENOTSUP
     要求された操作はサポートされていない
   ###
