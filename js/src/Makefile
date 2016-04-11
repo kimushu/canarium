@@ -5,7 +5,7 @@ SOURCE = \
 	basecomm.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
 	hostcomm.coffee port.coffee serial.coffee \
-	fdport.coffee \
+	hostioservice.coffee \
 	footer.coffee
 	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
 	# hostfs.coffee hostnet.coffee
