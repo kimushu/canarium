@@ -416,7 +416,7 @@ class Canarium
   ###*
   @method
     シリアル通信ポートの生成
-  @param {function(boolean,Error=)} [callback]
+  @param {function(boolean,Canarium.Serial/Error)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @param {Object[]} [args]
     {@link Canarium.Serial#constructor}の第2引数以降に同じ
@@ -430,6 +430,25 @@ class Canarium
     return Promise.resolve(
     ).then(=>
       return new Canarium.Serial(@_hostComm, args...)
+    )
+
+  ###*
+  @method
+    ホスト側のファイルシステムサービスを生成
+  @param {function(boolean,Canarium.HostFS/Error)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @param {Object[]} [args]
+    {@link Canarium.HostFS#constructor}の第2引数以降に同じ
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト
+  @return {Canarium.Serial} return.PromiseValue
+    ホストファイルシステムサービスクラスのインスタンス
+  ###
+  serviceHostFS: (callback, args...) ->
+    return invokeCallback(callbac, @serviceHostFS(null, args...)) if callback
+    return Promise.resolve(
+    ).then(=>
+      return new Canarium.HostFS(@_hostComm, args...)
     )
 
   #----------------------------------------------------------------
