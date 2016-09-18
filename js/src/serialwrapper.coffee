@@ -361,7 +361,7 @@ class Canarium.BaseComm.SerialWrapper
       when "timeout"
         # ignore
         null
-      when "disconnected", "device_lost", "break", "frame_error"
+      when "disconnected", "device_lost", "break", "frame_error", "system_error"
         # disconnected
         self.close()
     return
