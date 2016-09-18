@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles-3eba09980fa05ead185cb17d9c0deb0f.css" type="text/css" />
 
   <script type="text/javascript" src="extjs/ext-all.js"></script>
-  <script type="text/javascript" src="data-11424de6af7396d7c53a6b2e78128873.js"></script>
+  <script type="text/javascript" src="data-2af9403d4a11b66dd8c2f6c8cc91702f.js"></script>
 
   <script type="text/javascript" src="app-0c945a27f43452df695771ddb60b3d14.js"></script>
 
@@ -27,7 +27,7 @@
   <div id="header-content"><strong>Documentation</strong> JSDuck</div>
   <div id='welcome-content' style='display:none'><body>
   <div class="class-categories" style="margin: 20px;">
-    <h1 class="top" style="padding-bottom: 10px">Canarium - Chrome/Node.jsアプリ用PERIDOTボードドライバ 0.9.8</h1>
+    <h1 class="top" style="padding-bottom: 10px">Canarium - Chrome/Node.jsアプリ用PERIDOTボードドライバ 0.9.11</h1>
 
     <p>Canariumは、Chrome/Node.jsアプリの開発者向けに用意されたPERIDOTボードのドライバライブラリです。</p>
     <p>本ライブラリは、<a href="https://github.com/osafune/peridot/tree/master/sample_apps/lib" target="blank">PERIDOTボード本家リポジトリ</a>に含まれているCanarium(0.9.5)をベースとして、<a href="http://coffeescript.org">CoffeeScript</a>で書き直したものです。</p>
@@ -41,6 +41,24 @@
     <div class="section">
       <h1 style="padding-bottom: 10px">リリース履歴</h1>
       <ul style="padding-left: 20px">
+        <li style="list-style-type: circle">Version 0.9.11
+          <ul style="padding-left: 20px">
+            <li style="list-style-type: square">Chrome環境に限り、ボード列挙時にVendor IDとProduct IDが取得できるようになりました。(<a href="https://github.com/kimushu/canarium/issues/4">issue #4</a>)</li>
+            <li style="list-style-type: square">最新のChromeで強制切断時の自動検知が動作しない不具合を修正しました。(<a href="https://github.com/kimushu/canarium/issues/5">issue #5</a>)</li>
+            <li style="list-style-type: square"><a href="#!/api/Canarium.AvmTransactions-method-iord">avm.iord</a> で最上位ビット(31-bit目)が1の値を返却する際、負の値にならないよう修正しました。(<a href="https://github.com/kimushu/canarium/issues/3">issue #3</a>)</li>
+            <li style="list-style-type: square">非同期メソッドでコールバック関数が失敗した際に、コールバックが二重に呼び出される不具合を修正しました。(<a href="https://github.com/kimushu/canarium/issues/2">issue #2</a>)</li>
+          </ul>
+        </li>
+        <li style="list-style-type: circle">Version 0.9.10
+          <ul style="padding-left: 20px">
+            <li style="list-style-type: square">欠番
+          </ul>
+        </li>
+        <li style="list-style-type: circle">Version 0.9.9
+          <ul style="padding-left: 20px">
+            <li style="list-style-type: square">npmjsへの登録ミス修正のためのバージョン変更。内容は 0.9.8 と同じです。
+          </ul>
+        </li>
         <li style="list-style-type: circle">Version 0.9.8
           <ul style="padding-left: 20px">
             <li style="list-style-type: square">Node.jsでも利用可能になりました。(シリアル通信は serialport モジュールに依存します。)</li>
@@ -62,7 +80,7 @@
 
     <div class="section">
       <h1 style="padding-bottom: 10px">ライセンス</h1>
-      本ライブラリは、The MIT License にて公開されています。
+      本ライブラリは、The MIT Lisence にて公開されています。
     </div>
 
     <div class="section">
@@ -88,7 +106,10 @@
 <li><a href="#!/api/Canarium" rel="Canarium" class="docClass">Canarium</a></li>
 <li><a href="#!/api/Canarium.AvmTransactions" rel="Canarium.AvmTransactions" class="docClass">Canarium.AvmTransactions</a></li>
 <li><a href="#!/api/Canarium.AvsPackets" rel="Canarium.AvsPackets" class="docClass">Canarium.AvsPackets</a></li>
+<li><a href="#!/api/Canarium.HostComm" rel="Canarium.HostComm" class="docClass">Canarium.HostComm</a></li>
 <li><a href="#!/api/Canarium.I2CComm" rel="Canarium.I2CComm" class="docClass">Canarium.I2CComm</a></li>
+<li><a href="#!/api/Canarium.Port" rel="Canarium.Port" class="docClass">Canarium.Port</a></li>
+<li><a href="#!/api/Canarium.Serial" rel="Canarium.Serial" class="docClass">Canarium.Serial</a></li>
 </ul>
 </div>
 <div class='right-column'>
@@ -113,7 +134,7 @@
 
   
   
-  <div id='footer-content' style='display: none'>Generated on Sat 02 Apr 2016 13:38:50 by <a href='https://github.com/senchalabs/jsduck'>JSDuck</a> 5.3.4.</div>
+  <div id='footer-content' style='display: none'>Generated on Sun 18 Sep 2016 13:14:50 by <a href='https://github.com/senchalabs/jsduck'>JSDuck</a> 5.3.4.</div>
 
   
 
