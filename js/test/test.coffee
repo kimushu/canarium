@@ -335,6 +335,14 @@ describe "Canarium @ PSモード接続", ->
         assert.equal((id|0), (SYSID_ID|0))
       )
 
+    it "最上位ビットが1のデータを正の数としてリード(IORD)できること", ->
+      return canarium.avm.iowr(SCRATCH_BASE, 0, 0xffffffff).then(=>
+        return canarium.avm.iord(SCRATCH_BASE, 0)
+      ).then((compare) =>
+        @test.title += " => scratch:#{compare}"
+        return Promise.reject() unless compare > 0
+      )
+
     it "テスト領域の書き込み(IOWR)とベリファイ(IORD)に成功すること", ->
       return canarium.avm.iowr(SCRATCH_BASE, 0, SCRATCH_MAGIC).then(=>
         return canarium.avm.iord(SCRATCH_BASE, 0)
