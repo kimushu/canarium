@@ -23,5 +23,9 @@
   "bugs": {
     "url": "https://github.com/kimushu/canarium/issues"
   },
-  "homepage": "https://github.com/kimushu/canarium#readme"
+  "homepage": "https://github.com/kimushu/canarium#readme",
+  "devDependencies": {
+    "es6-promise": "^3.3.1",
+    "mocha": "^3.0.2"
+  }
 }
