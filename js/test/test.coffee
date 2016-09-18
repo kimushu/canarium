@@ -132,6 +132,22 @@ describe "Canarium#avm @ 未接続", ->
     it "未接続時に呼び出すとエラー(Not connected)を返すこと", ->
       canarium.avm.write(0, new ArrayBuffer(1)).then(expect_not_connected...)
 
+    it "コールバック関数が例外をスローしたとき、多重呼び出しが発生しないこと", ->
+      new Promise((resolve, reject) =>
+        @timeout(2000)
+        count = 0
+        @test.title += " =>"
+        Canarium.enumerate((result) =>
+          ++count
+          @test.title += " #{count}回目=#{result}"
+          if count == 1 and result
+            setTimeout(resolve, 200)
+            throw Error("exception")
+          else
+            reject()
+        )
+      )
+
 describe "Canarium @ PSモード接続", ->
 
   it "(手動操作) 全PERIDOTの切断", ->
