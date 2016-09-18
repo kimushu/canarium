@@ -6,6 +6,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "files": [
+    "canarium.js",
+    "canarium.min.js",
+    "package.json"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kimushu/canarium.git"
