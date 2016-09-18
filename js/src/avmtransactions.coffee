@@ -11,6 +11,14 @@ class Canarium.AvmTransactions
   #
 
   ###*
+  @property base
+  @inheritdoc Canarium.AvsPackets#_base
+  @readonly
+  ###
+  @property "base",
+    get: -> @_avs.base
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
@@ -71,7 +79,7 @@ class Canarium.AvmTransactions
     読み込み元アドレス(バイト単位)
   @param {number} bytenum
     読み込むバイト数
-  @param {function(boolean,ArrayBuffer)} [callback]
+  @param {function(boolean,ArrayBuffer/Error)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト
@@ -157,7 +165,7 @@ class Canarium.AvmTransactions
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト
-  @return {ArrayBuffer} return.PromiseValue
+  @return {number} return.PromiseValue
     受信したデータ(リトルエンディアンの32-bit符号有り整数)
   ###
   iord: (address, offset, callback) ->
@@ -173,10 +181,10 @@ class Canarium.AvmTransactions
           4
         ).then((rxdata) =>
           src = new Uint8Array(rxdata)
-          readData = (src[3] << 24) |
-                     (src[2] << 16) |
-                     (src[1] <<  8) |
-                     (src[0] <<  0)
+          readData = ((src[3] << 24) |
+                      (src[2] << 16) |
+                      (src[1] <<  8) |
+                      (src[0] <<  0)) >>> 0
           @_log(1, "iord", "end", readData)
           return readData # Last PromiseValue
         ) # return @_trans().then()

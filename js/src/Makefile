@@ -4,11 +4,14 @@ SOURCE = \
 	canarium.coffee \
 	basecomm.coffee serialwrapper.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
+	hostcomm.coffee port.coffee serial.coffee \
 	footer.coffee
 	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
 	# hostfs.coffee hostnet.coffee
 PREAMBLE = license.js
 JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort
+NPM_BIN := $(shell npm bin)
+UGLIFYJS := $(NPM_BIN)/uglifyjs
 
 comma := ,
 empty :=
@@ -53,5 +56,5 @@ test: compile
 	cat $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
 
 %.min.js: %.js $(PREAMBLE)
-	uglifyjs --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<
+	$(UGLIFYJS) --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<
 

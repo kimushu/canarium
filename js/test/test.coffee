@@ -132,6 +132,22 @@ describe "Canarium#avm @ 未接続", ->
     it "未接続時に呼び出すとエラー(Not connected)を返すこと", ->
       canarium.avm.write(0, new ArrayBuffer(1)).then(expect_not_connected...)
 
+    it "コールバック関数が例外をスローしたとき、多重呼び出しが発生しないこと", ->
+      new Promise((resolve, reject) =>
+        @timeout(2000)
+        count = 0
+        @test.title += " =>"
+        Canarium.enumerate((result) =>
+          ++count
+          @test.title += " #{count}回目=#{result}"
+          if count == 1 and result
+            setTimeout(resolve, 200)
+            throw Error("exception")
+          else
+            reject()
+        )
+      )
+
 describe "Canarium @ PSモード接続", ->
 
   it "(手動操作) 全PERIDOTの切断", ->
@@ -152,16 +168,26 @@ describe "Canarium @ PSモード接続", ->
     manual.confirm(@, "PERIDOTをPSモードに設定し、1台だけ接続してください")
 
   describe ".enumerate()", ->
+    dev_info = null
+
     it "PERIDOTを1台検出できること", ->
       Canarium.enumerate().then((devices) =>
         per_devs = []
-        per_devs.push(dev.path) for dev in devices when !ign_devs[dev.path]
+        for dev in devices when !ign_devs[dev.path]
+          per_devs.push(dev.path)
+          dev_info or= dev
         num = per_devs.length
         @test.title += " => #{num}台のPERIDOTを検出"
         return Promise.reject("PERIDOTが検出できませんでした") if num == 0
         return Promise.reject("検出されたPERIDOTの台数が多すぎます") if num > 1
         return
       )
+
+    it.chrome "Vendor ID および Product ID が取得できること", ->
+      console.log(dev_info)
+      assert(!isNaN(v = parseInt(dev_info.vendorId)))
+      assert(!isNaN(p = parseInt(dev_info.productId)))
+      @test.title += " => VID:0x#{v.toString(16)},PID:0x#{p.toString(16)}"
 
   describe ".BaseComm", ->
     describe "#connect()", ->
@@ -317,6 +343,14 @@ describe "Canarium @ PSモード接続", ->
       return canarium.avm.iord(SYSID_BASE, 0).then((id) =>
         @test.title += " => 0x#{(id+0x100000000).toString(16)[-8..-1]}"
         assert.equal((id|0), (SYSID_ID|0))
+      )
+
+    it "最上位ビットが1のデータを正の数としてリード(IORD)できること", ->
+      return canarium.avm.iowr(SCRATCH_BASE, 0, 0xffffffff).then(=>
+        return canarium.avm.iord(SCRATCH_BASE, 0)
+      ).then((compare) =>
+        @test.title += " => scratch:#{compare}"
+        return Promise.reject() unless compare > 0
       )
 
     it "テスト領域の書き込み(IOWR)とベリファイ(IORD)に成功すること", ->
