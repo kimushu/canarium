@@ -1,5 +1,5 @@
 // ***************************************************************************** //
-// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.8)                       //
+// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.10)                      //
 // Copyright (C) 2016 @kimu_shu and @s_osafune                                   //
 // ----------------------------------------------------------------------------- //
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
@@ -216,7 +216,7 @@ canarium.jsの先頭に配置されるスクリプト。
     }
     promise.then(function(value) {
       callback(true, value);
-    })["catch"](function(reason) {
+    }, function(reason) {
       callback(false, reason);
     });
   };
@@ -1437,7 +1437,9 @@ canarium.jsの先頭に配置されるスクリプト。
           port = ports[j];
           devices.push({
             path: "" + port.path,
-            name: getFriendlyName(port)
+            name: getFriendlyName(port),
+            vendorId: port.vendorId,
+            productId: port.productId
           });
         }
         return devices;
@@ -2278,6 +2280,7 @@ canarium.jsの先頭に配置されるスクリプト。
         case "device_lost":
         case "break":
         case "frame_error":
+        case "system_error":
           self.close();
       }
     }) : void 0;
@@ -3057,7 +3060,7 @@ canarium.jsの先頭に配置されるスクリプト。
             return _this._trans(0x10, (address & 0xfffffffc) + (offset << 2), void 0, 4).then(function(rxdata) {
               var readData, src;
               src = new Uint8Array(rxdata);
-              readData = (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0);
+              readData = ((src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0)) >>> 0;
               _this._log(1, "iord", "end", readData);
               return readData;
             });

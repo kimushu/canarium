@@ -181,10 +181,10 @@ class Canarium.AvmTransactions
           4
         ).then((rxdata) =>
           src = new Uint8Array(rxdata)
-          readData = (src[3] << 24) |
-                     (src[2] << 16) |
-                     (src[1] <<  8) |
-                     (src[0] <<  0)
+          readData = ((src[3] << 24) |
+                      (src[2] << 16) |
+                      (src[1] <<  8) |
+                      (src[0] <<  0)) >>> 0
           @_log(1, "iord", "end", readData)
           return readData # Last PromiseValue
         ) # return @_trans().then()
