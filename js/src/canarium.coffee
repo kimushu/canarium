@@ -14,7 +14,7 @@ class Canarium
     ライブラリのバージョン
   ###
   @property "version",
-    value: "0.9.11"
+    value: "0.9.12"
 
   ###*
   @property {Object}  boardInfo
