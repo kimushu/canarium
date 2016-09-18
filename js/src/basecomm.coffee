@@ -155,6 +155,8 @@ class Canarium.BaseComm
       devices.push({
         path: "#{port.path}"
         name: getFriendlyName(port)
+        vendorId: port.vendorId
+        productId: port.productId
       }) for port in ports
       return devices
     ) # return serialWrapper.list().then()

@@ -168,16 +168,26 @@ describe "Canarium @ PSモード接続", ->
     manual.confirm(@, "PERIDOTをPSモードに設定し、1台だけ接続してください")
 
   describe ".enumerate()", ->
+    dev_info = null
+
     it "PERIDOTを1台検出できること", ->
       Canarium.enumerate().then((devices) =>
         per_devs = []
-        per_devs.push(dev.path) for dev in devices when !ign_devs[dev.path]
+        for dev in devices when !ign_devs[dev.path]
+          per_devs.push(dev.path)
+          dev_info or= dev
         num = per_devs.length
         @test.title += " => #{num}台のPERIDOTを検出"
         return Promise.reject("PERIDOTが検出できませんでした") if num == 0
         return Promise.reject("検出されたPERIDOTの台数が多すぎます") if num > 1
         return
       )
+
+    it.chrome "Vendor ID および Product ID が取得できること", ->
+      console.log(dev_info)
+      assert(!isNaN(v = parseInt(dev_info.vendorId)))
+      assert(!isNaN(p = parseInt(dev_info.productId)))
+      @test.title += " => VID:0x#{v.toString(16)},PID:0x#{p.toString(16)}"
 
   describe ".BaseComm", ->
     describe "#connect()", ->
