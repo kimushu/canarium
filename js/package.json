@@ -1,0 +1,27 @@
+{
+  "name": "canarium",
+  "version": "0.9.10",
+  "description": "PERIDOT board driver library",
+  "main": "canarium.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimushu/canarium.git"
+  },
+  "dependencies": {
+    "serialport": "2.0.x"
+  },
+  "keywords": [
+    "PERIDOT",
+    "Chrome",
+    "canarium"
+  ],
+  "author": "kimu_shu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kimushu/canarium/issues"
+  },
+  "homepage": "https://github.com/kimushu/canarium#readme"
+}
