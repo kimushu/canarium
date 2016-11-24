@@ -32,6 +32,7 @@
   "devDependencies": {
     "coffee-script": "^1.11.1",
     "es6-promise": "^3.3.1",
+    "jsonfilter": "^1.1.2",
     "mocha": "^3.0.2",
     "uglifyjs": "^2.4.10"
   }
