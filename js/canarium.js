@@ -1,5 +1,5 @@
 // ***************************************************************************** //
-// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.14)                      //
+// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.15)                      //
 // Copyright (C) 2016 @kimu_shu and @s_osafune                                   //
 // ----------------------------------------------------------------------------- //
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
@@ -1999,7 +1999,9 @@ canarium.jsの先頭に配置されるスクリプト。
               if (sendInfo.error != null) {
                 return reject(Error(sendInfo.error));
               }
-              return resolve()(sendInfo.bytesSent >= data.byteLength);
+              if (sendInfo.bytesSent >= data.byteLength) {
+                return resolve();
+              }
               data = data.slice(sendInfo.bytesSent);
               return setTimeout(retry, _this.SEND_RETRY_INTERVAL);
             });
