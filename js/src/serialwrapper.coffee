@@ -85,7 +85,7 @@ class Canarium.BaseComm.SerialWrapper
           serialNumber: "#{port.serialNumber}"
           vendorId: "#{port.vendorId}"
           productId: "#{port.productId}"
-        } for port in ports when port.pnpId?)
+        } for port in ports when port.pnpId? or port.locationId?)
       )
     )
   )
