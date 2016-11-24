@@ -12,6 +12,10 @@ PREAMBLE = license.js
 JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort
 NPM_BIN := $(shell npm bin)
 UGLIFYJS := $(NPM_BIN)/uglifyjs
+JSONFILT := $(NPM_BIN)/jsonfilter
+
+version := $(shell echo $$(cat ../package.json | $(JSONFILT) "version" | sed -e 's/"//g'))
+replace_ver := sed -e 's/__VERSION__/$(version)/'
 
 comma := ,
 empty :=
@@ -52,9 +56,9 @@ test: compile
 	$(MAKE) -C ../$@
 
 ../canarium.js: $(SOURCE) $(PREAMBLE)
-	cat /dev/null $(PREAMBLE) > $@ || (rm -f $@; false)
-	cat $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
+	$(replace_ver) $(PREAMBLE) > $@ || (rm -f $@; false)
+	$(replace_ver) $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
 
 %.min.js: %.js $(PREAMBLE)
-	$(UGLIFYJS) --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<
+	$(UGLIFYJS) --preamble "$$($(replace_ver) $(PREAMBLE))" -o $@ $<
 

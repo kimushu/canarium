@@ -1,7 +1,7 @@
-// ***************************************************************************** //
-// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.15)                      //
-// Copyright (C) 2016 @kimu_shu and @s_osafune                                   //
-// ----------------------------------------------------------------------------- //
+/**********************************************************************************
+ * PERIDOT Chrome Apps driver - 'Canarium' (Version __VERSION__)
+ * Copyright (C) 2016 @kimu_shu and @s_osafune
+ *********************************************************************************/
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
 // following license:                                                            //
 //                                                                               //
