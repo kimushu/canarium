@@ -168,7 +168,7 @@ class Canarium.BaseComm.SerialWrapper
         return resolve() if data.byteLength == 0
         chrome.serial.send(@_cid, data, (sendInfo) =>
           return reject(Error(sendInfo.error)) if sendInfo.error?
-          return resolve() sendInfo.bytesSent >= data.byteLength
+          return resolve() if sendInfo.bytesSent >= data.byteLength
           data = data.slice(sendInfo.bytesSent)
           setTimeout(retry, @SEND_RETRY_INTERVAL)
         )
