@@ -1,5 +1,5 @@
 // ***************************************************************************** //
-// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.12)                      //
+// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.14)                      //
 // Copyright (C) 2016 @kimu_shu and @s_osafune                                   //
 // ----------------------------------------------------------------------------- //
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
@@ -1869,7 +1869,7 @@ canarium.jsの先頭に配置されるスクリプト。
               results = [];
               for (j = 0, len1 = ports.length; j < len1; j++) {
                 port = ports[j];
-                if (port.pnpId != null) {
+                if ((port.pnpId != null) || (port.locationId != null)) {
                   results.push({
                     path: "" + port.comName,
                     manufacturer: "" + port.manufacturer,
