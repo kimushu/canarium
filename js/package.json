@@ -1,6 +1,6 @@
 {
   "name": "canarium",
-  "version": "0.9.15",
+  "version": "0.9.16",
   "description": "PERIDOT board driver library",
   "main": "canarium.js",
   "scripts": {
