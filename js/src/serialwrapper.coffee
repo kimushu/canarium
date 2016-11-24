@@ -31,6 +31,15 @@ class Canarium.BaseComm.SerialWrapper
 
   cidMap = {} if IS_CHROME
 
+  SEND_RETRY_INTERVAL = 50
+
+  ###*
+  @private
+  @property {number} SEND_RETRY_INTERVAL
+    データが送信しきれなかった場合に続きを再送信するまでの待ち時間
+    (ms単位、Chromeのみ)
+  ###
+
   #----------------------------------------------------------------
   # Public methods
   #
@@ -102,6 +111,7 @@ class Canarium.BaseComm.SerialWrapper
     @_options.stopBits or= 1
     @onClosed = undefined
     @onReceived = undefined
+    @SEND_RETRY_INTERVAL = SEND_RETRY_INTERVAL
     return
 
   ###*
@@ -154,11 +164,15 @@ class Canarium.BaseComm.SerialWrapper
   write: if IS_CHROME then ((data) ->
     return new Promise((resolve, reject) =>
       return reject(Error("disconnected")) unless @_cid?
-      chrome.serial.send(@_cid, data, (sendInfo) =>
-        return reject(Error(sendInfo.error)) if sendInfo.error?
-        return reject(Error("pending")) if sendInfo.bytesSent < data.byteLength
-        return resolve()
-      )
+      retry = =>
+        return resolve() if data.byteLength == 0
+        chrome.serial.send(@_cid, data, (sendInfo) =>
+          return reject(Error(sendInfo.error)) if sendInfo.error?
+          return resolve() sendInfo.bytesSent >= data.byteLength
+          data = data.slice(sendInfo.bytesSent)
+          setTimeout(retry, @SEND_RETRY_INTERVAL)
+        )
+      retry()
     ) # return new Promise()
   ) else if IS_NODEJS then ((data) ->
     return new Promise((resolve, reject) =>

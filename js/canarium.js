@@ -1776,7 +1776,7 @@ canarium.jsの先頭に配置されるスクリプト。
    */
 
   Canarium.BaseComm.SerialWrapper = (function() {
-    var cidMap, nodeModule;
+    var SEND_RETRY_INTERVAL, cidMap, nodeModule;
 
     null;
 
@@ -1801,6 +1801,16 @@ canarium.jsの先頭に配置されるスクリプト。
     if (IS_CHROME) {
       cidMap = {};
     }
+
+    SEND_RETRY_INTERVAL = 50;
+
+
+    /**
+    @private
+    @property {number} SEND_RETRY_INTERVAL
+      データが送信しきれなかった場合に続きを再送信するまでの待ち時間
+      (ms単位、Chromeのみ)
+     */
 
 
     /**
@@ -1902,6 +1912,7 @@ canarium.jsの先頭に配置されるスクリプト。
       (base2 = this._options).stopBits || (base2.stopBits = 1);
       this.onClosed = void 0;
       this.onReceived = void 0;
+      this.SEND_RETRY_INTERVAL = SEND_RETRY_INTERVAL;
       return;
     }
 
@@ -1976,18 +1987,24 @@ canarium.jsの先頭に配置されるスクリプト。
     SerialWrapper.prototype.write = IS_CHROME ? (function(data) {
       return new Promise((function(_this) {
         return function(resolve, reject) {
+          var retry;
           if (_this._cid == null) {
             return reject(Error("disconnected"));
           }
-          return chrome.serial.send(_this._cid, data, function(sendInfo) {
-            if (sendInfo.error != null) {
-              return reject(Error(sendInfo.error));
+          retry = function() {
+            if (data.byteLength === 0) {
+              return resolve();
             }
-            if (sendInfo.bytesSent < data.byteLength) {
-              return reject(Error("pending"));
-            }
-            return resolve();
-          });
+            return chrome.serial.send(_this._cid, data, function(sendInfo) {
+              if (sendInfo.error != null) {
+                return reject(Error(sendInfo.error));
+              }
+              return resolve()(sendInfo.bytesSent >= data.byteLength);
+              data = data.slice(sendInfo.bytesSent);
+              return setTimeout(retry, _this.SEND_RETRY_INTERVAL);
+            });
+          };
+          return retry();
         };
       })(this));
     }) : IS_NODEJS ? (function(data) {
