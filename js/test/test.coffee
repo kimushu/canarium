@@ -239,6 +239,7 @@ describe "Canarium @ PSモード接続", ->
       assert(!canarium.connected)
 
     it "接続に成功すること", ->
+      @timeout(5000)
       canarium.open(per_devs[0])
 
     it "接続成功後は接続状態になっていること", ->
