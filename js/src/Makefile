@@ -10,6 +10,8 @@ SOURCE = \
 	# hostfs.coffee hostnet.coffee
 PREAMBLE = license.js
 JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort
+NPM_BIN := $(shell npm bin)
+UGLIFYJS := $(NPM_BIN)/uglifyjs
 
 comma := ,
 empty :=
@@ -54,5 +56,5 @@ test: compile
 	cat $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
 
 %.min.js: %.js $(PREAMBLE)
-	uglifyjs --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<
+	$(UGLIFYJS) --preamble "$$(cat /dev/null $(PREAMBLE))" -o $@ $<
 

@@ -6,6 +6,9 @@ NODEFLAGS += --debug-brk
 endif
 endif
 
+NPM_BIN := $(shell npm bin)
+MOCHA := $(NPM_BIN)/mocha
+
 nodejs:
-	mocha $(NODEFLAGS) --compilers coffee:coffee-script/register test.coffee
+	$(MOCHA) $(NODEFLAGS) --compilers coffee:coffee-script/register test.coffee
 

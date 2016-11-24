@@ -129,12 +129,13 @@ str2ab = (str) ->
 ###
 invokeCallback = (callback, promise) ->
   return promise unless callback
-  promise.then((value) ->
-    callback(true, value)
-    return
-  ).catch((reason) ->
-    callback(false, reason)
-    return
+  promise.then(
+    (value) ->
+      callback(true, value)
+      return
+    (reason) ->
+      callback(false, reason)
+      return
   )
   return
 

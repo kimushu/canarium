@@ -1,5 +1,5 @@
 // ***************************************************************************** //
-// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.8)                       //
+// PERIDOT Chrome Apps driver - 'Canarium' (version 0.9.14)                      //
 // Copyright (C) 2016 @kimu_shu and @s_osafune                                   //
 // ----------------------------------------------------------------------------- //
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
@@ -216,7 +216,7 @@ canarium.jsの先頭に配置されるスクリプト。
     }
     promise.then(function(value) {
       callback(true, value);
-    })["catch"](function(reason) {
+    }, function(reason) {
       callback(false, reason);
     });
   };
@@ -475,7 +475,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Canarium.property("version", {
-      value: "0.9.8"
+      value: "0.9.12"
     });
 
 
@@ -1437,7 +1437,9 @@ canarium.jsの先頭に配置されるスクリプト。
           port = ports[j];
           devices.push({
             path: "" + port.path,
-            name: getFriendlyName(port)
+            name: getFriendlyName(port),
+            vendorId: port.vendorId,
+            productId: port.productId
           });
         }
         return devices;
@@ -1774,7 +1776,7 @@ canarium.jsの先頭に配置されるスクリプト。
    */
 
   Canarium.BaseComm.SerialWrapper = (function() {
-    var cidMap, nodeModule;
+    var SEND_RETRY_INTERVAL, cidMap, nodeModule;
 
     null;
 
@@ -1799,6 +1801,16 @@ canarium.jsの先頭に配置されるスクリプト。
     if (IS_CHROME) {
       cidMap = {};
     }
+
+    SEND_RETRY_INTERVAL = 50;
+
+
+    /**
+    @private
+    @property {number} SEND_RETRY_INTERVAL
+      データが送信しきれなかった場合に続きを再送信するまでの待ち時間
+      (ms単位、Chromeのみ)
+     */
 
 
     /**
@@ -1857,7 +1869,7 @@ canarium.jsの先頭に配置されるスクリプト。
               results = [];
               for (j = 0, len1 = ports.length; j < len1; j++) {
                 port = ports[j];
-                if (port.pnpId != null) {
+                if ((port.pnpId != null) || (port.locationId != null)) {
                   results.push({
                     path: "" + port.comName,
                     manufacturer: "" + port.manufacturer,
@@ -1900,6 +1912,7 @@ canarium.jsの先頭に配置されるスクリプト。
       (base2 = this._options).stopBits || (base2.stopBits = 1);
       this.onClosed = void 0;
       this.onReceived = void 0;
+      this.SEND_RETRY_INTERVAL = SEND_RETRY_INTERVAL;
       return;
     }
 
@@ -1974,18 +1987,24 @@ canarium.jsの先頭に配置されるスクリプト。
     SerialWrapper.prototype.write = IS_CHROME ? (function(data) {
       return new Promise((function(_this) {
         return function(resolve, reject) {
+          var retry;
           if (_this._cid == null) {
             return reject(Error("disconnected"));
           }
-          return chrome.serial.send(_this._cid, data, function(sendInfo) {
-            if (sendInfo.error != null) {
-              return reject(Error(sendInfo.error));
+          retry = function() {
+            if (data.byteLength === 0) {
+              return resolve();
             }
-            if (sendInfo.bytesSent < data.byteLength) {
-              return reject(Error("pending"));
-            }
-            return resolve();
-          });
+            return chrome.serial.send(_this._cid, data, function(sendInfo) {
+              if (sendInfo.error != null) {
+                return reject(Error(sendInfo.error));
+              }
+              return resolve()(sendInfo.bytesSent >= data.byteLength);
+              data = data.slice(sendInfo.bytesSent);
+              return setTimeout(retry, _this.SEND_RETRY_INTERVAL);
+            });
+          };
+          return retry();
         };
       })(this));
     }) : IS_NODEJS ? (function(data) {
@@ -2278,6 +2297,7 @@ canarium.jsの先頭に配置されるスクリプト。
         case "device_lost":
         case "break":
         case "frame_error":
+        case "system_error":
           self.close();
       }
     }) : void 0;
@@ -3057,7 +3077,7 @@ canarium.jsの先頭に配置されるスクリプト。
             return _this._trans(0x10, (address & 0xfffffffc) + (offset << 2), void 0, 4).then(function(rxdata) {
               var readData, src;
               src = new Uint8Array(rxdata);
-              readData = (src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0);
+              readData = ((src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0)) >>> 0;
               _this._log(1, "iord", "end", readData);
               return readData;
             });
