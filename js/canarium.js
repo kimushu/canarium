@@ -1,5 +1,5 @@
 /**********************************************************************************
- * PERIDOT Chrome Apps driver - 'Canarium' (Version 0.9.16)
+ * PERIDOT Chrome Apps driver - 'Canarium' (Version 0.9.18)
  * Copyright (C) 2016 @kimu_shu and @s_osafune
  *********************************************************************************/
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
@@ -475,7 +475,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Canarium.property("version", {
-      value: "0.9.16"
+      value: "0.9.18"
     });
 
 
