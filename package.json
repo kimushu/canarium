@@ -9,7 +9,8 @@
   "files": [
     "canarium.js",
     "canarium.min.js",
-    "package.json"
+    "package.json",
+    "README.md"
   ],
   "repository": {
     "type": "git",
