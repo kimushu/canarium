@@ -21,7 +21,12 @@ class Canarium
     接続しているボードの情報
 
   @property {string}  boardInfo.id
-    'J72A' (J-7SYSTEM Works / PERIDOT board)
+    ボードの識別子(以下のうちいずれか)
+
+    - 'J72A' (PERIDOT Standard)
+    - 'J72N' (PERIDOT NewGen)
+    - 'J72B' (Virtual - コンフィグレーションレイヤをFPGA側に内蔵)
+    - 'J72X' (Generic - Avalon-MMブリッジのみ使う汎用型)
 
   @property {string}  boardInfo.serialcode
     'xxxxxx-yyyyyy-zzzzzz'
@@ -71,14 +76,6 @@ class Canarium
   ###
   @property "avm",
     get: -> @_avm
-
-  ###*
-  @property {Canarium.HostComm} hostComm
-    ホスト通信クラスのインスタンス
-  @readonly
-  ###
-  @property "hostComm",
-    get: -> @_hostComm
 
   ###*
   @property {function()} onClosed
@@ -195,7 +192,6 @@ class Canarium
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
     @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
-    @_hostComm = new Canarium.HostComm(@_avm, SWI_BASE_ADDR)
     @_configBarrier = false
     @_resetBarrier = false
     return
@@ -205,16 +201,27 @@ class Canarium
     ボードに接続する
   @param {string} path
     接続先パス(enumerateが返すpath)
+  @param {Object} [boardInfo]
+    接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+  @param {string} [boardInfo.id]
+    接続を許容するID(省略時はIDのチェックをしない)
+  @param {string} [boardInfo.serialCode]
+    接続を許容するシリアル番号(省略時はシリアル番号のチェックをしない)
+  @param {ArrayBuffer} [boardInfo.rbfdata]
+    接続後に書き込むrbfやrpdのデータ(省略時は接続後にコンフィグレーションをしない)
   @param {function(boolean,Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
-  open: (portname, callback) ->
-    return invokeCallback(callback, @open(portname)) if callback?
+  open: (path, boardInfo, callback) ->
+    if typeof(boardInfo) == "function"
+      callback = boardInfo
+      boardInfo = null
+    return invokeCallback(callback, @open(path, boardInfo)) if callback?
     return Promise.resolve(
     ).then(=>
-      return @_base.connect(portname)
+      return @_base.connect(path)
     ).then(=>
       return Promise.resolve(
       ).then(=>
@@ -230,6 +237,13 @@ class Canarium
       ).then((response) =>
         # ASモードならコンフィグレーション済みとして設定する
         return @_base.option({forceConfigured: (response & 0x01) != 0})
+      ).then(=>
+        # 接続先ボードの検証
+        return @_validate(boardInfo)
+      ).then(=>
+        return unless boardInfo?.rbfdata?
+        # コンフィグレーションの実行
+        return @config(null, boardInfo.rbfdata)
       ).then(=>
         return  # Last PromiseValue
       ).catch((error) =>
@@ -278,18 +292,8 @@ class Canarium
     timeLimit = undefined
     return Promise.resolve(
     ).then(=>
-      return @_base.assertConnection()
-    ).then(=>
-      return if !boardInfo or (@boardInfo?.id and @boardInfo?.serialcode)
-      # まだボード情報が読み込まれていないので先に読み込む
-      return @getinfo()
-    ).then(=>
       # コンフィグレーション可否の判断を行う
-      mismatch = (a, b) -> a and a != b
-      if mismatch(boardInfo?.id, @boardInfo.id)
-        return Promise.reject(Error("Board ID mismatch"))
-      if mismatch(boardInfo?.serialcode, @boardInfo.serialcode)
-        return Promise.reject(Error("Board serial code mismatch"))
+      return @_validate(boardInfo)
     ).then(=>
       # モードチェック
       # (コマンド：即時応答ON)
@@ -436,25 +440,6 @@ class Canarium
       return @boardInfo # Last PromiseValue
     ) # return Promise.resolve()...
 
-  ###*
-  @method
-    シリアル通信ポートの生成
-  @param {function(boolean,Error=)} [callback]
-    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
-  @param {Object[]} [args]
-    {@link Canarium.Serial#constructor}の第2引数以降に同じ
-  @return {undefined/Promise}
-    戻り値なし(callback指定時)、または、Promiseオブジェクト
-  @return {Canarium.Serial} return.PromiseValue
-    シリアル通信ポートクラスのインスタンス
-  ###
-  requestSerial: (callback, args...) ->
-    return invokeCallback(callback, @requestSerial(null, args...)) if callback
-    return Promise.resolve(
-    ).then(=>
-      return new Canarium.Serial(@_hostComm, args...)
-    )
-
   #----------------------------------------------------------------
   # Private methods
   #
@@ -537,6 +522,38 @@ class Canarium
       @_log(1, "_eepromRead", "end", array)
       return array.buffer
     ) # return Promise.resolve()
+
+  ###*
+  @private
+  @method
+    接続先ボードのID/シリアル番号検証
+  @param {Object} boardInfo
+    検証するボード情報
+  @param {string} [boardInfo.id]
+    許可するボードID(省略時は検証しない)
+  @param {string} [boardInfo.serialCode]
+    許可するシリアル番号(省略時は検証しない)
+  @return {Promise}
+    Promiseオブジェクト(不一致が発生した場合、rejectされる)
+  @return {undefined} return.PromiseValue
+  ###
+  _validate: (boardInfo) ->
+    return Promise.resolve(
+    ).then(=>
+      return @_base.assertConnection()
+    ).then(=>
+      return if !boardInfo or (@boardInfo?.id and @boardInfo?.serialcode)
+      # まだボード情報が読み込まれていないので先に読み込む
+      return @getinfo()
+    ).then(=>
+      # 許可/不許可の判断を行う
+      mismatch = (a, b) -> a? and a != b
+      if mismatch(boardInfo?.id, @boardInfo.id)
+        return Promise.reject(Error("Board ID mismatch"))
+      if mismatch(boardInfo?.serialcode, @boardInfo.serialcode)
+        return Promise.reject(Error("Board serial code mismatch"))
+      return  # Last PromiseValue (許可)
+    ) # return Promise.resolve().then()...
 
   ###*
   @private

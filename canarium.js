@@ -45,8 +45,7 @@ canarium.jsの先頭に配置されるスクリプト。
  */
 
 (function() {
-  var Canarium, FIFOBuffer, IS_CHROME, IS_NODEJS, Promise, TimeLimit, finallyPromise, getCurrentTime, hexDump, invokeCallback, oldProperty, str2ab, tryPromise, waitPromise,
-    slice = [].slice;
+  var Canarium, FIFOBuffer, IS_CHROME, IS_NODEJS, Promise, TimeLimit, finallyPromise, getCurrentTime, hexDump, invokeCallback, oldProperty, str2ab, tryPromise, waitPromise;
 
   if (false) {
     Uint8Array.prototype.hexDump = function() {
@@ -482,7 +481,12 @@ canarium.jsの先頭に配置されるスクリプト。
       接続しているボードの情報
     
     @property {string}  boardInfo.id
-      'J72A' (J-7SYSTEM Works / PERIDOT board)
+      ボードの識別子(以下のうちいずれか)
+    
+      - 'J72A' (PERIDOT Standard)
+      - 'J72N' (PERIDOT NewGen)
+      - 'J72B' (Virtual - コンフィグレーションレイヤをFPGA側に内蔵)
+      - 'J72X' (Generic - Avalon-MMブリッジのみ使う汎用型)
     
     @property {string}  boardInfo.serialcode
       'xxxxxx-yyyyyy-zzzzzz'
@@ -561,19 +565,6 @@ canarium.jsの先頭に配置されるスクリプト。
     Canarium.property("avm", {
       get: function() {
         return this._avm;
-      }
-    });
-
-
-    /**
-    @property {Canarium.HostComm} hostComm
-      ホスト通信クラスのインスタンス
-    @readonly
-     */
-
-    Canarium.property("hostComm", {
-      get: function() {
-        return this._hostComm;
       }
     });
 
@@ -713,7 +704,6 @@ canarium.jsの先頭に配置されるスクリプト。
       this._i2c = new Canarium.I2CComm(this._base);
       this._avs = new Canarium.AvsPackets(this._base);
       this._avm = new Canarium.AvmTransactions(this._avs, AVM_CHANNEL);
-      this._hostComm = new Canarium.HostComm(this._avm, SWI_BASE_ADDR);
       this._configBarrier = false;
       this._resetBarrier = false;
       return;
@@ -725,19 +715,31 @@ canarium.jsの先頭に配置されるスクリプト。
       ボードに接続する
     @param {string} path
       接続先パス(enumerateが返すpath)
+    @param {Object} [boardInfo]
+      接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+    @param {string} [boardInfo.id]
+      接続を許容するID(省略時はIDのチェックをしない)
+    @param {string} [boardInfo.serialCode]
+      接続を許容するシリアル番号(省略時はシリアル番号のチェックをしない)
+    @param {ArrayBuffer} [boardInfo.rbfdata]
+      接続後に書き込むrbfやrpdのデータ(省略時は接続後にコンフィグレーションをしない)
     @param {function(boolean,Error=)} [callback]
       コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
     @return {undefined/Promise}
       戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
      */
 
-    Canarium.prototype.open = function(portname, callback) {
+    Canarium.prototype.open = function(path, boardInfo, callback) {
+      if (typeof boardInfo === "function") {
+        callback = boardInfo;
+        boardInfo = null;
+      }
       if (callback != null) {
-        return invokeCallback(callback, this.open(portname));
+        return invokeCallback(callback, this.open(path, boardInfo));
       }
       return Promise.resolve().then((function(_this) {
         return function() {
-          return _this._base.connect(portname);
+          return _this._base.connect(path);
         };
       })(this)).then((function(_this) {
         return function() {
@@ -759,6 +761,13 @@ canarium.jsの先頭に配置されるスクリプト。
             return _this._base.option({
               forceConfigured: (response & 0x01) !== 0
             });
+          }).then(function() {
+            return _this._validate(boardInfo);
+          }).then(function() {
+            if ((boardInfo != null ? boardInfo.rbfdata : void 0) == null) {
+              return;
+            }
+            return _this.config(null, boardInfo.rbfdata);
           }).then(function() {})["catch"](function(error) {
             return _this._base.disconnect()["catch"](function() {}).then(function() {
               return Promise.reject(error);
@@ -823,28 +832,7 @@ canarium.jsの先頭に配置されるスクリプト。
       timeLimit = void 0;
       return (ref = Promise.resolve().then((function(_this) {
         return function() {
-          return _this._base.assertConnection();
-        };
-      })(this)).then((function(_this) {
-        return function() {
-          var ref1, ref2;
-          if (!boardInfo || (((ref1 = _this.boardInfo) != null ? ref1.id : void 0) && ((ref2 = _this.boardInfo) != null ? ref2.serialcode : void 0))) {
-            return;
-          }
-          return _this.getinfo();
-        };
-      })(this)).then((function(_this) {
-        return function() {
-          var mismatch;
-          mismatch = function(a, b) {
-            return a && a !== b;
-          };
-          if (mismatch(boardInfo != null ? boardInfo.id : void 0, _this.boardInfo.id)) {
-            return Promise.reject(Error("Board ID mismatch"));
-          }
-          if (mismatch(boardInfo != null ? boardInfo.serialcode : void 0, _this.boardInfo.serialcode)) {
-            return Promise.reject(Error("Board serial code mismatch"));
-          }
+          return _this._validate(boardInfo);
         };
       })(this)).then((function(_this) {
         return function() {
@@ -1030,37 +1018,6 @@ canarium.jsの先頭に配置されるスクリプト。
 
 
     /**
-    @method
-      シリアル通信ポートの生成
-    @param {function(boolean,Error=)} [callback]
-      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
-    @param {Object[]} [args]
-      {@link Canarium.Serial#constructor}の第2引数以降に同じ
-    @return {undefined/Promise}
-      戻り値なし(callback指定時)、または、Promiseオブジェクト
-    @return {Canarium.Serial} return.PromiseValue
-      シリアル通信ポートクラスのインスタンス
-     */
-
-    Canarium.prototype.requestSerial = function() {
-      var args, callback;
-      callback = arguments[0], args = 2 <= arguments.length ? slice.call(arguments, 1) : [];
-      if (callback) {
-        return invokeCallback(callback, this.requestSerial.apply(this, [null].concat(slice.call(args))));
-      }
-      return Promise.resolve().then((function(_this) {
-        return function() {
-          return (function(func, args, ctor) {
-            ctor.prototype = func.prototype;
-            var child = new ctor, result = func.apply(child, args);
-            return Object(result) === result ? result : child;
-          })(Canarium.Serial, [_this._hostComm].concat(slice.call(args)), function(){});
-        };
-      })(this));
-    };
-
-
-    /**
     @private
     @method
       EEPROMの読み出し
@@ -1164,6 +1121,51 @@ canarium.jsの先頭に配置されるスクリプト。
           }
           _this._log(1, "_eepromRead", "end", array);
           return array.buffer;
+        };
+      })(this));
+    };
+
+
+    /**
+    @private
+    @method
+      接続先ボードのID/シリアル番号検証
+    @param {Object} boardInfo
+      検証するボード情報
+    @param {string} [boardInfo.id]
+      許可するボードID(省略時は検証しない)
+    @param {string} [boardInfo.serialCode]
+      許可するシリアル番号(省略時は検証しない)
+    @return {Promise}
+      Promiseオブジェクト(不一致が発生した場合、rejectされる)
+    @return {undefined} return.PromiseValue
+     */
+
+    Canarium.prototype._validate = function(boardInfo) {
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          return _this._base.assertConnection();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          var ref, ref1;
+          if (!boardInfo || (((ref = _this.boardInfo) != null ? ref.id : void 0) && ((ref1 = _this.boardInfo) != null ? ref1.serialcode : void 0))) {
+            return;
+          }
+          return _this.getinfo();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          var mismatch;
+          mismatch = function(a, b) {
+            return (a != null) && a !== b;
+          };
+          if (mismatch(boardInfo != null ? boardInfo.id : void 0, _this.boardInfo.id)) {
+            return Promise.reject(Error("Board ID mismatch"));
+          }
+          if (mismatch(boardInfo != null ? boardInfo.serialcode : void 0, _this.boardInfo.serialcode)) {
+            return Promise.reject(Error("Board serial code mismatch"));
+          }
         };
       })(this));
     };
