@@ -4,10 +4,7 @@ SOURCE = \
 	canarium.coffee \
 	basecomm.coffee serialwrapper.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
-	hostcomm.coffee port.coffee serial.coffee \
 	footer.coffee
-	# hostcomm.coffee virtualchannel.coffee virtualfdio.coffee \
-	# hostfs.coffee hostnet.coffee
 PREAMBLE = license.js
 JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort
 NPM_BIN := $(shell npm bin)
