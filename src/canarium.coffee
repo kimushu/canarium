@@ -159,6 +159,42 @@ class Canarium
   ###
   SWI_BASE_ADDR = 0x10000000
 
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_STANDARD = "J72A"
+    標準PERIDOTのボードID
+  @readonly
+  ###
+  BOARDID_STANDARD = "J72A"
+
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_NEWGEN = "J72N"
+    PERIDOT-NewGenのボードID
+  @readonly
+  ###
+  BOARDID_NEWGEN = "J72N"
+
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_VIRTUAL = "J72B"
+    VirtualモードHostbridgeのボードID
+  @readonly
+  ###
+  BOARDID_VIRTUAL = "J72B"
+
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_GENERIC = "J72X"
+    GenericモードHostbridgeのボードID
+  @readonly
+  ###
+  BOARDID_GENERIC = "J72X"
+
   #----------------------------------------------------------------
   # Public methods
   #
@@ -235,8 +271,8 @@ class Canarium
         @_boardInfo = {version: header[3]}
         return @_base.transCommand(0x39)
       ).then((response) =>
-        # ASモードならコンフィグレーション済みとして設定する
-        return @_base.option({forceConfigured: (response & 0x01) != 0})
+        # CONF_DONEならコンフィグレーション済みとして設定する
+        return @_base.option({forceConfigured: (response & 0x04) != 0})
       ).then(=>
         # 接続先ボードの検証
         return @_validate(boardInfo)
@@ -293,6 +329,7 @@ class Canarium
     return Promise.resolve(
     ).then(=>
       # コンフィグレーション可否の判断を行う
+      info = {id: boardInfo?.id ? BOARDID_STANDARD, serialCode: boardInfo?.serialCode}
       return @_validate(boardInfo)
     ).then(=>
       # モードチェック
@@ -418,7 +455,7 @@ class Canarium
             sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
             if mid == 0x0072
               s = "#{pid.hex(4)}#{sid.hex(8)}"
-              @_boardInfo.id = "J72A"
+              @_boardInfo.id = BOARDID_STANDARD
               @_boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-000000"
           ) # return @_eepromRead()
         when 2

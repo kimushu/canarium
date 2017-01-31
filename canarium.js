@@ -461,7 +461,7 @@ canarium.jsの先頭に配置されるスクリプト。
    */
 
   Canarium = (function() {
-    var AVM_CHANNEL, CONFIG_TIMEOUT_MS, EEPROM_SLAVE_ADDR, SPLIT_EEPROM_BURST, SWI_BASE_ADDR;
+    var AVM_CHANNEL, BOARDID_GENERIC, BOARDID_NEWGEN, BOARDID_STANDARD, BOARDID_VIRTUAL, CONFIG_TIMEOUT_MS, EEPROM_SLAVE_ADDR, SPLIT_EEPROM_BURST, SWI_BASE_ADDR;
 
     null;
 
@@ -670,6 +670,50 @@ canarium.jsの先頭に配置されるスクリプト。
 
 
     /**
+    @private
+    @static
+    @cfg {string} BOARDID_STANDARD = "J72A"
+      標準PERIDOTのボードID
+    @readonly
+     */
+
+    BOARDID_STANDARD = "J72A";
+
+
+    /**
+    @private
+    @static
+    @cfg {string} BOARDID_NEWGEN = "J72N"
+      PERIDOT-NewGenのボードID
+    @readonly
+     */
+
+    BOARDID_NEWGEN = "J72N";
+
+
+    /**
+    @private
+    @static
+    @cfg {string} BOARDID_VIRTUAL = "J72B"
+      VirtualモードHostbridgeのボードID
+    @readonly
+     */
+
+    BOARDID_VIRTUAL = "J72B";
+
+
+    /**
+    @private
+    @static
+    @cfg {string} BOARDID_GENERIC = "J72X"
+      GenericモードHostbridgeのボードID
+    @readonly
+     */
+
+    BOARDID_GENERIC = "J72X";
+
+
+    /**
     @static
     @method
       接続対象デバイスを列挙する
@@ -759,7 +803,7 @@ canarium.jsの先頭に配置されるスクリプト。
             return _this._base.transCommand(0x39);
           }).then(function(response) {
             return _this._base.option({
-              forceConfigured: (response & 0x01) !== 0
+              forceConfigured: (response & 0x04) !== 0
             });
           }).then(function() {
             return _this._validate(boardInfo);
@@ -832,6 +876,11 @@ canarium.jsの先頭に配置されるスクリプト。
       timeLimit = void 0;
       return (ref = Promise.resolve().then((function(_this) {
         return function() {
+          var info, ref1;
+          info = {
+            id: (ref1 = boardInfo != null ? boardInfo.id : void 0) != null ? ref1 : BOARDID_STANDARD,
+            serialCode: boardInfo != null ? boardInfo.serialCode : void 0
+          };
           return _this._validate(boardInfo);
         };
       })(this)).then((function(_this) {
@@ -985,7 +1034,7 @@ canarium.jsの先頭に配置されるスクリプト。
                 sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0);
                 if (mid === 0x0072) {
                   s = "" + (pid.hex(4)) + (sid.hex(8));
-                  _this._boardInfo.id = "J72A";
+                  _this._boardInfo.id = BOARDID_STANDARD;
                   return _this._boardInfo.serialcode = (s.substr(0, 6)) + "-" + (s.substr(6, 6)) + "-000000";
                 }
               });
