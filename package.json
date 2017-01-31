@@ -1,15 +1,17 @@
 {
   "name": "canarium",
-  "version": "0.9.18",
+  "version": "0.9.19",
   "description": "PERIDOT board driver library",
   "main": "canarium.js",
   "scripts": {
+    "compile": "make -C src",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "files": [
     "canarium.js",
     "canarium.min.js",
-    "package.json"
+    "package.json",
+    "README.md"
   ],
   "repository": {
     "type": "git",
