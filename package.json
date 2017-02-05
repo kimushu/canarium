@@ -18,8 +18,8 @@
     "url": "git+https://github.com/kimushu/canarium.git"
   },
   "dependencies": {
-    "serialport": "^2.0.6",
-    "es6-promise": "^3.3.1"
+    "es6-promise": "^3.3.1",
+    "serialport": "^2.0.6"
   },
   "keywords": [
     "PERIDOT",

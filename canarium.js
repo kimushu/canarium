@@ -461,7 +461,7 @@ canarium.jsの先頭に配置されるスクリプト。
    */
 
   Canarium = (function() {
-    var AVM_CHANNEL, BOARDID_GENERIC, BOARDID_NEWGEN, BOARDID_STANDARD, BOARDID_VIRTUAL, CONFIG_TIMEOUT_MS, EEPROM_SLAVE_ADDR, SPLIT_EEPROM_BURST, SWI_BASE_ADDR;
+    var AVM_CHANNEL, BOARDID_GENERIC, BOARDID_NEWGEN, BOARDID_STANDARD, BOARDID_VIRTUAL, CONFIG_TIMEOUT_MS, EEPROM_SLAVE_ADDR, RECONFIG_TIMEOUT_MS, SPLIT_EEPROM_BURST, SWI_BASE_ADDR;
 
     null;
 
@@ -645,6 +645,17 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     CONFIG_TIMEOUT_MS = 3000;
+
+
+    /**
+    @private
+    @static
+    @cfg {number} RECONFIG_TIMEOUT_MS = 3000
+      リコンフィグレーションのタイムアウト時間(ms)
+    @readonly
+     */
+
+    RECONFIG_TIMEOUT_MS = 3000;
 
 
     /**
@@ -850,13 +861,13 @@ canarium.jsの先頭に配置されるスクリプト。
     /**
     @method
       ボードのFPGAコンフィグレーション
-    @param {Object/null}  boardInfo
+    @param {Object/null} boardInfo
       ボード情報(ボードIDやシリアル番号を限定したい場合)
-    @param {string/null}  boardInfo.id
-      ボードID
-    @param {string/null}  boardInfo.serialCode
+    @param {string} [boardInfo.id]
+      ボードID (省略時は"J72A")
+    @param {string} [boardInfo.serialCode]
       シリアル番号
-    @param {ArrayBuffer}  rbfdata
+    @param {ArrayBuffer} rbfdata
       rbfまたはrpdのデータ
     @param {function(boolean,Error=)} [callback]
       コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
@@ -939,6 +950,71 @@ canarium.jsの先頭に配置されるスクリプト。
         return function() {
           return _this._base.option({
             forceConfigured: true
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {};
+      })(this))).then.apply(ref, finallyPromise((function(_this) {
+        return function() {
+          return _this._configBarrier = false;
+        };
+      })(this)));
+    };
+
+
+    /**
+    @method
+      ボードのFPGA再コンフィグレーション
+    @since 0.9.20
+     */
+
+    Canarium.prototype.reconfig = function(callback) {
+      var ref, timeLimit;
+      if (callback != null) {
+        return invokeCallback(callback, this.reconfig());
+      }
+      if (this._configBarrier) {
+        return Promise.reject(Error("(Re)configuration is now in progress"));
+      }
+      this._configBarrier = true;
+      timeLimit = void 0;
+      return (ref = Promise.resolve().then((function(_this) {
+        return function() {
+          var ref1;
+          if (((ref1 = _this._boardInfo) != null ? ref1.id : void 0) != null) {
+            return;
+          }
+          return _this.getinfo();
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          var ref1;
+          if (((ref1 = _this._boardInfo) != null ? ref1.id : void 0) === BOARDID_STANDARD) {
+            return Promise.reject(Error("reconfig() cannot be used on this board"));
+          }
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return timeLimit = new TimeLimit(RECONFIG_TIMEOUT_MS);
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x32).then(function(response) {
+              if ((response & 0x06) !== 0x00) {
+                return Promise.reject();
+              }
+            });
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          return tryPromise(timeLimit.left, function() {
+            return _this._base.transCommand(0x33).then(function(response) {
+              if ((response & 0x06) !== 0x02) {
+                return Promise.reject();
+              }
+            });
           });
         };
       })(this)).then((function(_this) {

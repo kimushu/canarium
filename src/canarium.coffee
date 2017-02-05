@@ -144,6 +144,15 @@ class Canarium
   ###*
   @private
   @static
+  @cfg {number} RECONFIG_TIMEOUT_MS = 3000
+    リコンフィグレーションのタイムアウト時間(ms)
+  @readonly
+  ###
+  RECONFIG_TIMEOUT_MS = 3000
+
+  ###*
+  @private
+  @static
   @cfg {number} AVM_CHANNEL = 0
     Avalon-MM 通信レイヤのチャネル番号
   @readonly
@@ -308,13 +317,13 @@ class Canarium
   ###*
   @method
     ボードのFPGAコンフィグレーション
-  @param {Object/null}  boardInfo
+  @param {Object/null} boardInfo
     ボード情報(ボードIDやシリアル番号を限定したい場合)
-  @param {string/null}  boardInfo.id
-    ボードID
-  @param {string/null}  boardInfo.serialCode
+  @param {string} [boardInfo.id]
+    ボードID (省略時は"J72A")
+  @param {string} [boardInfo.serialCode]
     シリアル番号
-  @param {ArrayBuffer}  rbfdata
+  @param {ArrayBuffer} rbfdata
     rbfまたはrpdのデータ
   @param {function(boolean,Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
@@ -386,6 +395,57 @@ class Canarium
     ).then(=>
       # コンフィグレーション済みとして設定
       return @_base.option({forceConfigured: true})
+    ).then(=>
+      return  # Last PromiseValue
+    ).then(finallyPromise(=>
+      @_configBarrier = false
+    )...) # return Promise.resolve()...
+
+  ###*
+  @method
+    ボードのFPGA再コンフィグレーション
+  @since 0.9.20
+  ###
+  reconfig: (callback) ->
+    return invokeCallback(callback, @reconfig()) if callback?
+    return Promise.reject(Error("(Re)configuration is now in progress")) if @_configBarrier
+    @_configBarrier = true
+    timeLimit = undefined
+    return Promise.resolve(
+    ).then(=>
+      return if @_boardInfo?.id?
+      return @getinfo()
+    ).then(=>
+      # ボード種別を確認
+      return Promise.reject(
+        Error("reconfig() cannot be used on this board")
+      ) if @_boardInfo?.id == BOARDID_STANDARD
+    ).then(=>
+      # タイムアウト計算の基点を保存
+      # (ここからRECONFIG_TIMEOUT_MS以内で処理完了しなかったらタイムアウト扱い)
+      timeLimit = new TimeLimit(RECONFIG_TIMEOUT_MS)
+    ).then(=>
+      # コンフィグレーション開始リクエスト発行(モード切替)
+      return tryPromise(timeLimit.left, =>
+        # (コマンド：コンフィグモード, nCONFIGアサート, 即時応答ON)
+        return @_base.transCommand(0x32).then((response) =>
+          unless (response & 0x06) == 0x00
+            return Promise.reject()
+          # nSTATUS=L, CONF_DONE=L => OK
+          return
+        )
+      ) # return tryPromise()
+    ).then(=>
+      # FPGAの応答待ち
+      return tryPromise(timeLimit.left, =>
+        # (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
+        return @_base.transCommand(0x33).then((response) =>
+          unless (response & 0x06) == 0x02
+            return Promise.reject()
+          # nSTATUS=H, CONF_DONE=L => OK
+          return
+        )
+      ) # return tryPromise()
     ).then(=>
       return  # Last PromiseValue
     ).then(finallyPromise(=>
