@@ -1,0 +1,3 @@
+[submodule "test/peridot_classic/ip/peridot_peripherals"]
+	path = test/peridot_classic/ip/peridot_peripherals
+	url = https://github.com/kimushu/peridot_peripherals.git
