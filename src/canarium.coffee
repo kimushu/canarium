@@ -54,6 +54,17 @@ class Canarium
     get: -> @_base.connected
 
   ###*
+  @property {boolean} configured
+    コンフィグレーション状態({@link Canarium.BaseComm#configured}のアクセサとして定義)
+
+    - true: コンフィグレーション済み
+    - false: 未コンフィグレーション
+  @readonly
+  ###
+  @property "configured",
+    get: -> @_base.configured
+
+  ###*
   @property {Canarium.I2CComm} i2c
     I2C通信制御クラスのインスタンス
   @readonly
@@ -76,6 +87,23 @@ class Canarium
   ###
   @property "avm",
     get: -> @_avm
+
+  ###*
+  @property {Canarium.RpcClient} rpcClient
+    RPCクライアントクラスのインスタンス
+  @readonly
+  ###
+  @property "rpcClient",
+    get: -> @_rpcClient
+
+  ###*
+  @property {number} swiBase
+    ホスト通信用ペリフェラル(SWI)のベースアドレス
+    ({@link Canarium.AvmTransactions#swiBase}のアクセサとして定義)
+  ###
+  @property "swiBase",
+    get: -> @_avm.swiBase
+    set: (v) -> @_avm.swiBase = v
 
   ###*
   @property {function()} onClosed
@@ -162,15 +190,6 @@ class Canarium
   ###*
   @private
   @static
-  @cfg {number} SWI_BASE_ADDR = 0x10000000
-    ホスト通信用ペリフェラル(SWI)のベースアドレス
-  @readonly
-  ###
-  SWI_BASE_ADDR = 0x10000000
-
-  ###*
-  @private
-  @static
   @cfg {string} BOARDID_STANDARD = "J72A"
     標準PERIDOTのボードID
   @readonly
@@ -237,6 +256,7 @@ class Canarium
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
     @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
+    @_rpcClient = new Canarium.RpcClient(@_avm)
     @_configBarrier = false
     @_resetBarrier = false
     return
@@ -250,7 +270,7 @@ class Canarium
     接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
   @param {string} [boardInfo.id]
     接続を許容するID(省略時はIDのチェックをしない)
-  @param {string} [boardInfo.serialCode]
+  @param {string} [boardInfo.serialcode]
     接続を許容するシリアル番号(省略時はシリアル番号のチェックをしない)
   @param {ArrayBuffer} [boardInfo.rbfdata]
     接続後に書き込むrbfやrpdのデータ(省略時は接続後にコンフィグレーションをしない)
@@ -321,7 +341,7 @@ class Canarium
     ボード情報(ボードIDやシリアル番号を限定したい場合)
   @param {string} [boardInfo.id]
     ボードID (省略時は"J72A")
-  @param {string} [boardInfo.serialCode]
+  @param {string} [boardInfo.serialcode]
     シリアル番号
   @param {ArrayBuffer} rbfdata
     rbfまたはrpdのデータ
@@ -338,8 +358,8 @@ class Canarium
     return Promise.resolve(
     ).then(=>
       # コンフィグレーション可否の判断を行う
-      info = {id: boardInfo?.id ? BOARDID_STANDARD, serialCode: boardInfo?.serialCode}
-      return @_validate(boardInfo)
+      info = {id: boardInfo?.id ? BOARDID_STANDARD, serialcode: boardInfo?.serialcode}
+      return @_validate(info)
     ).then(=>
       # モードチェック
       # (コマンド：即時応答ON)
@@ -392,9 +412,9 @@ class Canarium
       # コンフィグレーション完了(モード切替)
       # (コマンド：ユーザーモード)
       return @_base.transCommand(0x39)
-    ).then(=>
-      # コンフィグレーション済みとして設定
-      return @_base.option({forceConfigured: true})
+    ).then((response) =>
+      # CONF_DONEならコンフィグレーション済みとして設定する
+      return @_base.option({forceConfigured: (response & 0x04) != 0})
     ).then(=>
       return  # Last PromiseValue
     ).then(finallyPromise(=>
@@ -493,7 +513,7 @@ class Canarium
     ボード情報
   @return {string} return.PromiseValue.id
     ボードID
-  @return {string} return.PromiseValue.serialCode
+  @return {string} return.PromiseValue.serialcode
     シリアル番号
   ###
   getinfo: (callback) ->
@@ -628,7 +648,7 @@ class Canarium
     検証するボード情報
   @param {string} [boardInfo.id]
     許可するボードID(省略時は検証しない)
-  @param {string} [boardInfo.serialCode]
+  @param {string} [boardInfo.serialcode]
     許可するシリアル番号(省略時は検証しない)
   @return {Promise}
     Promiseオブジェクト(不一致が発生した場合、rejectされる)
@@ -673,7 +693,7 @@ class Canarium
     out = {
       time: time
       "#{cls}##{func}": msg
-      stack: new Error().stack.split("\n    ").slice(1)
+      stack: new Error().stack.split(/\n\s*/).slice(1)
     }
     out.data = data if data
     console.log(out)
