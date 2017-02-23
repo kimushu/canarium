@@ -194,6 +194,5 @@ set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_
 
 set_global_assignment -name VERILOG_FILE swi_testsuite_top.v
 set_global_assignment -name QSYS_FILE swi_testsuite_core.qsys
-set_global_assignment -name VERILOG_FILE ip/peridot_peripherals/ip/peridot_spi/peridot_spi.v
 set_global_assignment -name SDC_FILE peridot.sdc
 set_global_assignment -name QIP_FILE syspll.qip
