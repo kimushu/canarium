@@ -19,6 +19,14 @@ class Canarium.AvmTransactions
     get: -> @_avs.base
 
   ###*
+  @property {number} swiBase
+    ホスト通信用ペリフェラル(SWI)のベースアドレス
+  ###
+  @property "swiBase",
+    get: -> @_swiBase
+    set: (v) -> @_swiBase = parseInt(v)
+
+  ###*
   @static
   @property {number}
     デバッグ出力の細かさ(0で出力無し)
@@ -50,6 +58,15 @@ class Canarium.AvmTransactions
   ###*
   @private
   @static
+  @cfg {number} SWI_BASE_ADDR = 0x10000000
+    ホスト通信用ペリフェラル(SWI)のベースアドレス
+  @readonly
+  ###
+  SWI_BASE_ADDR = 0x10000000
+
+  ###*
+  @private
+  @static
   @cfg {number}
     1回のトランザクションで読み書きできる最大バイト数
   @readonly
@@ -69,6 +86,7 @@ class Canarium.AvmTransactions
     パケットのチャネル番号
   ###
   constructor: (@_avs, @_channel) ->
+    @_swiBase = SWI_BASE_ADDR
     @_lastAction = Promise.resolve()
     return
 

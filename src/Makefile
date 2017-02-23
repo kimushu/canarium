@@ -4,6 +4,7 @@ SOURCE = \
 	canarium.coffee \
 	basecomm.coffee serialwrapper.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
+	remoteerror.coffee rpcclient.coffee \
 	footer.coffee
 PREAMBLE = license.js
 JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort
@@ -54,7 +55,7 @@ test: compile
 
 ../canarium.js: $(SOURCE) $(PREAMBLE)
 	$(replace_ver) $(PREAMBLE) > $@ || (rm -f $@; false)
-	$(replace_ver) $(filter %.coffee,$^) | coffee -c -s --no-header >> $@ || (rm -f $@; false)
+	$(replace_ver) $(filter %.coffee,$^) | coffee -c -s >> $@ || (rm -f $@; false)
 
 %.min.js: %.js $(PREAMBLE)
 	$(UGLIFYJS) --preamble "$$($(replace_ver) $(PREAMBLE))" -o $@ $<

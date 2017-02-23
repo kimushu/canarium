@@ -21,7 +21,12 @@ class Canarium
     接続しているボードの情報
 
   @property {string}  boardInfo.id
-    'J72A' (J-7SYSTEM Works / PERIDOT board)
+    ボードの識別子(以下のうちいずれか)
+
+    - 'J72A' (PERIDOT Standard)
+    - 'J72N' (PERIDOT NewGen)
+    - 'J72B' (Virtual - コンフィグレーションレイヤをFPGA側に内蔵)
+    - 'J72X' (Generic - Avalon-MMブリッジのみ使う汎用型)
 
   @property {string}  boardInfo.serialcode
     'xxxxxx-yyyyyy-zzzzzz'
@@ -49,6 +54,17 @@ class Canarium
     get: -> @_base.connected
 
   ###*
+  @property {boolean} configured
+    コンフィグレーション状態({@link Canarium.BaseComm#configured}のアクセサとして定義)
+
+    - true: コンフィグレーション済み
+    - false: 未コンフィグレーション
+  @readonly
+  ###
+  @property "configured",
+    get: -> @_base.configured
+
+  ###*
   @property {Canarium.I2CComm} i2c
     I2C通信制御クラスのインスタンス
   @readonly
@@ -73,12 +89,21 @@ class Canarium
     get: -> @_avm
 
   ###*
-  @property {Canarium.HostComm} hostComm
-    ホスト通信クラスのインスタンス
+  @property {Canarium.RpcClient} rpcClient
+    RPCクライアントクラスのインスタンス
   @readonly
   ###
-  @property "hostComm",
-    get: -> @_hostComm
+  @property "rpcClient",
+    get: -> @_rpcClient
+
+  ###*
+  @property {number} swiBase
+    ホスト通信用ペリフェラル(SWI)のベースアドレス
+    ({@link Canarium.AvmTransactions#swiBase}のアクセサとして定義)
+  ###
+  @property "swiBase",
+    get: -> @_avm.swiBase
+    set: (v) -> @_avm.swiBase = v
 
   ###*
   @property {function()} onClosed
@@ -147,6 +172,15 @@ class Canarium
   ###*
   @private
   @static
+  @cfg {number} RECONFIG_TIMEOUT_MS = 3000
+    リコンフィグレーションのタイムアウト時間(ms)
+  @readonly
+  ###
+  RECONFIG_TIMEOUT_MS = 3000
+
+  ###*
+  @private
+  @static
   @cfg {number} AVM_CHANNEL = 0
     Avalon-MM 通信レイヤのチャネル番号
   @readonly
@@ -156,11 +190,38 @@ class Canarium
   ###*
   @private
   @static
-  @cfg {number} SWI_BASE_ADDR = 0x10000000
-    ホスト通信用ペリフェラル(SWI)のベースアドレス
+  @cfg {string} BOARDID_STANDARD = "J72A"
+    標準PERIDOTのボードID
   @readonly
   ###
-  SWI_BASE_ADDR = 0x10000000
+  BOARDID_STANDARD = "J72A"
+
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_NEWGEN = "J72N"
+    PERIDOT-NewGenのボードID
+  @readonly
+  ###
+  BOARDID_NEWGEN = "J72N"
+
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_VIRTUAL = "J72B"
+    VirtualモードHostbridgeのボードID
+  @readonly
+  ###
+  BOARDID_VIRTUAL = "J72B"
+
+  ###*
+  @private
+  @static
+  @cfg {string} BOARDID_GENERIC = "J72X"
+    GenericモードHostbridgeのボードID
+  @readonly
+  ###
+  BOARDID_GENERIC = "J72X"
 
   #----------------------------------------------------------------
   # Public methods
@@ -195,7 +256,7 @@ class Canarium
     @_i2c = new Canarium.I2CComm(@_base)
     @_avs = new Canarium.AvsPackets(@_base)
     @_avm = new Canarium.AvmTransactions(@_avs, AVM_CHANNEL)
-    @_hostComm = new Canarium.HostComm(@_avm, SWI_BASE_ADDR)
+    @_rpcClient = new Canarium.RpcClient(@_avm)
     @_configBarrier = false
     @_resetBarrier = false
     return
@@ -205,16 +266,27 @@ class Canarium
     ボードに接続する
   @param {string} path
     接続先パス(enumerateが返すpath)
+  @param {Object} [boardInfo]
+    接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+  @param {string} [boardInfo.id]
+    接続を許容するID(省略時はIDのチェックをしない)
+  @param {string} [boardInfo.serialcode]
+    接続を許容するシリアル番号(省略時はシリアル番号のチェックをしない)
+  @param {ArrayBuffer} [boardInfo.rbfdata]
+    接続後に書き込むrbfやrpdのデータ(省略時は接続後にコンフィグレーションをしない)
   @param {function(boolean,Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
   @return {undefined/Promise}
     戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
   ###
-  open: (portname, callback) ->
-    return invokeCallback(callback, @open(portname)) if callback?
+  open: (path, boardInfo, callback) ->
+    if typeof(boardInfo) == "function"
+      callback = boardInfo
+      boardInfo = null
+    return invokeCallback(callback, @open(path, boardInfo)) if callback?
     return Promise.resolve(
     ).then(=>
-      return @_base.connect(portname)
+      return @_base.connect(path)
     ).then(=>
       return Promise.resolve(
       ).then(=>
@@ -228,8 +300,15 @@ class Canarium
         @_boardInfo = {version: header[3]}
         return @_base.transCommand(0x39)
       ).then((response) =>
-        # ASモードならコンフィグレーション済みとして設定する
-        return @_base.option({forceConfigured: (response & 0x01) != 0})
+        # CONF_DONEならコンフィグレーション済みとして設定する
+        return @_base.option({forceConfigured: (response & 0x04) != 0})
+      ).then(=>
+        # 接続先ボードの検証
+        return @_validate(boardInfo)
+      ).then(=>
+        return unless boardInfo?.rbfdata?
+        # コンフィグレーションの実行
+        return @config(null, boardInfo.rbfdata)
       ).then(=>
         return  # Last PromiseValue
       ).catch((error) =>
@@ -258,13 +337,13 @@ class Canarium
   ###*
   @method
     ボードのFPGAコンフィグレーション
-  @param {Object/null}  boardInfo
+  @param {Object/null} boardInfo
     ボード情報(ボードIDやシリアル番号を限定したい場合)
-  @param {string/null}  boardInfo.id
-    ボードID
-  @param {string/null}  boardInfo.serialCode
+  @param {string} [boardInfo.id]
+    ボードID (省略時は"J72A")
+  @param {string} [boardInfo.serialcode]
     シリアル番号
-  @param {ArrayBuffer}  rbfdata
+  @param {ArrayBuffer} rbfdata
     rbfまたはrpdのデータ
   @param {function(boolean,Error=)} [callback]
     コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
@@ -278,18 +357,9 @@ class Canarium
     timeLimit = undefined
     return Promise.resolve(
     ).then(=>
-      return @_base.assertConnection()
-    ).then(=>
-      return if !boardInfo or (@boardInfo?.id and @boardInfo?.serialcode)
-      # まだボード情報が読み込まれていないので先に読み込む
-      return @getinfo()
-    ).then(=>
       # コンフィグレーション可否の判断を行う
-      mismatch = (a, b) -> a and a != b
-      if mismatch(boardInfo?.id, @boardInfo.id)
-        return Promise.reject(Error("Board ID mismatch"))
-      if mismatch(boardInfo?.serialcode, @boardInfo.serialcode)
-        return Promise.reject(Error("Board serial code mismatch"))
+      info = {id: boardInfo?.id ? BOARDID_STANDARD, serialcode: boardInfo?.serialcode}
+      return @_validate(info)
     ).then(=>
       # モードチェック
       # (コマンド：即時応答ON)
@@ -342,9 +412,60 @@ class Canarium
       # コンフィグレーション完了(モード切替)
       # (コマンド：ユーザーモード)
       return @_base.transCommand(0x39)
+    ).then((response) =>
+      # CONF_DONEならコンフィグレーション済みとして設定する
+      return @_base.option({forceConfigured: (response & 0x04) != 0})
     ).then(=>
-      # コンフィグレーション済みとして設定
-      return @_base.option({forceConfigured: true})
+      return  # Last PromiseValue
+    ).then(finallyPromise(=>
+      @_configBarrier = false
+    )...) # return Promise.resolve()...
+
+  ###*
+  @method
+    ボードのFPGA再コンフィグレーション
+  @since 0.9.20
+  ###
+  reconfig: (callback) ->
+    return invokeCallback(callback, @reconfig()) if callback?
+    return Promise.reject(Error("(Re)configuration is now in progress")) if @_configBarrier
+    @_configBarrier = true
+    timeLimit = undefined
+    return Promise.resolve(
+    ).then(=>
+      return if @_boardInfo?.id?
+      return @getinfo()
+    ).then(=>
+      # ボード種別を確認
+      return Promise.reject(
+        Error("reconfig() cannot be used on this board")
+      ) if @_boardInfo?.id == BOARDID_STANDARD
+    ).then(=>
+      # タイムアウト計算の基点を保存
+      # (ここからRECONFIG_TIMEOUT_MS以内で処理完了しなかったらタイムアウト扱い)
+      timeLimit = new TimeLimit(RECONFIG_TIMEOUT_MS)
+    ).then(=>
+      # コンフィグレーション開始リクエスト発行(モード切替)
+      return tryPromise(timeLimit.left, =>
+        # (コマンド：コンフィグモード, nCONFIGアサート, 即時応答ON)
+        return @_base.transCommand(0x32).then((response) =>
+          unless (response & 0x06) == 0x00
+            return Promise.reject()
+          # nSTATUS=L, CONF_DONE=L => OK
+          return
+        )
+      ) # return tryPromise()
+    ).then(=>
+      # FPGAの応答待ち
+      return tryPromise(timeLimit.left, =>
+        # (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
+        return @_base.transCommand(0x33).then((response) =>
+          unless (response & 0x06) == 0x02
+            return Promise.reject()
+          # nSTATUS=H, CONF_DONE=L => OK
+          return
+        )
+      ) # return tryPromise()
     ).then(=>
       return  # Last PromiseValue
     ).then(finallyPromise(=>
@@ -392,7 +513,7 @@ class Canarium
     ボード情報
   @return {string} return.PromiseValue.id
     ボードID
-  @return {string} return.PromiseValue.serialCode
+  @return {string} return.PromiseValue.serialcode
     シリアル番号
   ###
   getinfo: (callback) ->
@@ -414,7 +535,7 @@ class Canarium
             sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0)
             if mid == 0x0072
               s = "#{pid.hex(4)}#{sid.hex(8)}"
-              @_boardInfo.id = "J72A"
+              @_boardInfo.id = BOARDID_STANDARD
               @_boardInfo.serialcode = "#{s.substr(0, 6)}-#{s.substr(6, 6)}-000000"
           ) # return @_eepromRead()
         when 2
@@ -435,25 +556,6 @@ class Canarium
     ).then(=>
       return @boardInfo # Last PromiseValue
     ) # return Promise.resolve()...
-
-  ###*
-  @method
-    シリアル通信ポートの生成
-  @param {function(boolean,Error=)} [callback]
-    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
-  @param {Object[]} [args]
-    {@link Canarium.Serial#constructor}の第2引数以降に同じ
-  @return {undefined/Promise}
-    戻り値なし(callback指定時)、または、Promiseオブジェクト
-  @return {Canarium.Serial} return.PromiseValue
-    シリアル通信ポートクラスのインスタンス
-  ###
-  requestSerial: (callback, args...) ->
-    return invokeCallback(callback, @requestSerial(null, args...)) if callback
-    return Promise.resolve(
-    ).then(=>
-      return new Canarium.Serial(@_hostComm, args...)
-    )
 
   #----------------------------------------------------------------
   # Private methods
@@ -540,6 +642,38 @@ class Canarium
 
   ###*
   @private
+  @method
+    接続先ボードのID/シリアル番号検証
+  @param {Object} boardInfo
+    検証するボード情報
+  @param {string} [boardInfo.id]
+    許可するボードID(省略時は検証しない)
+  @param {string} [boardInfo.serialcode]
+    許可するシリアル番号(省略時は検証しない)
+  @return {Promise}
+    Promiseオブジェクト(不一致が発生した場合、rejectされる)
+  @return {undefined} return.PromiseValue
+  ###
+  _validate: (boardInfo) ->
+    return Promise.resolve(
+    ).then(=>
+      return @_base.assertConnection()
+    ).then(=>
+      return if !boardInfo or (@boardInfo?.id and @boardInfo?.serialcode)
+      # まだボード情報が読み込まれていないので先に読み込む
+      return @getinfo()
+    ).then(=>
+      # 許可/不許可の判断を行う
+      mismatch = (a, b) -> a? and a != b
+      if mismatch(boardInfo?.id, @boardInfo.id)
+        return Promise.reject(Error("Board ID mismatch"))
+      if mismatch(boardInfo?.serialcode, @boardInfo.serialcode)
+        return Promise.reject(Error("Board serial code mismatch"))
+      return  # Last PromiseValue (許可)
+    ) # return Promise.resolve().then()...
+
+  ###*
+  @private
   @static
   @method
     ログの出力(全クラス共通)
@@ -559,7 +693,7 @@ class Canarium
     out = {
       time: time
       "#{cls}##{func}": msg
-      stack: new Error().stack.split("\n    ").slice(1)
+      stack: new Error().stack.split(/\n\s*/).slice(1)
     }
     out.data = data if data
     console.log(out)

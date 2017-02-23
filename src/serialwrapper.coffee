@@ -27,7 +27,7 @@ class Canarium.BaseComm.SerialWrapper
   # Private variables
   #
 
-  nodeModule = require("serialport") if IS_NODEJS
+  SerialPort = require("serialport") if IS_NODEJS
 
   cidMap = {} if IS_CHROME
 
@@ -77,7 +77,7 @@ class Canarium.BaseComm.SerialWrapper
     )
   ) else if IS_NODEJS then (->
     return new Promise((resolve, reject) =>
-      nodeModule.list((error, ports) =>
+      SerialPort.list((error, ports) =>
         return reject(Error(error)) if error?
         return resolve({
           path: "#{port.comName}"
@@ -140,11 +140,12 @@ class Canarium.BaseComm.SerialWrapper
     return new Promise((resolve, reject) =>
       unless @_sp?
         opts = {
-          dataCallback: (data) => @_dataHandler(data)
-          disconnectedCallback: => @_closeHandler()
+          autoOpen: false
         }
         opts[k] = v for k, v of @_options
-        @_sp = new nodeModule.SerialPort(@_path, opts, false, -> return)
+        @_sp = new SerialPort(@_path, opts, -> return)
+        @_sp.on("data", (data) => @_dataHandler(data))
+        @_sp.on("disconnect", => @_closeHandler())
       @_sp.open((error) =>
         return reject(Error(error)) if error?
         return resolve()
@@ -179,7 +180,7 @@ class Canarium.BaseComm.SerialWrapper
       return reject(Error("disconnected")) unless @_sp?
       @_sp.write(new Buffer(new Uint8Array(data)), (error) =>
         return reject(error) if error?
-        return resolve()
+        @_sp.drain(resolve)
       )
     ) # return new Promise()
   )
