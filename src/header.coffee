@@ -30,7 +30,7 @@ IS_NODEJS = (!IS_CHROME and process? and require?)
 if IS_CHROME
   Promise = window.Promise
 else if IS_NODEJS
-  Promise = require("es6-promise").Promise
+  Promise = global.Promise ? require("es6-promise").Promise
 
 # 既にpropertyが定義されていた場合、canarium.jsロード後に
 # 元の定義に戻すために一旦別名保存する。
