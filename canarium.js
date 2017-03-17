@@ -1,5 +1,5 @@
 /**********************************************************************************
- * PERIDOT Chrome Apps driver - 'Canarium' (Version 1.0.0)
+ * PERIDOT Chrome Apps driver - 'Canarium' (Version 0.99.0)
  * Copyright (C) 2016 @kimu_shu and @s_osafune
  *********************************************************************************/
 // Additional part of Canarium (since version 0.9.7) is distributed under the    //
@@ -47,7 +47,7 @@ canarium.jsの先頭に配置されるスクリプト。
  */
 
 (function() {
-  var Canarium, FIFOBuffer, IS_CHROME, IS_NODEJS, Promise, TimeLimit, finallyPromise, getCurrentTime, hexDump, invokeCallback, oldProperty, ref, str2ab, tryPromise, waitPromise,
+  var Canarium, FIFOBuffer, IS_CHROME, IS_NODEJS, Promise, TimeLimit, dump, finallyPromise, getCurrentTime, hexDump, invokeCallback, oldProperty, ref, str2ab, tryPromise, waitPromise,
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
@@ -476,7 +476,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     Canarium.property("version", {
-      value: "1.0.0"
+      value: "0.99.0"
     });
 
 
@@ -1178,6 +1178,53 @@ canarium.jsの先頭に配置されるスクリプト。
           return _this.boardInfo;
         };
       })(this));
+    };
+
+
+    /**
+    @method
+      ボード上のファイルを開く
+    @param {string} path
+      パス
+    @param {number/Object} flags
+      フラグ(数字指定またはECMAオブジェクト指定)
+    @param {boolean} flags.O_WRONLY
+      書き込み専用
+    @param {boolean} flags.O_RDONLY
+      読み込み専用
+    @param {boolean} flags.O_RDWR
+      読み書き両用
+    @param {boolean} flags.O_APPEND
+      追記モード
+    @param {boolean} flags.O_CREAT
+      作成モード
+    @param {boolean} flags.O_NONBLOCK
+      非ブロッキングモード
+    @param {boolean} flags.O_TRUNC
+      切り詰め(truncate)モード
+    @param {number} [mode]
+      ファイル作成時のパーミッション
+    @param {number} [interval]
+      RPCポーリング周期
+    @param {function(boolean,Canarium.RemoteFile/Error=)} [callback]
+      コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+    @return {undefined/Promise}
+      戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+    @return {Canarium.RemoteFile} return.PromiseValue
+      開かれたファイルに対する操作クラスのインスタンス
+     */
+
+    Canarium.prototype.openRemoteFile = function(path, flags, mode, interval, callback) {
+      var ref1, ref2;
+      if (typeof mode === "function") {
+        ref1 = [null, null, mode], mode = ref1[0], interval = ref1[1], callback = ref1[2];
+      } else if (typeof interval === "function") {
+        ref2 = [null, interval], interval = ref2[0], callback = ref2[1];
+      }
+      if (callback != null) {
+        return invokeCallback(callback, this.openRemoteFile(path, flags, mode, interval));
+      }
+      return Canarium.RemoteFile.open(this._rpcClient, path, flags, mode, interval);
     };
 
 
@@ -2129,10 +2176,18 @@ canarium.jsの先頭に配置されるスクリプト。
             });
           }
           return _this._sp.open(function(error) {
+            var a;
             if (error != null) {
               return reject(Error(error));
             }
             return resolve();
+            a = {};
+            return a.id = global.setInterval((function() {
+              if (_this._sp) {
+                return _this._sp.drain();
+              }
+              return clearInterval(a.id);
+            }), 500);
           });
         };
       })(this));
@@ -2480,6 +2535,8 @@ canarium.jsの先頭に配置されるスクリプト。
     return SerialWrapper;
 
   })();
+
+  dump = null;
 
 
   /**
@@ -3683,6 +3740,25 @@ canarium.jsの先頭に配置されるスクリプト。
 
 
     /**
+    @method
+      接続のリセット
+    @return {Promise}
+      Promiseオブジェクト
+     */
+
+    RpcClient.prototype.resetConnection = function() {
+      var error;
+      error = Error("RPC connection has been reset by client");
+      this._abortPendingCalls(error);
+      this._abortOngoingCalls(error);
+      this._srvInfoPtr = null;
+      this._hostId = null;
+      this._updateTimer();
+      return Promise.resolve();
+    };
+
+
+    /**
     @private
     @method
       ポーリング用タイマーの作成/更新を行う
@@ -3740,10 +3816,11 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     RpcClient.prototype._abortOngoingCalls = function(error) {
-      var call, calls;
+      var call, calls, tag;
       calls = this._ongoingCalls;
       this._ongoingCalls = {};
-      for (call in calls) {
+      for (tag in calls) {
+        call = calls[tag];
         call.reject(error);
       }
     };
@@ -3768,6 +3845,7 @@ canarium.jsの先頭に配置されるスクリプト。
       resPtr = null;
       serverReady = false;
       raiseIrq = false;
+      raiseIrq = true;
       (ref1 = Promise.resolve().then((function(_this) {
         return function() {
           if (_this._srvInfoPtr == null) {
@@ -3835,7 +3913,7 @@ canarium.jsの先頭に配置されるスクリプト。
               return Promise.reject();
             }
           }).then(function() {
-            var bsonData, obj, params;
+            var a, bsonData, i, j, obj, params, r, ref2;
             call = _this._pendingCalls.shift();
             params = call.params;
             obj = {
@@ -3863,6 +3941,15 @@ canarium.jsの先頭に配置されるスクリプト。
             if (bsonData.byteLength > reqLen) {
               return Promise.reject(Error("Request data is too large"));
             }
+            a = new Uint8Array(bsonData);
+            r = "Request (0x" + (a.byteLength.toString(16)) + " bytes)";
+            for (i = j = 0, ref2 = a.byteLength; j < ref2; i = j += 1) {
+              if ((i % 16) === 0) {
+                r += "\n" + ("0000" + (i.toString(16))).substr(-5) + ":";
+              }
+              r += " " + ("0" + (a[i].toString(16))).substr(-2);
+            }
+            console.log(r);
             return _this._avm.write(reqPtr + 4, bsonData.slice(4)).then(function() {
               return _this._avm.write(reqPtr, bsonData.slice(0, 4));
             });
@@ -3888,6 +3975,16 @@ canarium.jsの先頭に配置されるスクリプト。
             }
             return _this._avm.read(resPtr, size);
           }).then(function(ab) {
+            var a, i, j, r, ref2;
+            a = new Uint8Array(ab);
+            r = "Response (0x" + (a.byteLength.toString(16)) + " bytes)";
+            for (i = j = 0, ref2 = a.byteLength; j < ref2; i = j += 1) {
+              if ((i % 16) === 0) {
+                r += "\n" + ("0000" + (i.toString(16))).substr(-5) + ":";
+              }
+              r += " " + ("0" + (a[i].toString(16))).substr(-2);
+            }
+            console.log(r);
             return bson.deserialize(Buffer.from(ab));
           }).then(function(obj) {
             var call, ref2, tag;
@@ -3982,6 +4079,419 @@ canarium.jsの先頭に配置されるスクリプト。
     };
 
     return RpcClient;
+
+  })();
+
+
+  /**
+  @class Canarium.RemoteFile
+    PERIDOTボード側ファイル操作クラス
+  @uses Canarium.RpcClient
+  @uses Canarium.RemoteError
+   */
+
+  Canarium.RemoteFile = (function() {
+    var REMOTEFILE_DEFAULT_INTERVAL, j, len1, name, obj, ref1, ref2, value;
+
+    null;
+
+
+    /**
+    @property base
+    @inheritdoc Canarium.BaseComm
+     */
+
+    RemoteFile.property("base", {
+      get: function() {
+        return this._rpcClient.base;
+      }
+    });
+
+
+    /**
+    @property vfd
+      仮想ファイルディスクリプタ
+    @readonly
+     */
+
+    RemoteFile.property("vfd", {
+      get: function() {
+        return this._vfd;
+      }
+    });
+
+
+    /**
+    @static
+    @property {number}
+      デバッグ出力の細かさ(0で出力無し)
+     */
+
+    RemoteFile.verbosity = 0;
+
+    ref1 = {
+      O_RDONLY: 0,
+      O_WRONLY: 1,
+      O_RDWR: 2,
+      O_APPEND: 0x0008,
+      O_CREAT: 0x0200,
+      O_TRUNC: 0x0400,
+      O_NONBLOCK: 0x4000
+    };
+    for (name in ref1) {
+      value = ref1[name];
+      ref2 = [RemoteFile, RemoteFile.prototype];
+      for (j = 0, len1 = ref2.length; j < len1; j++) {
+        obj = ref2[j];
+        Object.defineProperty(obj, name, {
+          value: value
+        });
+      }
+    }
+
+
+    /**
+    @private
+    @property {Canarium.RpcClient} _rpcClient
+      RPCクライアントクラスのインスタンス
+     */
+
+
+    /**
+    @private
+    @cfg {number} REMOTEFILE_DEFAULT_INTERVAL
+      RPCポーリング周期のデフォルト値
+     */
+
+    REMOTEFILE_DEFAULT_INTERVAL = 200;
+
+
+    /**
+    @static
+    @method
+      RPCによるopenの呼び出し
+    @param {Canarium.RpcClient} rpcClient
+      RPCクライアントクラスのインスタンス
+    @param {string} path
+      パス
+    @param {number/Object} flags
+      フラグ(数字指定またはECMAオブジェクト指定)
+    @param {boolean} flags.O_WRONLY
+      書き込み専用
+    @param {boolean} flags.O_RDONLY
+      読み込み専用
+    @param {boolean} flags.O_RDWR
+      読み書き両用
+    @param {boolean} flags.O_APPEND
+      追記モード
+    @param {boolean} flags.O_CREAT
+      作成モード
+    @param {boolean} flags.O_NONBLOCK
+      非ブロッキングモード
+    @param {boolean} flags.O_TRUNC
+      切り詰め(truncate)モード
+    @param {number} [mode=0777]
+      ファイル作成時のパーミッション
+    @param {number} [interval=REMOTEFILE_DEFAULT_INTERVAL]
+      RPCポーリング周期
+    @return {Promise}
+      Promiseオブジェクト
+    @return {Canarium.RemoteFile} return.PromiseValue
+      ファイル操作クラスのインスタンス
+     */
+
+    RemoteFile.open = function(rpcClient, path, flags, mode, interval) {
+      var n;
+      if (mode == null) {
+        mode = 0x1ff;
+      }
+      if (interval == null) {
+        interval = REMOTEFILE_DEFAULT_INTERVAL;
+      }
+      if (Object.prototype.toString.call(path) !== "[object String]") {
+        return Promise.reject(TypeError("path must be a string"));
+      }
+      if (flags == null) {
+        return Promise.reject(TypeError("flags must be a number or Object"));
+      }
+      if (typeof mode !== "number") {
+        return Promise.reject(TypeError("mode must be a number"));
+      }
+      if (typeof flags !== "number") {
+        n = this.O_RDONLY;
+        if (flags.O_WRONLY) {
+          n = this.O_WRONLY;
+        }
+        if (flags.O_RDWR) {
+          n = this.O_RDWR;
+        }
+        if (flags.O_APPEND) {
+          n |= this.O_APPEND;
+        }
+        if (flags.O_CREAT) {
+          n |= this.O_CREAT;
+        }
+        if (flags.O_NONBLOCK) {
+          n |= this.O_NONBLOCK;
+        }
+        if (flags.O_TRUNC) {
+          n |= this.O_TRUNK;
+        }
+        flags = n;
+      }
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          return rpcClient.doCall("fs.open", {
+            path: path,
+            flags: flags,
+            mode: mode
+          }, interval);
+        };
+      })(this)).then((function(_this) {
+        return function(result) {
+          return new _this(rpcClient, result.fd);
+        };
+      })(this));
+    };
+
+
+    /**
+    @method
+      ファイルを閉じる(closeのリモート呼び出し)
+    @return {Promise}
+      Promiseオブジェクト
+    @return {undefined} return.PromiseValue
+     */
+
+    RemoteFile.prototype.close = function() {
+      if (this._fd == null) {
+        return Promise.reject(Error("File not opened"));
+      }
+      return Promise.resolve().then((function(_this) {
+        return function() {
+          return _this._rpcClient.doCall("fs.close", {
+            fd: _this._fd
+          });
+        };
+      })(this)).then((function(_this) {
+        return function() {
+          _this._fd = null;
+        };
+      })(this));
+    };
+
+
+    /**
+    @method
+      ファイルからデータを読み込む
+    @param {number} length
+      読み込むバイト数
+    @param {boolean} [autoContinue=false]
+      読み込んだバイト数がlengthに達するまで繰り返すか否か
+    @return {Promise}
+      Promiseオブジェクト
+    @return {ArrayBuffer} return.PromiseValue
+      読み込んだデータ(サイズはlength以下)
+     */
+
+    RemoteFile.prototype.read = function(length, autoContinue) {
+      var buffers, readNext, total_read;
+      if (autoContinue == null) {
+        autoContinue = false;
+      }
+      if (typeof length !== "number") {
+        return Promise.reject(TypeError("length must be a number"));
+      }
+      buffers = [];
+      total_read = 0;
+      readNext = (function(_this) {
+        return function() {
+          if (_this._fd == null) {
+            return Promise.reject(Error("File not opened"));
+          }
+          return Promise.resolve().then(function() {
+            return _this._rpcClient.doCall("fs.read", {
+              fd: _this._fd,
+              length: length
+            });
+          })["catch"](function(error) {
+            if (error instanceof Canarium.RemoteError) {
+              if (error.code === Canarium.RemoteError.EAGAIN) {
+                if (total_read > 0) {
+                  return {
+                    length: 0
+                  };
+                }
+              }
+            }
+            return Promise.reject(error);
+          }).then(function(result) {
+            var read_length;
+            read_length = result.length;
+            if (read_length > 0) {
+              buffers.push(Buffer.from(result.data.read(0, read_length)));
+              total_read += read_length;
+              length -= read_length;
+            }
+            if (length <= 0) {
+              return;
+            }
+            if (autoContinue) {
+              return readNext();
+            }
+          });
+        };
+      })(this);
+      return readNext().then((function(_this) {
+        return function() {
+          var buffer, combined, l, len2, offset, part;
+          buffer = new ArrayBuffer(total_read);
+          combined = Buffer.from(buffer);
+          offset = 0;
+          for (l = 0, len2 = buffers.length; l < len2; l++) {
+            part = buffers[l];
+            part.copy(combined, offset);
+            offset += part.length;
+          }
+          return buffer;
+        };
+      })(this));
+    };
+
+
+    /**
+    @method
+      ファイルにデータを書き込む
+    @param {ArrayBuffer} data
+      書き込むデータ
+    @param {boolean} [autoContinue=false]
+      書き込んだバイト数がlengthに達するまで繰り返すか否か
+    @return {Promise}
+      Promiseオブジェクト
+    @return {number} return.PromiseValue
+      書き込まれたバイト数
+     */
+
+    RemoteFile.prototype.write = function(data, autoContinue) {
+      var total_written, writeNext;
+      if (autoContinue == null) {
+        autoContinue = false;
+      }
+      if (!(data instanceof ArrayBuffer)) {
+        return Promise.reject(TypeError("data must be an ArrayBuffer"));
+      }
+      total_written = 0;
+      writeNext = (function(_this) {
+        return function() {
+          if (_this._fd == null) {
+            return Promise.reject(Error("File not opened"));
+          }
+          return Promise.resolve().then(function() {
+            return _this._rpcClient.doCall("fs.write", {
+              fd: _this._fd,
+              data: Buffer.from(data, total_written)
+            });
+          })["catch"](function(error) {
+            if (error instanceof Canarium.RemoteError) {
+              if (error.code === Canarium.RemoteError.EAGAIN) {
+                if (total_read > 0) {
+                  return {
+                    length: 0
+                  };
+                }
+              }
+            }
+            return Promise.reject(error);
+          }).then(function(result) {
+            total_written += result.length;
+            if (total_written >= data.byteLength) {
+              return;
+            }
+            if (autoContinue) {
+              return writeNext();
+            }
+          });
+        };
+      })(this);
+      return writeNext().then((function(_this) {
+        return function() {
+          return total_written;
+        };
+      })(this));
+    };
+
+
+    /**
+    @method
+      ファイルポインタの移動
+    @param {number} offset
+      移動量
+    @param {number/Object} whence
+      移動の基点を示す値(SEEK_SET=0,SEEK_CUR=1,SEEK_END=2)またはECMAオブジェクト
+    @param {boolean} whence.SEEK_SET
+      先頭から数える
+    @param {boolean} whence.SEEK_CUR
+      現在位置から数える
+    @param {boolean} whence.SEEK_END
+      末尾から数える
+    @return {Promise}
+      Promiseオブジェクト
+    @return {number} return.PromiseValue
+      移動後のファイルポインタ
+     */
+
+    RemoteFile.prototype.lseek = function(offset, whence) {
+      return Promise.reject(Error("Not implemented"));
+    };
+
+    RemoteFile.prototype.fstat = function() {
+      return Promise.reject(Error("Not implemented"));
+    };
+
+    RemoteFile.prototype.ioctl = function() {
+      return Promise.reject(Error("Not implemented"));
+    };
+
+
+    /**
+    @private
+    @method constructor
+      コンストラクタ
+    @param {Canarium.RpcClient} _rpcClient
+      RPCクライアントクラスのインスタンス
+    @param {number} _fd
+      ファイルディスクリプタ
+     */
+
+    function RemoteFile(_rpcClient, _fd) {
+      this._rpcClient = _rpcClient;
+      this._fd = _fd;
+      return;
+    }
+
+
+    /**
+    @private
+    @method
+      ログの出力
+    @param {number} lvl
+      詳細度(0で常に出力。値が大きいほど詳細なメッセージを指す)
+    @param {string} func
+      関数名
+    @param {string} msg
+      メッセージ
+    @param {Object} [data]
+      任意のデータ
+    @return {undefined}
+     */
+
+    RemoteFile.prototype._log = function(lvl, func, msg, data) {
+      if (this.constructor.verbosity >= lvl) {
+        Canarium._log("RemoteFile", func, msg, data);
+      }
+    };
+
+    return RemoteFile;
 
   })();
 

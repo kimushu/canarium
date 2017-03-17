@@ -149,6 +149,11 @@ class Canarium.BaseComm.SerialWrapper
       @_sp.open((error) =>
         return reject(Error(error)) if error?
         return resolve()
+        a = {}
+        a.id = global.setInterval((=>
+          return @_sp.drain() if @_sp
+          clearInterval(a.id)
+        ), 500)
       )
     ) # return new Promise()
   )
@@ -385,3 +390,4 @@ class Canarium.BaseComm.SerialWrapper
   chrome.serial.onReceive.addListener(@_receiveHandler) if IS_CHROME
   chrome.serial.onReceiveError.addListener(@_receiveErrorHandler) if IS_CHROME
 
+dump = null

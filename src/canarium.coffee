@@ -557,6 +557,46 @@ class Canarium
       return @boardInfo # Last PromiseValue
     ) # return Promise.resolve()...
 
+  ###*
+  @method
+    ボード上のファイルを開く
+  @param {string} path
+    パス
+  @param {number/Object} flags
+    フラグ(数字指定またはECMAオブジェクト指定)
+  @param {boolean} flags.O_WRONLY
+    書き込み専用
+  @param {boolean} flags.O_RDONLY
+    読み込み専用
+  @param {boolean} flags.O_RDWR
+    読み書き両用
+  @param {boolean} flags.O_APPEND
+    追記モード
+  @param {boolean} flags.O_CREAT
+    作成モード
+  @param {boolean} flags.O_NONBLOCK
+    非ブロッキングモード
+  @param {boolean} flags.O_TRUNC
+    切り詰め(truncate)モード
+  @param {number} [mode]
+    ファイル作成時のパーミッション
+  @param {number} [interval]
+    RPCポーリング周期
+  @param {function(boolean,Canarium.RemoteFile/Error=)} [callback]
+    コールバック関数(省略時は戻り値としてPromiseオブジェクトを返す)
+  @return {undefined/Promise}
+    戻り値なし(callback指定時)、または、Promiseオブジェクト(callback省略時)
+  @return {Canarium.RemoteFile} return.PromiseValue
+    開かれたファイルに対する操作クラスのインスタンス
+  ###
+  openRemoteFile: (path, flags, mode, interval, callback) ->
+    if typeof(mode) == "function"
+      [mode, interval, callback] = [null, null, mode]
+    else if typeof(interval) == "function"
+      [interval, callback] = [null, interval]
+    return invokeCallback(callback, @openRemoteFile(path, flags, mode, interval)) if callback?
+    return Canarium.RemoteFile.open(@_rpcClient, path, flags, mode, interval)
+
   #----------------------------------------------------------------
   # Private methods
   #

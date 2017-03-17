@@ -4,7 +4,7 @@ SOURCE = \
 	canarium.coffee \
 	basecomm.coffee serialwrapper.coffee i2ccomm.coffee \
 	avspackets.coffee avmtransactions.coffee \
-	remoteerror.coffee rpcclient.coffee \
+	remoteerror.coffee rpcclient.coffee remotefile.coffee \
 	footer.coffee
 PREAMBLE = license.js
 JS_TYPES = ArrayBuffer Buffer chrome.serial Uint8Array DirectoryEntry Promise SerialPort

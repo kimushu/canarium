@@ -101,6 +101,21 @@ class Canarium.RpcClient
       @_updateTimer()
     ) # return new Promise()
 
+  ###*
+  @method
+    接続のリセット
+  @return {Promise}
+    Promiseオブジェクト
+  ###
+  resetConnection: ->
+    error = Error("RPC connection has been reset by client")
+    @_abortPendingCalls(error)
+    @_abortOngoingCalls(error)
+    @_srvInfoPtr = null
+    @_hostId = null
+    @_updateTimer()
+    return Promise.resolve()
+
   #----------------------------------------------------------------
   # Private methods
   #
@@ -151,7 +166,7 @@ class Canarium.RpcClient
   _abortOngoingCalls: (error) ->
     calls = @_ongoingCalls
     @_ongoingCalls = {}
-    call.reject(error) for call of calls
+    call.reject(error) for tag, call of calls
     return
 
   ###*
@@ -169,6 +184,7 @@ class Canarium.RpcClient
     resPtr = null
     serverReady = false
     raiseIrq = false
+    raiseIrq = true # for debugging only
     Promise.resolve(
     ).then(=>
       return unless @_srvInfoPtr?
@@ -272,7 +288,13 @@ class Canarium.RpcClient
         return Promise.reject(
           Error("Request data is too large")
         ) if bsonData.byteLength > reqLen
-        # console.log(obj) # for debugging only
+        a = new Uint8Array(bsonData)
+        r = "Request (0x#{a.byteLength.toString(16)} bytes)"
+        for i in [0...(a.byteLength)] by 1
+          r += "\n" + "0000#{i.toString(16)}".substr(-5) + ":" if (i % 16) == 0
+          r += " " + "0#{a[i].toString(16)}".substr(-2)
+        console.log(r)  # for debugging only
+        #console.log(obj) # for debugging only
 
         # BSONデータ書き込み(先頭ワード以外と、先頭ワードに分けて書き込む)
         return @_avm.write(reqPtr + 4, bsonData.slice(4)).then(=>
@@ -302,6 +324,12 @@ class Canarium.RpcClient
         # データがあるため、レスポンスを受信する
         return @_avm.read(resPtr, size)
       ).then((ab) =>
+        a = new Uint8Array(ab)
+        r = "Response (0x#{a.byteLength.toString(16)} bytes)"
+        for i in [0...(a.byteLength)] by 1
+          r += "\n" + "0000#{i.toString(16)}".substr(-5) + ":" if (i % 16) == 0
+          r += " " + "0#{a[i].toString(16)}".substr(-2)
+        console.log(r)  # for debugging only
         # 受信したBSONデータをECMAオブジェクトに戻す
         return bson.deserialize(Buffer.from(ab))
       ).then((obj) =>
@@ -315,7 +343,7 @@ class Canarium.RpcClient
         # タグの取得
         tag = obj.id?.toNumber()
         return Promise.reject(Error("No valid id")) unless tag?
-        # console.log(obj) # for debugging only
+        #console.log(obj) # for debugging only
 
         # 対象のcallを特定
         call = @_ongoingCalls[tag]
