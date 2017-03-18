@@ -235,7 +235,7 @@ class Canarium.BaseComm
   disconnect: ->
     return @assertConnection().then(=>
       @_receiver = null
-      return @_connection.close()
+      return @_connection.close().catch(=> return)
     )
 
   ###*
