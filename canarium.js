@@ -3823,7 +3823,7 @@ canarium.jsの先頭に配置されるスクリプト。
      */
 
     RpcClient.prototype._poll = function() {
-      var raiseIrq, ref1, reqLen, reqPtr, resLen, resPtr, serverReady;
+      var raiseIrq, ref1, ref2, reqLen, reqPtr, resLen, resPtr, serverReady;
       if (this._pollingBarrier) {
         return;
       }
@@ -3835,14 +3835,14 @@ canarium.jsの先頭に配置されるスクリプト。
       serverReady = false;
       raiseIrq = false;
       raiseIrq = true;
-      (ref1 = Promise.resolve().then((function(_this) {
+      (ref1 = (ref2 = Promise.resolve().then((function(_this) {
         return function() {
           if (_this._srvInfoPtr == null) {
             return;
           }
           return _this._avm.read(_this._srvInfoPtr + 4, 6 * 4).then(function(ab) {
-            var id0, id1, ref2;
-            ref2 = new Uint32Array(ab), id0 = ref2[0], id1 = ref2[1], reqLen = ref2[2], reqPtr = ref2[3], resLen = ref2[4], resPtr = ref2[5];
+            var id0, id1, ref3;
+            ref3 = new Uint32Array(ab), id0 = ref3[0], id1 = ref3[1], reqLen = ref3[2], reqPtr = ref3[3], resLen = ref3[4], resPtr = ref3[5];
             if ((id0 !== _this._hostId[0]) || (id1 !== _this._hostId[1])) {
               return Promise.reject(Error("RPC server has been reset (Host ID does not match)"));
             }
@@ -3871,8 +3871,8 @@ canarium.jsの先頭に配置されるスクリプト。
             _this._srvInfoPtr = value;
             return _this._avm.read(_this._srvInfoPtr, 7 * 4);
           }).then(function(ab) {
-            var error, id0, id1, if_ver, newId, ref2;
-            ref2 = new Uint32Array(ab), if_ver = ref2[0], id0 = ref2[1], id1 = ref2[2], reqLen = ref2[3], reqPtr = ref2[4], resLen = ref2[5], resPtr = ref2[6];
+            var error, id0, id1, if_ver, newId, ref3;
+            ref3 = new Uint32Array(ab), if_ver = ref3[0], id0 = ref3[1], id1 = ref3[2], reqLen = ref3[3], reqPtr = ref3[4], resLen = ref3[5], resPtr = ref3[6];
             if ((if_ver & 0xffff) !== PERIDOT_RPCSRV_IF_VER) {
               error = new Error("Unsupported remote version");
               _this._abortPendingCalls(error);
@@ -3898,11 +3898,13 @@ canarium.jsの先頭に配置されるスクリプト。
           return Promise.resolve().then(function() {
             return _this._avm.iord(reqPtr, 0);
           }).then(function(size) {
-            if (size !== 0) {
-              return Promise.reject();
+            if (size === 0) {
+              return;
             }
+            raiseIrq = true;
+            return Promise.reject();
           }).then(function() {
-            var a, bsonData, i, j, obj, params, r, ref2;
+            var a, bsonData, i, j, obj, params, r, ref3;
             call = _this._pendingCalls.shift();
             params = call.params;
             obj = {
@@ -3932,7 +3934,7 @@ canarium.jsの先頭に配置されるスクリプト。
             }
             a = new Uint8Array(bsonData);
             r = "Request (0x" + (a.byteLength.toString(16)) + " bytes)";
-            for (i = j = 0, ref2 = a.byteLength; j < ref2; i = j += 1) {
+            for (i = j = 0, ref3 = a.byteLength; j < ref3; i = j += 1) {
               if ((i % 16) === 0) {
                 r += "\n" + ("0000" + (i.toString(16))).substr(-5) + ":";
               }
@@ -3957,6 +3959,7 @@ canarium.jsの先頭に配置されるスクリプト。
             return _this._avm.iord(resPtr, 0);
           }).then(function(size) {
             if (size === 0) {
+              raiseIrq = true;
               return Promise.reject();
             }
             if (size > resLen) {
@@ -3964,10 +3967,10 @@ canarium.jsの先頭に配置されるスクリプト。
             }
             return _this._avm.read(resPtr, size);
           }).then(function(ab) {
-            var a, i, j, r, ref2;
+            var a, i, j, r, ref3;
             a = new Uint8Array(ab);
             r = "Response (0x" + (a.byteLength.toString(16)) + " bytes)";
-            for (i = j = 0, ref2 = a.byteLength; j < ref2; i = j += 1) {
+            for (i = j = 0, ref3 = a.byteLength; j < ref3; i = j += 1) {
               if ((i % 16) === 0) {
                 r += "\n" + ("0000" + (i.toString(16))).substr(-5) + ":";
               }
@@ -3976,11 +3979,11 @@ canarium.jsの先頭に配置されるスクリプト。
             console.log(r);
             return bson.deserialize(Buffer.from(ab));
           }).then(function(obj) {
-            var call, ref2, tag;
+            var call, ref3, tag;
             if (obj.jsonrpc !== JSONRPC_VERSION) {
               return Promise.reject(Error("Invalid JSONRPC response"));
             }
-            tag = (ref2 = obj.id) != null ? ref2.toNumber() : void 0;
+            tag = (ref3 = obj.id) != null ? ref3.toNumber() : void 0;
             if (tag == null) {
               return Promise.reject(Error("No valid id"));
             }
@@ -4010,14 +4013,14 @@ canarium.jsの先頭に配置されるスクリプト。
             _this._log(0, "_poll", "deleting response: (" + error.name + ") " + error.message);
           });
         };
-      })(this)).then((function(_this) {
+      })(this))).then.apply(ref2, finallyPromise((function(_this) {
         return function() {
           if (!raiseIrq) {
             return;
           }
           return _this._avm.iowr(_this._avm.swiBase, SWI_REG_SWI, 1);
         };
-      })(this))["catch"]((function(_this) {
+      })(this)))["catch"]((function(_this) {
         return function(error) {
           return _this._log(0, "_poll", "(" + error.name + ") " + error.message);
         };

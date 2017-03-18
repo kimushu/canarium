@@ -254,8 +254,12 @@ class Canarium.RpcClient
         # リクエスト送信バッファの空きを確認
         return @_avm.iord(reqPtr, 0)
       ).then((size) =>
+        return if size == 0
         # 空きが無い場合はエラー扱いとしてPromiseチェーンから抜ける
-        return Promise.reject() if size != 0
+        # ただし、サーバー側が前回のリクエストを取り逃した可能性があるため、
+        # ソフトウェア割り込みをかけてから終了する
+        raiseIrq = true
+        return Promise.reject()
       ).then(=>
         # 空きが有るため、新規リクエストの送信準備を行う
         call = @_pendingCalls.shift()
@@ -317,7 +321,9 @@ class Canarium.RpcClient
         return @_avm.iord(resPtr, 0)
       ).then((size) =>
         # 空きの場合はエラー扱いとしてPromiseチェーンから抜ける
-        return Promise.reject() if size == 0
+        if size == 0
+          raiseIrq = true
+          return Promise.reject()
         if size > resLen
           # データサイズが不正な場合、レスポンスの削除のみを行う
           return Promise.reject(Error("Invalid response length"))
@@ -372,11 +378,11 @@ class Canarium.RpcClient
         @_log(0, "_poll", "deleting response: (#{error.name}) #{error.message}")
         return
       ) # return Promise.resolve().then()...
-    ).then(=>
+    ).then(finallyPromise(=>
       return unless raiseIrq
       # ソフトウェア割り込みの発行
       return @_avm.iowr(@_avm.swiBase, SWI_REG_SWI, 1)
-    ).catch((error) =>
+    )...).catch((error) =>
       @_log(0, "_poll", "(#{error.name}) #{error.message}")
     ).then(finallyPromise(=>
       @_pollingBarrier = false
