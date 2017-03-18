@@ -1413,7 +1413,11 @@ canarium.jsの先頭に配置されるスクリプト。
       if (data) {
         out.data = data;
       }
-      console.log(out);
+      if (this._logger != null) {
+        this._logger(out);
+      } else {
+        console.log(out);
+      }
     };
 
 
@@ -1761,7 +1765,7 @@ canarium.jsの先頭に配置されるスクリプト。
       return this.assertConnection().then((function(_this) {
         return function() {
           _this._receiver = null;
-          return _this._connection.close();
+          return _this._connection.close()["catch"](function() {});
         };
       })(this));
     };
