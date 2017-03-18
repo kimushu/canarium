@@ -736,7 +736,10 @@ class Canarium
       stack: new Error().stack.split(/\n\s*/).slice(1)
     }
     out.data = data if data
-    console.log(out)
+    if @_logger?
+      @_logger(out)
+    else
+      console.log(out)
     return
 
   ###*
