@@ -61,19 +61,19 @@ canarium.jsの先頭に配置されるスクリプト。
   /*
   @private
   @property {boolean}
-    Chromeかどうかの判定
+    Node.jsかどうかの判定
    */
 
-  IS_CHROME = ((typeof chrome !== "undefined" && chrome !== null ? chrome.runtime : void 0) != null);
+  IS_NODEJS = (typeof process !== "undefined" && process !== null) && (typeof require !== "undefined" && require !== null);
 
 
   /*
   @private
   @property {boolean}
-    Node.jsかどうかの判定
+    Chromeかどうかの判定
    */
 
-  IS_NODEJS = !IS_CHROME && (typeof process !== "undefined" && process !== null) && (typeof require !== "undefined" && require !== null);
+  IS_CHROME = !IS_NODEJS && ((typeof chrome !== "undefined" && chrome !== null ? chrome.runtime : void 0) != null);
 
 
   /*

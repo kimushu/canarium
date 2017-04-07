@@ -11,16 +11,16 @@ if false
 ###
 @private
 @property {boolean}
-  Chromeかどうかの判定
+  Node.jsかどうかの判定
 ###
-IS_CHROME = (chrome?.runtime?)
+IS_NODEJS = (process? and require?)
 
 ###
 @private
 @property {boolean}
-  Node.jsかどうかの判定
+  Chromeかどうかの判定
 ###
-IS_NODEJS = (!IS_CHROME and process? and require?)
+IS_CHROME = (!IS_NODEJS and chrome?.runtime?)
 
 ###
 @private
