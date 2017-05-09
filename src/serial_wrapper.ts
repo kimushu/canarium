@@ -60,7 +60,7 @@ export class SerialWrapper {
      */
     static list(): Promise<PortInfo[]> {
         return new Promise((resolve, reject) => {
-            SerialPort.list(function (error, ports: any[]) {
+            SerialPort.list((error, ports: any[]) => {
                 if (error != null) {
                     return reject(error);
                 }
@@ -77,7 +77,7 @@ export class SerialWrapper {
                         });
                     }
                 }
-                return results;
+                return resolve(results);
             });
         });
     }
