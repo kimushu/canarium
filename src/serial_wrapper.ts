@@ -14,10 +14,10 @@ export interface PortInfo {
     serialNumber?: string;
 
     /** Vendor ID */
-    vendorId?: string;
+    vendorId?: number;
 
     /** Product ID */
-    productId?: string;
+    productId?: number;
 }
 
 /**
@@ -72,8 +72,8 @@ export class SerialWrapper {
                             path: "" + port.comName,
                             manufacturer: "" + port.manufacturer,
                             serialNumber: "" + port.serialNumber,
-                            vendorId: "" + port.vendorId,
-                            productId: "" + port.productId
+                            vendorId: parseInt(port.vendorId, 16),
+                            productId: parseInt(port.productId, 16)
                         });
                     }
                 }
