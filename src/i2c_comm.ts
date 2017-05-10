@@ -146,7 +146,7 @@ export class I2CComm {
 
             // Send ACK/NAK
             this._log(2, "read", ack ? "ACK" : "NAK");
-            await timeLimit.try(() => this._writeBit(ack ? 1 : 0));
+            await timeLimit.try(() => this._writeBit(ack ? 0 : 1));
 
             this._log(1, "read", () => "data=0x" + (readData.toString(16)));
             return readData;
@@ -246,13 +246,13 @@ export class I2CComm {
         // Setup
         // (コマンド：SDA=bit, SCL=L, 即時応答ON)
         this._log(3, "_writeBit", "setup");
-        await this._base.transCommand(0x0b | bit);
+        await this._base.transCommand(0x0b | mask);
 
         // SCL -> HiZ(H)
         // (コマンド：SDA=bit, SCL=Z, 即時応答ON)
         this._log(3, "_writeBit", "SCL->HiZ");
         await timeLimit.try(async () => {
-            let response = await this._base.transCommand(0x1b | bit);
+            let response = await this._base.transCommand(0x1b | mask);
             if ((response & 0x10) !== 0x10) {
                 throw null;
             }
