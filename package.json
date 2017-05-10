@@ -4,8 +4,10 @@
   "description": "PERIDOT board driver library",
   "main": "canarium.js",
   "scripts": {
-    "compile": "make -C src",
-    "test": "mocha test/test.coffee"
+    "compile": "tsc -p ./",
+    "pretest": "npm run compile",
+    "test": "istanbul cover node_modules/mocha/bin/_mocha -- out/test/*.test.js",
+    "posttest": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html"
   },
   "files": [
     "canarium.js",
@@ -34,15 +36,19 @@
   },
   "homepage": "https://github.com/kimushu/canarium#readme",
   "devDependencies": {
+    "@types/chai-as-promised": "0.0.30",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "coffee-script": "^1.12.4",
     "elfy": "^0.1.0",
     "inquirer": "^3.0.1",
+    "istanbul": "^0.4.5",
     "jsonfilter": "^1.1.2",
     "mocha": "^3.0.2",
     "mocha-multi": "^0.10.0",
     "mocha-steps": "^1.0.2",
+    "remap-istanbul": "^0.9.5",
+    "typescript": "^2.3.2",
     "uglifyjs": "^2.4.10"
   }
 }
