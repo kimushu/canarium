@@ -16,36 +16,36 @@ const cond = {
     ngs:        (process.argv.indexOf("--with-ngs") >= 0) ? 1 : null,
     boards:     null,
 };
-cond.classic = cond.classic_ps + cond.classic_as;
-cond.boards  = cond.classic + cond.ngs;
+cond.classic = (cond.classic_ps + cond.classic_as) || null;
+cond.boards  = (cond.classic + cond.ngs) || null;
 
-describe("(Test conditions)", () => {
+describe("(Test conditions)", function(){
     it("Bench tests (Virtual tests)", () => null);
     it("PERIDOT Classic (PS mode)", cond.classic_ps && (() => null));
     it("PERIDOT Classic (AS mode)", cond.classic_as && (() => null));
     it("PERIDOT NGS", cond.ngs && (() => null));
 });
-describe("Canarium", () => {
-    describe("version", () => {
-        it("should be a valid string", () => {
+describe("Canarium", function(){
+    describe("version", function(){
+        it("should be a valid string", function(){
             let canarium = new Canarium();
             assert.match(canarium.version, /^\d+\.\d+\.\d+$/);
         });
     });
 
-    describe("boardInfo", () => {
-        it("should be a property", () => {
+    describe("boardInfo", function(){
+        it("should be a property", function(){
             let canarium = new Canarium();
             assert.property(canarium, "boardInfo");
         });
     });
 
-    describe("serialBitrate", () => {
-        it("should be a number", () => {
+    describe("serialBitrate", function(){
+        it("should be a number", function(){
             let canarium = new Canarium();
             assert.isNumber(canarium.serialBitrate);
         });
-        it("should be writable", () => {
+        it("should be writable", function(){
             let canarium = new Canarium();
             let value = canarium.serialBitrate * 2;
             canarium.serialBitrate = value;
@@ -53,69 +53,69 @@ describe("Canarium", () => {
         })
     });
 
-    describe("connected", () => {
-        it("should be a boolean", () => {
+    describe("connected", function(){
+        it("should be a boolean", function(){
             let canarium = new Canarium();
             assert.isBoolean(canarium.connected);
         });
-        it("should be false before connection", () => {
+        it("should be false before connection", function(){
             let canarium = new Canarium();
             assert.isFalse(canarium.connected);
         });
     })
 
-    describe("configured", () => {
-        it("should be a boolean", () => {
+    describe("configured", function(){
+        it("should be a boolean", function(){
             let canarium = new Canarium();
             assert.isBoolean(canarium.configured);
         });
-        it("should be false before connection", () => {
+        it("should be false before connection", function(){
             let canarium = new Canarium();
             assert.isFalse(canarium.configured);
         });
     });
 
-    describe("base", () => {
-        it("should be an instance of BaseComm", () => {
+    describe("base", function(){
+        it("should be an instance of BaseComm", function(){
             let canarium = new Canarium();
             assert.instanceOf(canarium.base, BaseComm);
         });
     });
 
-    describe("i2c", () => {
-        it("should be an instance of I2CComm", () => {
+    describe("i2c", function(){
+        it("should be an instance of I2CComm", function(){
             let canarium = new Canarium();
             assert.instanceOf(canarium.i2c, I2CComm);
         });
     });
 
-    describe("avs", () => {
-        it("should be an instance of AvsPackets", () => {
+    describe("avs", function(){
+        it("should be an instance of AvsPackets", function(){
             let canarium = new Canarium();
             assert.instanceOf(canarium.avs, AvsPackets);
         });
     });
 
-    describe("avm", () => {
-        it("should be an instance of AvmTransactions", () => {
+    describe("avm", function(){
+        it("should be an instance of AvmTransactions", function(){
             let canarium = new Canarium();
             assert.instanceOf(canarium.avm, AvmTransactions);
         });
     });
 
-    describe("rpcClient", () => {
-        it("should be an instance of RpcClient", () => {
+    describe("rpcClient", function(){
+        it("should be an instance of RpcClient", function(){
             let canarium = new Canarium();
             assert.instanceOf(canarium.rpcClient, RpcClient);
         });
     });
 
-    describe("swiBase", () => {
-        it("should be a number", () => {
+    describe("swiBase", function(){
+        it("should be a number", function(){
             let canarium = new Canarium();
             assert.isNumber(canarium.swiBase);
         });
-        it("should be writable", () => {
+        it("should be writable", function(){
             let canarium = new Canarium();
             let value = canarium.swiBase + 16;
             canarium.swiBase = value;
@@ -123,12 +123,12 @@ describe("Canarium", () => {
         });
     });
 
-    describe("onClosed", () => {
-        it("should be a property", () => {
+    describe("onClosed", function(){
+        it("should be a property", function(){
             let canarium = new Canarium();
             assert.property(canarium, "onClosed");
         });
-        it("should be writable", () => {
+        it("should be writable", function(){
             let canarium = new Canarium();
             let value = () => null;
             canarium.onClosed = value;
@@ -136,17 +136,17 @@ describe("Canarium", () => {
         });
     });
 
-    describe("static enumerate()", () => {
-        it("should be a function", () => {
+    describe("static enumerate()", function(){
+        it("should be a function", function(){
             assert.isFunction(Canarium.enumerate);
         });
-        it("should return undefined when called with callback", (done) => {
+        it("should return undefined when called with callback", function(done){
             assert.isUndefined(Canarium.enumerate((success: boolean, result: any[]) => {
                 assert.isTrue(success);
                 done();
             }));
         });
-        it("should return Promise when called without callback", () => {
+        it("should return Promise when called without callback", function(){
             return assert.isFulfilled(Canarium.enumerate());
         });
         let classic = 0, ngs = 0;
@@ -154,13 +154,13 @@ describe("Canarium", () => {
         cond.classic_as && ++classic;
         cond.ngs && ++ngs;
         let len = classic + ngs;
-        it(`should fulfill with an array of ${len} item(s)`, () => {
+        it(`should fulfill with an array of ${len} item(s)`, function(){
             return Canarium.enumerate().then((result) => {
                 assert.isArray(result);
                 assert.equal(result.length, len);
             });
         });
-        it(`should find ${classic} PERIDOT Classic board(s)`, cond.classic ? () => {
+        it(`should find ${classic} PERIDOT Classic board(s)`, cond.classic && (function(){
             return Canarium.enumerate().then((result) => {
                 let list = result.slice(0, 0 + classic);
                 list.every((item) => {
@@ -169,8 +169,8 @@ describe("Canarium", () => {
                     return true;
                 });
             });
-        } : null);
-        it(`should find ${ngs} PERIDOT NGS board(s)`, cond.ngs ? () => {
+        }));
+        it(`should find ${ngs} PERIDOT NGS board(s)`, cond.ngs && (function(){
             return Canarium.enumerate().then((result) => {
                 let list = result.slice(classic, classic + ngs);
                 list.every((item) => {
@@ -179,31 +179,40 @@ describe("Canarium", () => {
                     return true;
                 });
             });
-        } : null);
+        }));
     });
 
-    describe("open()", () => {
-        it("should be a function", () => {
+    describe("open()", function(){
+        it("should be a function", function(){
             let canarium = new Canarium();
             assert.isFunction(canarium.open);
         });
-        it("should return undefined when called with callback", (done) => {
+        it("should return undefined when called with callback", function(done){
             let canarium = new Canarium();
             assert.isUndefined(canarium.open("xxx", (success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return undefined when called with boardInfo and callback", (done) => {
+        it("should return undefined when called with boardInfo and callback", function(done){
             let canarium = new Canarium();
             assert.isUndefined(canarium.open("xxx", {}, (success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return Promise when called without callback", () => {
+        it("should return Promise and reject when called with inexistent path and no callback", function(){
             let canarium = new Canarium();
             return assert.isRejected(canarium.open("xxx"));
         });
+        it("should fulfills when called with existent path", cond.boards && (function(){
+            let canarium = new Canarium();
+            return assert.isFulfilled(
+                Canarium.enumerate()
+                .then((list) => {
+                    return canarium.open(list[0].path);
+                })
+            );
+        }));
     })
 });
