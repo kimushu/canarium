@@ -11,6 +11,7 @@ import { I2CComm } from "../src/i2c_comm";
 import { AvsPackets } from "../src/avs_packets";
 import { AvmTransactions } from "../src/avm_transactions";
 import { RpcClient } from "../src/rpc_client";
+import { waitPromise } from "../src/common";
 
 const CLASSIC_RBF = path.join(__dirname, "..", "..", "test", "peridot_classic", "output_files", "swi_testsuite.rbf");
 
@@ -179,6 +180,9 @@ describe("Canarium", function(){
 
     describe("open()", function(){
         let canarium = new Canarium();
+        afterEach(function(done){
+            canarium.close().catch(() => {}).then(done);
+        });
         it("should be a function", function(){
             assert.isFunction(canarium.open);
         });
@@ -216,12 +220,7 @@ describe("Canarium", function(){
         it("should success when called with existent path", cond.boards && (function(){
             this.slow(1000);
             this.timeout(3000);
-            return assert.isFulfilled(
-                canarium.open(cond.boards[0])
-                .then(() => {
-                    return canarium.close();
-                })
-            );
+            return assert.isFulfilled(canarium.open(cond.boards[0]));
         }));
         it("should success with configuration on PERIDOT Classic (PS mode)", cond.classic_ps && (function(){
             this.slow(3000);
@@ -230,10 +229,30 @@ describe("Canarium", function(){
                 canarium.open(cond.classic_ps, {
                     rbfdata: fs.readFileSync(CLASSIC_RBF).buffer
                 })
+            );
+        }));
+    });
+    describe("close()", function(){
+        let canarium = new Canarium();
+        it("should be a function", function(){
+            assert.isFunction(canarium.close);
+        });
+        it("should return undefined when called with callback", function(done){
+            assert.isUndefined(canarium.close((success: boolean) => {
+                assert.isFalse(success);
+                done();
+            }));
+        });
+        it("should return Promise and reject when port is not opened", function(){
+            return assert.isRejected(canarium.close());
+        });
+        it("should success when port is opened", cond.boards && function(){
+            return assert.isFulfilled(
+                canarium.open(cond.boards[0])
                 .then(() => {
                     return canarium.close();
                 })
             );
-        }));
-    })
+        });
+    });
 });
