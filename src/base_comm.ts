@@ -197,7 +197,7 @@ export class BaseComm {
      */
     assertConnection(): Promise<void> {
         if (this._connection == null) {
-            throw new Error("Not connected");
+            return Promise.reject(new Error("Not connected"));
         }
         return Promise.resolve();
     }
