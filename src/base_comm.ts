@@ -1,4 +1,4 @@
-import { waitPromise, printLog } from "./common";
+import { loopPromise, printLog, waitPromise } from "./common";
 import { SerialWrapper } from "./serial_wrapper";
 
 /**
@@ -132,7 +132,7 @@ export class BaseComm {
      *
      * @param path  接続先パス(enumerateが返すpath)
      */
-    async connect(path: string): Promise<void> {
+    connect(path: string): Promise<void> {
         if (this._connection != null) {
             throw new Error("Already connected");
         }
@@ -141,8 +141,8 @@ export class BaseComm {
             baudRate: this._bitrate
         });
         this._receiver = null;
-        try {
-            await this._connection.open();
+        return this._connection.open()
+        .then(() => {
             this._connection.onClosed = () => {
                 this._connection = null;
                 this._onClosed && (this._onClosed)();
@@ -150,11 +150,12 @@ export class BaseComm {
             this._connection.onReceived = (data) => {
                 this._receiver(data);
             };
-        } catch (error) {
+        })
+        .catch((error) => {
             this._connection = null;
             this._receiver = null;
             throw error;
-        }
+        });
     }
 
     /**
@@ -162,40 +163,43 @@ export class BaseComm {
      *
      * @param {Object} option  オプション
      */
-    async option(option: BaseCommOptions): Promise<void> {
+    option(option: BaseCommOptions): Promise<void> {
         if (this._connection == null) {
             throw new Error("Not connected");
         }
-        if (option.fastAcknowledge != null) {
-            this._sendImmediate = !!option.fastAcknowledge;
-            await this.transCommand(0x39 | (this._sendImmediate ? 0x02 : 0x00));
-        }
-        if (option.forceConfigured != null) {
-            this._configured = !!option.forceConfigured;
-        }
+        return Promise.resolve()
+        .then(() => {
+            if (option.fastAcknowledge != null) {
+                this._sendImmediate = !!option.fastAcknowledge;
+                return this.transCommand(0x39 | (this._sendImmediate ? 0x02 : 0x00));
+            }
+        })
+        .then(() => {
+            if (option.forceConfigured != null) {
+                this._configured = !!option.forceConfigured;
+            }
+        });
     }
-
 
     /**
      * ボードから切断する
     */
-    async disconnect(): Promise<void> {
-        await this.assertConnection();
-        this._receiver = null;
-        try {
-            await this._connection.close();
-        } catch (error) {
-            // Ignore errors
-        }
+    disconnect(): Promise<void> {
+        return this.assertConnection()
+        .then(() => {
+            this._receiver = null;
+            return this._connection.close().catch(() => {});
+        });
     }
 
     /**
      * 接続されていることを確認する
      */
-    async assertConnection(): Promise<void> {
+    assertConnection(): Promise<void> {
         if (this._connection == null) {
             throw new Error("Not connected");
         }
+        return Promise.resolve();
     }
 
     /**
@@ -203,16 +207,18 @@ export class BaseComm {
      *
      * @param command   コマンドバイト
      */
-    async transCommand(command: number): Promise<number> {
+    transCommand(command: number): Promise<number> {
         let txarray = new Uint8Array(2);
         txarray[0] = 0x3a;
         txarray[1] = command;
-        let rxdata = await this._transSerial(txarray.buffer, (rxdata) => {
+        return this._transSerial(txarray.buffer, (rxdata) => {
             if (rxdata.byteLength >= 1) {
                 return 1;
             }
+        })
+        .then((rxdata) => {
+            return (new Uint8Array(rxdata))[0];
         });
-        return (new Uint8Array(rxdata))[0];
     }
 
     /**
@@ -271,7 +277,7 @@ export class BaseComm {
      *                  - undefined : 追加データを要求
      *                  - Error : エラー発生時のエラー情報
      */
-    private async _transSerial(txdata: ArrayBuffer, estimator: (rxdata: ArrayBuffer, offset: number) => number|void|Error): Promise<ArrayBuffer> {
+    private _transSerial(txdata: ArrayBuffer, estimator: (rxdata: ArrayBuffer, offset: number) => number|void|Error): Promise<ArrayBuffer> {
         if (this._connection == null) {
             throw new Error("Not connected");
         }
@@ -307,20 +313,24 @@ export class BaseComm {
             }
         });
         let txsize = (txdata != null ? txdata.byteLength : 0);
-        for (let pos = 0; pos < txsize; pos += SERIAL_TX_MAX_LENGTH) {
+        return loopPromise(0, txsize, SERIAL_TX_MAX_LENGTH, (pos) => {
             let data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH);
             let size = data.byteLength;
-            await this._connection.write(data);
-            this._log(1, "_transSerial", "sent", new Uint8Array(data));
-            if (SUCCESSIVE_TX_WAIT_MS > 0) {
-                await waitPromise(SUCCESSIVE_TX_WAIT_MS);
+            return this._connection.write(data)
+            .then(() => {
+                this._log(1, "_transSerial", "sent", new Uint8Array(data));
+                if (SUCCESSIVE_TX_WAIT_MS > 0) {
+                    return waitPromise(SUCCESSIVE_TX_WAIT_MS);
+                }
+            });
+        })
+        .then(() => {
+            if (estimator == null) {
+                this._receiver = null;
+                return new ArrayBuffer(0);
             }
-        }
-        if (estimator == null) {
-            this._receiver = null;
-            return new ArrayBuffer(0);
-        }
-        this._log(1, "_transSerial", "wait", promise);
-        return promise;
+            this._log(1, "_transSerial", "wait", promise);
+            return promise;
+        });
     }
 }

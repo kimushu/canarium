@@ -5,6 +5,7 @@ import { BaseComm } from "./base_comm";
  * I2C通信のタイムアウト時間
  */
 const I2C_TIMEOUT_MS: number = 1000;
+const I2C_INTERVAL_MS: number = 10;
 
 /**
  * PERIDOTボードI2C通信クラス
@@ -38,27 +39,29 @@ export class I2CComm {
             return invokeCallback(callback, this.start());
         }
 
-        return (async () => {
-            this._log(1, "start", "(start condition)");
-            let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+        this._log(1, "start", "(start condition)");
+        let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
 
-            // Setup
-            // (コマンド：SDA=Z, SCL=Z, 即時応答ON)
-            await timeLimit.try(async () => {
-                let response = await this._base.transCommand(0x3b);
+        // Setup
+        // (コマンド：SDA=Z, SCL=Z, 即時応答ON)
+        return timeLimit.try(() => {
+            return this._base.transCommand(0x3b)
+            .then((response) => {
                 if ((response & 0x30) !== 0x30) {
                     throw null;
                 }
             });
-
+        }, I2C_INTERVAL_MS)
+        .then(() => {
             // SDA -> L
             // (コマンド：SDA=L, SCL=Z, 即時応答ON)
-            await this._base.transCommand(0x1b);
-
+            return this._base.transCommand(0x1b);
+        })
+        .then(() => {
             // SCL -> L
             // (コマンド：SDA=L, SCL=L, 即時応答ON)
-            await this._base.transCommand(0x0b);
-        })();
+            return this._base.transCommand(0x0b);
+        });
     }
 
     /**
@@ -80,38 +83,46 @@ export class I2CComm {
             return invokeCallback(callback, this.stop());
         }
 
-        return (async () => {
-            this._log(1, "stop", "(stop condition)");
-            let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
-            
+        this._log(1, "stop", "(stop condition)");
+        let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+        
+        return Promise.resolve()
+        .then(() => {
             // Setup
             // (コマンド：SDA=L, SCL=L, 即時応答ON)
-            await this._base.transCommand(0x0b);
-
+            return this._base.transCommand(0x0b)
+        })
+        .then(() => {
             // SCL -> HiZ(H)
             // (コマンド：SDA=L, SCL=Z, 即時応答ON)
-            await timeLimit.try(async () => {
-                let response = await this._base.transCommand(0x1b);
-                if ((response & 0x30) !== 0x10) {
-                    throw null;
-                }
-            });
-            
+            return timeLimit.try(() => {
+                return this._base.transCommand(0x1b)
+                .then((response) => {
+                    if ((response & 0x30) !== 0x10) {
+                        throw null;
+                    }
+                });
+            }, I2C_INTERVAL_MS);
+        })
+        .then(() => {
             // SDA -> HiZ(H)
             // (コマンド：SDA=Z, SCL=Z, 即時応答ON)
-            await timeLimit.try(async () => {
-                let response = await this._base.transCommand(0x3b);
-                if ((response & 0x30) !== 0x30) {
-                    throw null;
-                }
-            });
-
+            return timeLimit.try(() => {
+                return this._base.transCommand(0x3b)
+                .then((response) => {
+                    if ((response & 0x30) !== 0x30) {
+                        throw null;
+                    }
+                });
+            }, I2C_INTERVAL_MS);
+        })
+        .then(() => {
             // 即時応答OFF設定の復旧
             if (!this._base.sendImmediate) {
                 // (コマンド：SDA=Z, SCL=Z, 即時応答OFF)
-                await this._base.transCommand(0x39);
+                return this._base.transCommand(0x39);
             }
-        })();
+        });
     }
 
     /**
@@ -133,24 +144,29 @@ export class I2CComm {
         if (callback != null) {
             return invokeCallback(callback, this.read(ack));
         }
-        return (async () => {
-            let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
 
-            // Read bits
-            let readData = 0x00;
-            for (let bitNum = 7; bitNum >= 0; --bitNum) {
-                let bit = await timeLimit.try(() => this._readBit());
+        let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+        let readData = 0;
+        return [7,6,5,4,3,2,1,0].reduce((promise, bitNum) => {
+            return promise
+            .then(() => {
+                // Read bits
+                return timeLimit.try(() => this._readBit(), I2C_INTERVAL_MS);
+            })
+            .then((bit) => {
                 this._log(2, "read", "bit#" + bitNum + "=" + bit);
                 readData |= (bit << bitNum);
-            }
-
+            });
+        }, Promise.resolve())
+        .then(() => {
             // Send ACK/NAK
             this._log(2, "read", ack ? "ACK" : "NAK");
-            await timeLimit.try(() => this._writeBit(ack ? 0 : 1));
-
+            return timeLimit.try(() => this._writeBit(ack ? 0 : 1), I2C_INTERVAL_MS);
+        })
+        .then(() => {
             this._log(1, "read", () => "data=0x" + (readData.toString(16)));
             return readData;
-        })();
+        });
     }
 
     /**
@@ -172,24 +188,28 @@ export class I2CComm {
         if (callback != null) {
             return invokeCallback(callback, this.write(writebyte));
         }
-        return (async () => {
-            writebyte = parseInt(<any>writebyte);
-            this._log(1, "write", () => "data=0x" + (writebyte.toString(16)));
-            let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
 
-            // Write bits
-            for (let bitNum = 7; bitNum >= 0; --bitNum) {
+        writebyte = parseInt(<any>writebyte);
+        this._log(1, "write", () => "data=0x" + (writebyte.toString(16)));
+        let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
+
+        return [7,6,5,4,3,2,1,0].reduce((promise, bitNum) => {
+            return promise.then(() => {
+                // Write bits
                 let bit = <0|1>((writebyte >>> bitNum) & 1);
                 this._log(2, "write", "bit#" + bitNum + "=" + bit);
-                await timeLimit.try(() => this._writeBit(bit));
-            }
-
+                return timeLimit.try(() => this._writeBit(bit), I2C_INTERVAL_MS);
+            });
+        }, Promise.resolve())
+        .then(() => {
             // Receive ACK/NAK
-            let bit = await timeLimit.try(() => this._readBit());
-            let ack = (bit === 0);
-            this._log(2, "write", ack ? "ACK" : "NAK");
-            return ack;
-        })();
+            return timeLimit.try(() => this._readBit(), I2C_INTERVAL_MS)
+            .then((bit) => {
+                let ack = (bit === 0);
+                this._log(2, "write", ack ? "ACK" : "NAK");
+                return ack;
+            });
+        });
     }
 
     /**
@@ -209,29 +229,36 @@ export class I2CComm {
      * 1ビットリード
      * (必ずSCL='L'が先行しているものとする)
      */
-    private async _readBit(): Promise<0|1> {
+    private _readBit(): Promise<0|1> {
         let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
         let bit: 0|1 = 0;
 
-        // Setup
-        // (コマンド：SDA=Z, SCL=Z, 即時応答ON)
-        this._log(3, "_readBit", "setup,SCL->HiZ");
-        await timeLimit.try(async () => {
-            let response = await this._base.transCommand(0x3b);
-            if ((response & 0x10) !== 0x10) {
-                throw null;
-            }
-            if ((response & 0x20) === 0x20) {
-                bit = 1;
-            }
+        return Promise.resolve()
+        .then(() => {
+            // Setup
+            // (コマンド：SDA=Z, SCL=Z, 即時応答ON)
+            this._log(3, "_readBit", "setup,SCL->HiZ");
+            return timeLimit.try(() => {
+                return this._base.transCommand(0x3b)
+                .then((response) => {
+                    if ((response & 0x10) !== 0x10) {
+                        throw null;
+                    }
+                    if ((response & 0x20) === 0x20) {
+                        bit = 1;
+                    }
+                });
+            }, I2C_INTERVAL_MS);
+        })
+        .then(() => {
+            // SCL -> L
+            // (コマンド：SDA=Z, SCL=L, 即時応答ON)
+            this._log(3, "_readBit", "SCL->L");
+            return this._base.transCommand(0x2b)
+            .then(() => {
+                return bit;
+            });
         });
-
-        // SCL -> L
-        // (コマンド：SDA=Z, SCL=L, 即時応答ON)
-        this._log(3, "_readBit", "SCL->L");
-        await this._base.transCommand(0x2b);
-
-        return bit;
     }
 
     /**
@@ -239,28 +266,37 @@ export class I2CComm {
      * (必ずSCL='L'が先行しているものとする)
      * @param bit   書き込みビット値
      */
-    private async _writeBit(bit: 0|1): Promise<void> {
+    private _writeBit(bit: 0|1): Promise<void> {
         let mask = (bit !== 0 ? 1 : 0) << 5;
         let timeLimit = new TimeLimit(I2C_TIMEOUT_MS);
 
-        // Setup
-        // (コマンド：SDA=bit, SCL=L, 即時応答ON)
-        this._log(3, "_writeBit", "setup");
-        await this._base.transCommand(0x0b | mask);
-
-        // SCL -> HiZ(H)
-        // (コマンド：SDA=bit, SCL=Z, 即時応答ON)
-        this._log(3, "_writeBit", "SCL->HiZ");
-        await timeLimit.try(async () => {
-            let response = await this._base.transCommand(0x1b | mask);
-            if ((response & 0x10) !== 0x10) {
-                throw null;
-            }
+        return Promise.resolve()
+        .then(() => {
+            // Setup
+            // (コマンド：SDA=bit, SCL=L, 即時応答ON)
+            this._log(3, "_writeBit", "setup");
+            return this._base.transCommand(0x0b | mask);
+        })
+        .then(() => {
+            // SCL -> HiZ(H)
+            // (コマンド：SDA=bit, SCL=Z, 即時応答ON)
+            this._log(3, "_writeBit", "SCL->HiZ");
+            return timeLimit.try(() => {
+                return this._base.transCommand(0x1b | mask)
+                .then((response) => {
+                    if ((response & 0x10) !== 0x10) {
+                        throw null;
+                    }
+                });
+            }, I2C_INTERVAL_MS);
+        })
+        .then(() => {
+            // SDA -> HiZ(H)
+            // (コマンド：SDA=Z, SCL=L, 即時応答ON)
+            this._log(3, "_writeBit", "SCL->L");
+            return this._base.transCommand(0x2b)
+        })
+        .then(() => {
         });
-
-        // SDA -> HiZ(H)
-        // (コマンド：SDA=Z, SCL=L, 即時応答ON)
-        this._log(3, "_writeBit", "SCL->L");
-        await this._base.transCommand(0x2b);
     }
 }

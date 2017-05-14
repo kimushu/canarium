@@ -1,5 +1,5 @@
 import * as path from "path";
-import { hexDump, invokeCallback, printLog, waitPromise, TimeLimit } from "./common";
+import { hexDump, invokeCallback, loopPromise, printLog, waitPromise, wrapPromise, TimeLimit } from "./common";
 import { BaseComm, BoardCandidate } from "./base_comm";
 import { I2CComm } from "./i2c_comm";
 import { AvsPackets } from "./avs_packets";
@@ -241,38 +241,54 @@ export class Canarium {
     open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): void;
 
     open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): any {
-        if (typeof boardInfo === "function") {
+        if (typeof(boardInfo) === "function") {
             callback = boardInfo;
             boardInfo = null;
         }
         if (callback != null) {
             return invokeCallback(callback, this.open(path, boardInfo));
         }
-        return (async () => {
-            try {
-                await this._base.connect(path);
-                this._boardInfo = null;
-                let header = new Uint8Array(await this._eepromRead(0x00, 4));
-                if (!(header[0] === 0x4a && header[1] === 0x37 && header[2] === 0x57)) {
-                    throw new Error("EEPROM header is invalid");
-                }
-                this._log(1, "open", () => "done(version=" + (hexDump(header[3])) + ")");
-                this._boardInfo = {
-                    version: header[3]
-                };
-                let response = await this._base.transCommand(0x39);
-                await this._base.option({
-                    forceConfigured: (response & 0x04) !== 0
-                });
-                await this._validate(boardInfo);
-                if (boardInfo != null && boardInfo.rbfdata != null) {
-                    await this.config(null, boardInfo.rbfdata);
-                }
-            } catch (error) {
-                await this._base.disconnect().catch(() => null);
-                throw error;
+        return Promise.resolve()
+        .then(() => {
+            return this._base.connect(path);
+        })
+        .then(() => {
+            this._boardInfo = null;
+            return this._eepromRead(0x00, 4);
+        })
+        .then((result) => {
+            let header = new Uint8Array(result);
+            /* istanbul ignore if */
+            if (!(header[0] === 0x4a && header[1] === 0x37 && header[2] === 0x57)) {
+                throw new Error("EEPROM header is invalid");
             }
-        })();
+            this._log(1, "open", /* istanbul ignore next */ () => "done(version=" + (hexDump(header[3])) + ")");
+            this._boardInfo = {
+                version: header[3]
+            };
+            return this._base.transCommand(0x39);
+        })
+        .then((response) => {
+            return this._base.option({
+                forceConfigured: (response & 0x04) !== 0
+            });
+        })
+        .then(() => {
+            return this._validate(boardInfo);
+        })
+        .then(() => {
+            if (boardInfo != null && boardInfo.rbfdata != null) {
+                return this.config(null, boardInfo.rbfdata);
+            }
+        })
+        .catch((error) => {
+            if (this._base.connected) {
+                return this._base.disconnect().then(() => {
+                    throw error;
+                });
+            }
+            throw error;
+        });
     }
 
     /**
@@ -318,79 +334,96 @@ export class Canarium {
         if (callback != null) {
             return invokeCallback(callback, this.config(boardInfo, rbfdata));
         }
-        return (async () => {
+        let timeLimit: TimeLimit;
+        return Promise.resolve()
+        .then(() => {
             if (this._configBarrier) {
                 throw new Error("Configuration is now in progress");
             }
-            try {
-                this._configBarrier = true;
-                let response;
+            this._configBarrier = true;
+            let response;
 
-                // コンフィグレーション可否の判断を行う
-                let info: BoardInfo = (boardInfo != null ? {
-                    id: (<BoardInfo>boardInfo).id,
-                    serialcode: (<BoardInfo>boardInfo).serialcode
-                } : {
-                    id: BOARDID_STANDARD
-                });
-                await this._validate(info);
+            // コンフィグレーション可否の判断を行う
+            let info: BoardInfo = (boardInfo != null ? {
+                id: (<BoardInfo>boardInfo).id,
+                serialcode: (<BoardInfo>boardInfo).serialcode
+            } : {
+                id: BOARDID_STANDARD
+            });
+            return this._validate(info);
+        })
+        .then(() => {
+            // モードチェック
+            // (コマンド：即時応答ON)
+            return this._base.transCommand(0x3b);
+        })
+        .then((response) => {
+            if ((response & 0x01) !== 0x00) {
+                // ASモード(NG)
+                throw new Error("Not PS mode");
+            }
+            // PSモード(OK)
 
-                // モードチェック
-                // (コマンド：即時応答ON)
-                response = await this._base.transCommand(0x3b);
-                if ((response & 0x01) !== 0x00) {
-                    // ASモード(NG)
-                    throw new Error("Not PS mode");
-                }
-                // PSモード(OK)
+            // タイムアウト計算の基点を保存
+            // (ここからCONFIG_TIMEOUT_MS以内で処理完了しなかったらタイムアウト扱い)
+            timeLimit = new TimeLimit(CONFIG_TIMEOUT_MS);
 
-                // タイムアウト計算の基点を保存
-                // (ここからCONFIG_TIMEOUT_MS以内で処理完了しなかったらタイムアウト扱い)
-                let timeLimit = new TimeLimit(CONFIG_TIMEOUT_MS);
-
-                // コンフィグレーション開始リクエスト発行(モード切替)
-                await timeLimit.try(async () => {
-                    // (コマンド：コンフィグモード, nCONFIGアサート, 即時応答ON)
-                    response = await this._base.transCommand(0x32);
+            // コンフィグレーション開始リクエスト発行(モード切替)
+            return timeLimit.try(() => {
+                // (コマンド：コンフィグモード, nCONFIGアサート, 即時応答ON)
+                return this._base.transCommand(0x32)
+                .then((response) => {
                     if ((response & 0x06) !== 0x00) {
                         throw null;
                     }
                     // STATUS=L, CONF_DONE=L => OK
                 });
-
-                // FPGAの応答待ち
-                await timeLimit.try(async () => {
-                    // (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
-                    response = await this._base.transCommand(0x33);
+            });
+        })
+        .then(() => {
+            // FPGAの応答待ち
+            return timeLimit.try(() => {
+                // (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
+                return this._base.transCommand(0x33)
+                .then((response) => {
                     if ((response & 0x06) !== 0x02) {
                         throw null;
                     }
                     // nSTATUS=H, CONF_DONE=L => OK
                 });
-
-                // コンフィグレーションデータ送信
-                await this._base.transData(rbfdata);
-
-                // コンフィグレーション完了チェック
-                // (コマンド：コンフィグモード, 即時応答ON)
-                response = await this._base.transCommand(0x33);
-                if ((response & 0x06) !== 0x06) {
-                    throw new Error("FPGA configuration failed");
-                }
-                // nSTATUS=H, CONF_DONE=H => OK
-
-                // コンフィグレーション完了(モード切替)
-                // (コマンド：ユーザーモード)
-                response = await this._base.transCommand(0x39);
-
-                // CONF_DONEならコンフィグレーション済みとして設定する
-                await this._base.option({
-                    forceConfigured: (response & 0x04) !== 0
-                });
-            } finally {
-                this._configBarrier = false;
+            });
+        })
+        .then(() => {
+            // コンフィグレーションデータ送信
+            return this._base.transData(rbfdata);
+        })
+        .then(() => {
+            // コンフィグレーション完了チェック
+            // (コマンド：コンフィグモード, 即時応答ON)
+            return this._base.transCommand(0x33);
+        })
+        .then((response) => {
+            if ((response & 0x06) !== 0x06) {
+                throw new Error("FPGA configuration failed");
             }
-        })();
+            // nSTATUS=H, CONF_DONE=H => OK
+
+            // コンフィグレーション完了(モード切替)
+            // (コマンド：ユーザーモード)
+            return this._base.transCommand(0x39);
+        })
+        .then((response) => {
+            // CONF_DONEならコンフィグレーション済みとして設定する
+            return this._base.option({
+                forceConfigured: (response & 0x04) !== 0
+            });
+        })
+        .then(() => {
+            this._configBarrier = false;
+        }, (error) => {
+            this._configBarrier = false;
+            throw error;            
+        });
     }
 
     /**
@@ -410,48 +443,56 @@ export class Canarium {
         if (callback != null) {
             return invokeCallback(callback, this.reconfig());
         }
-        return (async () => {
-            if (this._configBarrier) {
-                throw new Error("(Re)configuration is now in progress");
-            }
-            try {
-                this._configBarrier = true;
-                let response;
-
+        if (this._configBarrier) {
+            throw new Error("(Re)configuration is now in progress");
+        }
+        return wrapPromise(() => {
+            this._configBarrier = true;
+        }, () => {
+            let timeLimit: TimeLimit;
+            return Promise.resolve()
+            .then(() => {
                 // ボード種別を確認
                 if (this._boardInfo == null || this._boardInfo.id == null) {
-                    await this.getinfo();
+                    return this.getinfo();
                 }
+            })
+            .then(() => {
                 if (this._boardInfo == null || this._boardInfo.id === BOARDID_STANDARD) {
                     throw new Error("reconfig() cannot be used on this board");
                 }
 
                 // タイムアウト計算の基点を保存
                 // (ここからRECONFIG_TIMEOUT_MS以内で処理完了しなかったらタイムアウト扱い)
-                let timeLimit = new TimeLimit(RECONFIG_TIMEOUT_MS);
+                timeLimit = new TimeLimit(RECONFIG_TIMEOUT_MS);
 
                 // コンフィグレーション開始リクエスト発行(モード切替)
-                await timeLimit.try(async () => {
+                return timeLimit.try(() => {
                     // (コマンド：コンフィグモード, nCONFIGアサート, 即時応答ON)
-                    response = await this._base.transCommand(0x32);
-                    if ((response & 0x06) !== 0x00) {
-                        throw null;
-                    }
-                    // nSTATUS=L, CONF_DONE=L => OK
+                    return this._base.transCommand(0x32)
+                    .then((response) => {
+                        if ((response & 0x06) !== 0x00) {
+                            throw null;
+                        }
+                        // nSTATUS=L, CONF_DONE=L => OK
+                    });
                 });
-
+            })
+            .then(() => {
                 // FPGAの応答待ち
-                await timeLimit.try(async () => {
+                return timeLimit.try(() => {
                     // (コマンド：コンフィグモード, nCONFIGネゲート, 即時応答ON)
-                    response = await this._base.transCommand(0x33);
-                    if ((response & 0x06) !== 0x02) {
-                        throw null;
-                    }
+                    return this._base.transCommand(0x33)
+                    .then((response) => {
+                        if ((response & 0x06) !== 0x02) {
+                            throw null;
+                        }
+                    });
                 });
-            } finally {
-                this._configBarrier = false;
-            }
-        })();
+            });
+        }, () => {
+            this._configBarrier = false;
+        });
     }
 
     /**
@@ -470,27 +511,31 @@ export class Canarium {
         if (callback != null) {
             return invokeCallback(callback, this.reset());
         }
-        return (async () => {
-            if (this._resetBarrier) {
-                throw new Error("Reset is now in progress");
-            }
-            try {
-                this._resetBarrier = true;
-
+        if (this._resetBarrier) {
+            throw new Error("Reset is now in progress");
+        }
+        return wrapPromise(() => {
+            this._resetBarrier = true;
+        }, () => {
+            return Promise.resolve()
+            .then(() => {
                 // コンフィグモード(リセットアサート)
-                await this._base.transCommand(0x31);
-
+                return this._base.transCommand(0x31);
+            })
+            .then(() => {
                 // 100ms待機
-                await waitPromise(100);
-
+                return waitPromise(100);
+            })
+            .then(() => {
                 // ユーザモード(リセットネゲート)
-                let response = await this._base.transCommand(0x39);
-
+                return this._base.transCommand(0x39);
+            })
+            .then((response) => {
                 return response;
-            } finally {
-                this._resetBarrier = false;
-            }
-        })();
+            });
+        }, () => {
+            this._resetBarrier = false;
+        });
     }
 
 
@@ -510,16 +555,20 @@ export class Canarium {
         if (callback != null) {
             return invokeCallback(callback, this.getinfo());
         }
-        return (async () => {
-            await this._base.assertConnection();
-
+        return Promise.resolve()
+        .then(() => {
+            return this._base.assertConnection();
+        })
+        .then(() => {
             switch (this._boardInfo != null ? this._boardInfo.version : null) {
+                /* istanbul ignore next */
                 case null:
                     throw new Error("Boardinfo not loaded");
                 case 1:
                     // ver.1 ヘッダ
-                    {
-                        let info = new Uint8Array(await this._eepromRead(0x04, 8));
+                    return this._eepromRead(0x04, 8)
+                    .then((readdata) => {
+                        let info = new Uint8Array(readdata);
                         this._log(1, "getinfo", "ver1", info);
                         let mid = (info[0] << 8) | (info[1] << 0);
                         let pid = (info[2] << 8) | (info[3] << 0);
@@ -530,12 +579,12 @@ export class Canarium {
                             this._boardInfo.id = BOARDID_STANDARD;
                             this._boardInfo.serialcode = (s.substr(0, 6)) + "-" + (s.substr(6, 6)) + "-000000";
                         }
-                    }
-                    break;
+                    });
                 case 2:
                     // ver.2 ヘッダ
-                    {
-                        let info = new Uint8Array(await this._eepromRead(0x04, 22));
+                    return this._eepromRead(0x04, 22)
+                    .then((readdata) => {
+                        let info = new Uint8Array(readdata);
                         this._log(1, "getinfo", "ver2", info);
                         let bid = "";
                         for (let i = 0; i < 4; ++i) {
@@ -547,15 +596,15 @@ export class Canarium {
                         }
                         this._boardInfo.id = <any>bid;
                         this._boardInfo.serialcode = (s.substr(0, 6)) + "-" + (s.substr(6, 6)) + "-" + (s.substr(12, 6));
-                    }
-                    break;
+                    });
                 default:
                     // 未知のヘッダバージョン
                     throw new Error("Unknown boardinfo version");
             }
-
+        })
+        .then(() => {
             return this._boardInfo;
-        })();
+        });
     }
 
     /**
@@ -578,11 +627,11 @@ export class Canarium {
     openRemoteFile(path: string, flags: number|FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: RemoteFile|Error) => void): void;
 
     openRemoteFile(path: string, flags: number|FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: RemoteFile|Error) => void): any {
-        if (typeof mode === "function") {
+        if (typeof(mode) === "function") {
             callback = mode;
             interval = null;
             mode = null;
-        } else if (typeof interval === "function") {
+        } else if (typeof(interval) === "function") {
             callback = interval;
             interval = null;
         }
@@ -597,50 +646,65 @@ export class Canarium {
      * @param startaddr 読み出し開始アドレス
      * @param readbytes 読み出しバイト数
      */
-    private async _eepromRead(startaddr: number, readbytes: number): Promise<ArrayBuffer> {
-        try {
+    private _eepromRead(startaddr: number, readbytes: number): Promise<ArrayBuffer> {
+        return wrapPromise(() => null, () => {
             let array = new Uint8Array(readbytes);
             let split = SPLIT_EEPROM_BURST || readbytes;
-            for (let offset = 0; offset < readbytes; offset += split) {
+            return loopPromise(0, readbytes, split, (offset) => {
                 let length = Math.min(split, readbytes - offset);
                 let ack;
 
-                this._log(1, "_eepromRead", () => "begin(addr=" + (hexDump(startaddr)) + ",bytes=" + (hexDump(readbytes)) + ")");
+                this._log(1, "_eepromRead", /* istanbul ignore next */ () => "begin(addr=" + (hexDump(startaddr)) + ",bytes=" + (hexDump(readbytes)) + ")");
 
-                // Start condition
-                await this.i2c.start();
+                return Promise.resolve()
+                .then(() => {
+                    // Start condition
+                    return this.i2c.start();
+                })
+                .then(() => {
+                    // Send slave address and direction (write)
+                    return this.i2c.write(EEPROM_SLAVE_ADDR << 1);
+                })
+                .then((ack) => {
+                    if (!ack) {
+                        throw new Error("EEPROM is not found.");
+                    }
 
-                // Send slave address and direction (write)
-                ack = await this.i2c.write(EEPROM_SLAVE_ADDR << 1);
-                if (!ack) {
-                    throw new Error("EEPROM is not found.");
-                }
+                    // Send EEPROM address
+                    return this.i2c.write(startaddr & 0xff);
+                })
+                .then((ack) => {
+                    if (!ack) {
+                        throw new Error("Cannot write address in EEPROM");
+                    }
 
-                // Send EEPROM address
-                ack = await this.i2c.write(startaddr & 0xff);
-                if (!ack) {
-                    throw new Error("Cannot write address in EEPROM");
-                }
+                    // Repeat start condition
+                    return this.i2c.start();
+                })
+                .then(() => {
+                    // Send slave address and direction (read)
+                    return this.i2c.write((EEPROM_SLAVE_ADDR << 1) + 1);
+                })
+                .then((ack) => {
+                    if (!ack) {
+                        throw new Error("EEPROM is not found.");
+                    }
 
-                // Repeat start condition
-                await this.i2c.start();
-
-                // Send slave address and direction (read)
-                ack = await this.i2c.write((EEPROM_SLAVE_ADDR << 1) + 1);
-                if (!ack) {
-                    throw new Error("EEPROM is not found.");
-                }
-
-                for (let index = 0; index < length; ++index) {
-                    let byte = await this.i2c.read(index < (length - 1));
-                    array[offset + index] = byte;
-                }
-            }
-            this._log(1, "_eepromRead", "end", array);
-            return array.buffer;
-        } finally {
-            await this.i2c.stop();
-        }
+                    return loopPromise(0, length, 1, (index) => {
+                        return this.i2c.read(index < (length - 1))
+                        .then((byte) => {
+                            array[offset + index] = byte;
+                        });
+                    });
+                });
+            })
+            .then(() => {
+                this._log(1, "_eepromRead", "end", array);
+                return array.buffer;
+            })
+        }, () => {
+            return this.i2c.stop();
+        });
     }
 
     /**
@@ -648,26 +712,36 @@ export class Canarium {
      * 
      * @param boardInfo 検証するボード情報
      */
-    private async _validate(boardInfo?: BoardInfo): Promise<void> {
-        await this._base.assertConnection();
-        if (boardInfo == null) {
-            // すべて許可
-            return;
-        }
-        if (this._boardInfo.id == null || this._boardInfo.serialcode == null) {
-            // まだボード情報が読み込まれていないので先に読み込む
-            await this.getinfo();
-        }
-        // 許可/不許可の判断を行う
-        function mismatch(a, b) {
-            return (a != null ? a !== b : false);
-        }
-        if (mismatch(boardInfo.id, this._boardInfo.id)) {
-            throw new Error("Board ID mismatch");
-        }
-        if (mismatch(boardInfo.serialcode, this._boardInfo.serialcode)) {
-            throw new Error("Board serial code mismatch");
-        }
+    private _validate(boardInfo?: BoardInfo): Promise<void> {
+        return Promise.resolve()
+        .then(() => {
+            return this._base.assertConnection();
+        })
+        .then(() => {
+            if (boardInfo == null) {
+                // すべて許可
+                return;
+            }
+            return Promise.resolve()
+            .then(() => {
+                if (this._boardInfo.id == null || this._boardInfo.serialcode == null) {
+                    // まだボード情報が読み込まれていないので先に読み込む
+                    return this.getinfo();
+                }
+            })
+            .then(() => {
+                // 許可/不許可の判断を行う
+                function mismatch(a, b) {
+                    return (a != null ? a !== b : false);
+                }
+                if (mismatch(boardInfo.id, this._boardInfo.id)) {
+                    throw new Error("Board ID mismatch");
+                }
+                if (mismatch(boardInfo.serialcode, this._boardInfo.serialcode)) {
+                    throw new Error("Board serial code mismatch");
+                }
+            });
+        });
     }
 
     /**

@@ -180,7 +180,7 @@ export class SerialWrapper {
             if (this._sp == null) {
                 return reject(new Error("disconnected"));
             }
-            return this._sp.flush(function (error) {
+            return this._sp.flush((error) => {
                 if (error != null) {
                     return reject(error);
                 }
@@ -197,7 +197,7 @@ export class SerialWrapper {
             if (this._sp == null) {
                 return reject(new Error("disconnected"));
             }
-            return this._sp.drain(function (error) {
+            return this._sp.drain((error) => {
                 if (error != null) {
                     return reject(error);
                 }
@@ -214,11 +214,10 @@ export class SerialWrapper {
             if (this._sp == null) {
                 return reject(new Error("disconnected"));
             }
-            return this._sp.close(function (error) {
+            return this._sp.close((error) => {
                 if (error != null) {
                     return reject(error);
                 }
-                this._sp.fd = void 0;
                 this._sp = null;
                 let func = this.onClosed;
                 if (typeof(func) === "function") {
@@ -248,6 +247,6 @@ export class SerialWrapper {
      * 切断検知ハンドラ(NodeJSのみ)
      */
     private _closeHandler(): void {
-        this.close().catch(() => null);
+        this.close().catch(() => {});
     }
 }

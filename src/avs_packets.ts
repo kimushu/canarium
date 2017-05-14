@@ -31,7 +31,7 @@ export class AvsPackets {
      * @param txdata    送信するパケットデータ
      * @param rxsize    受信するパケットのバイト数
      */
-    async transPacket(channel: number, txdata: ArrayBuffer, rxsize: number): Promise<ArrayBuffer> {
+    transPacket(channel: number, txdata: ArrayBuffer, rxsize: number): Promise<ArrayBuffer> {
         function pushWithEscape(array, pos, byte) {
             if ((0x7a <= byte && byte <= 0x7d)) {
                 array[pos++] = 0x7d;
@@ -70,42 +70,44 @@ export class AvsPackets {
             }
             return; // Need more bytes
         }
-        let rxdata = await this._base.transData(txdata, eopFinder);
-        src = new Uint8Array(rxdata);
-        this._log(1, "transPacket", "recv", {
-            encoded: src
+        return this._base.transData(txdata, eopFinder)
+        .then((rxdata) => {
+            src = new Uint8Array(rxdata);
+            this._log(1, "transPacket", "recv", {
+                encoded: src
+            });
+            for (let i = 0; i < header.length; ++i) {
+                if (src[i] !== header[i]) {
+                    throw new Error("Illegal packetize control bytes");
+                }
+            }
+            src = src.subarray(header.length);
+            dst = new Uint8Array(rxsize);
+            let pos = 0;
+            let xor = 0x00;
+            for (let i = 0; i < src.length; ++i) {
+                let byte = src[i];
+                if (pos === rxsize) {
+                    throw new Error("Received data is too large");
+                }
+                if (byte === 0x7b) {
+                    continue;
+                }
+                if (byte === 0x7d) {
+                    xor = 0x20;
+                } else {
+                    dst[pos++] = byte ^ xor;
+                    xor = 0x00;
+                }
+            }
+            if (pos < rxsize) {
+                throw new Error("Received data is too small");
+            }
+            this._log(1, "transPacket", "end", {
+                decoded: dst
+            });
+            return dst.buffer;
         });
-        for (let i = 0; i < header.length; ++i) {
-            if (src[i] !== header[i]) {
-                throw new Error("Illegal packetize control bytes");
-            }
-        }
-        src = src.subarray(header.length);
-        dst = new Uint8Array(rxsize);
-        let pos = 0;
-        let xor = 0x00;
-        for (let i = 0; i < src.length; ++i) {
-            let byte = src[i];
-            if (pos === rxsize) {
-                throw new Error("Received data is too large");
-            }
-            if (byte === 0x7b) {
-                continue;
-            }
-            if (byte === 0x7d) {
-                xor = 0x20;
-            } else {
-                dst[pos++] = byte ^ xor;
-                xor = 0x00;
-            }
-        }
-        if (pos < rxsize) {
-            throw new Error("Received data is too small");
-        }
-        this._log(1, "transPacket", "end", {
-            decoded: dst
-        });
-        return dst.buffer;
     }
 
     /**

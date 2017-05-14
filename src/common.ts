@@ -12,9 +12,9 @@
 export function printLog(cls: string, func: string, msg: string|(() => string), data?: any) {
     let out: any = {
         time: Date.now(),
-        stack: new Error().stack.split(/\n\s*/).slice(1),
+        //stack: new Error().stack.split(/\n\s*/).slice(1),
     };
-    out["" + cls + func] = (typeof(msg) == "function") ? msg() : msg;
+    out["" + cls + "#" + func] = (typeof(msg) == "function") ? msg() : msg;
     if (data) {
         out.data = data;
     }
@@ -32,7 +32,7 @@ export function printLog(cls: string, func: string, msg: string|(() => string), 
  */
 export function hexDump(data: number | number[] | ArrayBuffer | Uint8Array, maxBytes?: number): string {
     let brace = true;
-    if (typeof data === "number") {
+    if (typeof(data) === "number") {
         brace = false;
         data = [data];
     } else if (data instanceof ArrayBuffer) {
@@ -49,7 +49,7 @@ export function hexDump(data: number | number[] | ArrayBuffer | Uint8Array, maxB
         len = Math.min(len, maxBytes);
     }
     function hex(v) {
-        return "0x" + (v < 16 ? "0" : "") + ((v != null ? typeof v.toString === "function" ? v.toString(16) : void 0 : void 0) || "??");
+        return "0x" + (v < 16 ? "0" : "") + ((v != null ? typeof(v.toString) === "function" ? v.toString(16) : void 0 : void 0) || "??");
     }
     let r = (<number[]>data).slice(0, len).map((byte) => hex(byte)).join(",");
     if (data.length > len) {
@@ -103,7 +103,6 @@ export function str2ab(str: string): ArrayBuffer {
 @return {undefined/Promise}
   Promiseオブジェクト(callbackがundefinedの場合のみ)
  */
-
 export function invokeCallback<T>(callback: (success: boolean, result: T|Error) => void, promise: Promise<T>): void|Promise<T> {
     if (!callback) {
         return promise;
@@ -126,6 +125,26 @@ export function waitPromise<T>(dulation: number, value?: T): Promise<T> {
             return resolve(value);
         }, dulation);
     });
+}
+
+/**
+ * 指定回数ループするPromiseオブジェクトを生成
+ * @param start     ループ初期値
+ * @param end       ループ終了値(この値を含まない)
+ * @param step      増分
+ * @param action    実行するアクション
+ */
+export function loopPromise<T>(start: number, end: number, step: number, action: (value: number) => Promise<T>): Promise<T> {
+    function loop(value){
+        return action(value).then((result) => {
+            value += step;
+            if ((step > 0 && value < end) || (step < 0 && value > end)) {
+                return loop(value);
+            }
+            return result;
+        })
+    }
+    return loop(start);
 }
 
 /**
@@ -172,25 +191,34 @@ tryPromise = function (timeout, promiser, maxTries) {
 
 
 /**
-@private
-@method
-  Promiseの成功失敗にかかわらず実行する関数のペアを生成
-@return {Function[]}
-  成功(fulfilled)と失敗(rejected)の関数ペア。
-  promise.then(finallyPromise(-> 中身)...) として用いる。...を忘れないこと。
- *-/
-
-finallyPromise = function (action) {
-    return [
-        function (value) {
-            action();
-            return value;
-        }, function (error) {
-            action();
-            return Promise.reject(error);
-        }
-    ];
-};
+ * Promiseの前後に必ず実行する事前アクション/事後アクションを結合したPromiseを生成
+ * @param before    事前に実行するアクション(これが失敗するとそこで終了)
+ * @param body      実行するアクション本体(beforeが成功すれば実行される)
+ * @param after     事後に実行するアクション(アクション本体が失敗しても実行される)
+ */
+export function wrapPromise<T>(before: Function, body: () => Promise<T>|T, after: Function): Promise<T> {
+    function doAfter() {
+        return Promise.resolve()
+        .then(() => {
+            return after();
+        })
+        .catch(() => {});
+    }
+    return Promise.resolve()
+    .then(() => {
+        return before();
+    })
+    .then(() => {
+        return Promise.resolve()
+        .then(() => {
+            return body();
+        })
+        .then(
+            (result) => doAfter().then(() => result),
+            (reason) => doAfter().then(() => { throw reason; })
+        );
+    });
+}
 
 /**
  * パフォーマンス計測用の現在時刻取得(ミリ秒単位)
@@ -229,15 +257,24 @@ export class TimeLimit {
     }
 
     /** 成功するかタイムアウトするまで繰り返す */
-    async try<T>(action: () => Promise<T>): Promise<T> {
-        do {
-            try {
-                return await action();
-            } catch (error) {
-                // Ignore error
-            }
-        } while (this.now() < this._limit);
-        throw new Error(`Operation timed out (${this._timeout} ms)`);
+    try<T>(action: () => Promise<T>, wait?: number): Promise<T> {
+        function loop(_this: TimeLimit){
+            return action()
+            .catch(() => {
+                if (_this.now() < _this._limit) {
+                    if (wait > 0) {
+                        return waitPromise(wait)
+                        .then(() => {
+                            return loop;
+                        });
+                    }
+                    return loop(_this);
+                } else {
+                    throw new Error(`Operation timed out (${_this._timeout} ms)`);
+                }
+            });
+        }
+        return loop(this);
     }
 }
 

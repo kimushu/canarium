@@ -65,7 +65,7 @@ export class RemoteError extends Error {
      * @param obj JSON-RPCエラー情報
      */
     constructor(obj: any) {
-        if (typeof (obj) === "number") {
+        if (typeof(obj) === "number") {
             obj = {
                 code: obj,
                 message: MESSAGES[obj]

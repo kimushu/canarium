@@ -82,7 +82,7 @@ export class RemoteFile {
      * @param mode      ファイル作成時のパーミッション
      * @param interval  RPCポーリング周期
      */
-    static async open(rpcClient: RpcClient, path: string, flags: number|FileOpenFlags, mode: number = 511, interval = REMOTEFILE_DEFAULT_INTERVAL): Promise<RemoteFile> {
+    static open(rpcClient: RpcClient, path: string, flags: number|FileOpenFlags, mode: number = 511, interval = REMOTEFILE_DEFAULT_INTERVAL): Promise<RemoteFile> {
         if (Object.prototype.toString.call(path) !== "[object String]") {
             throw new TypeError("path must be a string");
         }
@@ -114,19 +114,23 @@ export class RemoteFile {
             }
             flags = n;
         }
-        let result = await rpcClient.doCall("fs.open", {path, flags, mode}, interval);
-        return new this(rpcClient, result.fd);
+        return rpcClient.doCall("fs.open", {path, flags, mode}, interval)
+        .then((result) => {
+            return new this(rpcClient, result.fd);
+        });
     }
 
     /**
      * ファイルを閉じる(closeのリモート呼び出し)
      */
-    async close(): Promise<void> {
+    close(): Promise<void> {
         if (this._fd == null) {
             throw new Error("File not opened");
         }
-        await this._rpcClient.doCall("fs.close", {fd: this._fd});
-        this._fd = null;
+        return this._rpcClient.doCall("fs.close", {fd: this._fd})
+        .then(() => {
+            this._fd = null;
+        });
     }
 
     /**
@@ -135,47 +139,52 @@ export class RemoteFile {
      * @param length        読み込むバイト数
      * @param autoContinue  読み込んだバイト数がlengthに達するまで繰り返すか否か
      */
-    async read(length: number, autoContinue: boolean = false): Promise<ArrayBuffer> {
+    read(length: number, autoContinue: boolean = false): Promise<ArrayBuffer> {
         if (typeof(length) !== "number") {
             throw new TypeError("length must be a number");
         }
         let buffers = [];
         let total_read = 0;
-        do {
+        function loop(): Promise<void> {
             if (this._fd == null) {
                 throw new Error("File not opened");
             }
-
-            try {
-                let result = await this._rpcClient.doCall("fs.read", {
-                    fd: this._fd,
-                    length: length - total_read
-                });
-
+            return this._rpcClient.doCall("fs.read", {
+                fd: this._fd,
+                length: length - total_read
+            })
+            .then((result) => {
                 let read_length = result.length;
                 if (read_length > 0) {
                     buffers.push(Buffer.from(result.data.read(0, read_length)));
                     total_read += read_length;
                 }
-            } catch (error) {
+            }, (error) => {
                 if (error instanceof RemoteError) {
                     if (error.code === RemoteError.EAGAIN && total_read > 0) {
-                        break;
+                        return;
                     }
                 }
                 throw error;
-            }
-        } while (autoContinue && total_read < length);
-
-        let buffer = new ArrayBuffer(total_read);
-        let combined = Buffer.from(buffer);
-        let offset = 0;
-        for (let i = 0; i < buffers.length; ++i) {
-            let part = buffers[i];
-            part.copy(combined, offset);
-            offset += part.length;
+            })
+            .then(() => {
+                if (autoContinue && total_read < length) {
+                    return loop();
+                }
+            });
         }
-        return buffer;
+        return loop()
+        .then(() => {
+            let buffer = new ArrayBuffer(total_read);
+            let combined = Buffer.from(buffer);
+            let offset = 0;
+            for (let i = 0; i < buffers.length; ++i) {
+                let part = buffers[i];
+                part.copy(combined, offset);
+                offset += part.length;
+            }
+            return buffer;
+        });
     }
 
     /**
@@ -184,33 +193,36 @@ export class RemoteFile {
      * @param data          書き込むデータ
      * @param autoContinue  書き込んだバイト数がlengthに達するまで繰り返すか否か
      */
-    async write(data: ArrayBuffer, autoContinue: boolean = false): Promise<number> {
+    write(data: ArrayBuffer, autoContinue: boolean = false): Promise<number> {
         if (!(data instanceof ArrayBuffer)) {
             throw new TypeError("data must be an ArrayBuffer");
         }
         let total_written = 0;
-        do {
+        function loop(): Promise<void> {
             if (this._fd == null) {
                 throw new Error("File not opened");
             }
-
-            try {
-                let result = await this._rpcClient.doCall("fs.write", {
-                    fd: this._fd,
-                    data: Buffer.from(data, total_written)
-                });
-
+            return this._rpcClient.doCall("fs.write", {
+                fd: this._fd,
+                data: Buffer.from(data, total_written)
+            })
+            .then((result) => {
                 total_written += result.length;
-            } catch (error) {
+            }, (error) => {
                 if (error instanceof RemoteError) {
                     if (error.code === RemoteError.EAGAIN && total_written > 0) {
-                        break;
+                        return;
                     }
                 }
                 throw error;
-            }
-        } while (autoContinue && total_written < data.byteLength);
-        return total_written;
+            })
+            .then(() => {
+                if (autoContinue && total_written < data.byteLength) {
+                    return loop();
+                }
+            });
+        }
+        return loop().then(() => total_written);
     }
 
     /**
@@ -218,7 +230,7 @@ export class RemoteFile {
      * @param offset    移動量
      * @param whence    移動の基点を示す値(SEEK_SET=0,SEEK_CUR=1,SEEK_END=2)またはECMAオブジェクト
      */
-    async lseek(offset: number, whence: number|FileSeekWhence): Promise<number> {
+    lseek(offset: number, whence: number|FileSeekWhence): Promise<number> {
         if (typeof(offset) !== "number") {
             throw new TypeError("offset must be a number");
         }
@@ -234,19 +246,21 @@ export class RemoteFile {
         if (typeof(whence) !== "number") {
             throw new TypeError("whence must be a number or object with SEEK_xxx key");
         }
-        let result = await this._rpcClient.doCall("fs.lseek", {
+        return this._rpcClient.doCall("fs.lseek", {
             fd: this._fd,
             offset: offset,
             whence: whence
+        })
+        .then((result) => {
+            return result.offset;
         });
-        return result.offset;
     }
 
-    async fstat(): Promise<any> {
+    fstat(): Promise<any> {
         throw new Error("Not implemented");
     }
 
-    async ioctl(): Promise<any> {
+    ioctl(): Promise<any> {
         throw new Error("Not implemented");
     }
 

@@ -1,4 +1,4 @@
-import { hexDump, invokeCallback, printLog } from "./common";
+import { hexDump, invokeCallback, printLog, loopPromise } from "./common";
 import { BaseCommOptions } from "./base_comm";
 import { AvsPackets } from "./avs_packets";
 
@@ -75,25 +75,29 @@ export class AvmTransactions {
             return invokeCallback(callback, this.read(address, bytenum));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(async () => {
+            return this._queue(() => {
                 this._log(1, "read", () => "begin(address=" + (hexDump(address)) + ")");
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
                 }
                 let dest = new Uint8Array(bytenum);
-                for (let pos = 0; pos < bytenum; pos += AVM_TRANS_MAX_BYTES) {
+                return loopPromise(0, bytenum, AVM_TRANS_MAX_BYTES, (pos) => {
                     let partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
                     this._log(2, "read", () => "partial(offset=" + (hexDump(pos)) + ",size=" + (hexDump(partialSize)) + ")");
-                    let partialData = await this._trans(
+                    return this._trans(
                         0x14,   // Read, incrementing address
                         address + pos,
                         undefined,
                         partialSize
-                    );
-                    dest.set(new Uint8Array(partialData), pos);
-                }
-                this._log(1, "read", "end", dest);
-                return dest.buffer;
+                    )
+                    .then((partialData) => {
+                        dest.set(new Uint8Array(partialData), pos);
+                    })
+                })
+                .then(() => {
+                    this._log(1, "read", "end", dest);
+                    return dest.buffer;
+                });
             });
         });
     }
@@ -121,22 +125,24 @@ export class AvmTransactions {
         }
         let src = new Uint8Array(writedata.slice(0));
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(async () => {
+            return this._queue(() => {
                 this._log(1, "write", () => "begin(address=" + (hexDump(address)) + ")", src);
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
                 }
-                for (let pos = 0; pos < src.byteLength; pos += AVM_TRANS_MAX_BYTES) {
+                return loopPromise(0, src.byteLength, AVM_TRANS_MAX_BYTES, (pos) => {
                     let partialData = src.subarray(pos, pos + AVM_TRANS_MAX_BYTES);
                     this._log(2, "write", () => "partial(offset=" + (hexDump(pos)) + ")", partialData);
-                    await this._trans(
+                    return this._trans(
                         0x04,   // Write, incrementing address
                         address + pos,
                         partialData,
                         undefined
                     );
-                }
-                this._log(1, "write", "end");
+                })
+                .then(() => {
+                    this._log(1, "write", "end");
+                });
             });
         });
     }
@@ -163,21 +169,23 @@ export class AvmTransactions {
             return invokeCallback(callback, this.iord(address, offset));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(async () => {
+            return this._queue(() => {
                 this._log(1, "iord", () => "begin(address=" + (hexDump(address)) + "+" + offset + ")");
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
                 }
-                let rxdata = await this._trans(
+                return this._trans(
                     0x10,   // Read, non-incrementing address
                     (address & 0xfffffffc) + (offset << 2),
                     undefined,
                     4
-                );
-                let src = new Uint8Array(rxdata);
-                let readData = ((src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0)) >>> 0;
-                this._log(1, "iord", "end", readData);
-                return readData;
+                )
+                .then((rxdata) => {
+                    let src = new Uint8Array(rxdata);
+                    let readData = ((src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0)) >>> 0;
+                    this._log(1, "iord", "end", readData);
+                    return readData;
+                });
             });
         });
     };
@@ -206,7 +214,7 @@ export class AvmTransactions {
             return invokeCallback(callback, this.iowr(address, offset, writedata));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(async () => {
+            return this._queue(() => {
                 this._log(1, "iowr", () => "begin(address=" + (hexDump(address)) + "+" + offset + ")", writedata);
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
@@ -216,13 +224,15 @@ export class AvmTransactions {
                 src[1] = (writedata >>> 8) & 0xff;
                 src[2] = (writedata >>> 16) & 0xff;
                 src[3] = (writedata >>> 24) & 0xff;
-                await this._trans(
+                return this._trans(
                     0x00,   // Write, non-incrementing address
                     (address & 0xfffffffc) + (offset << 2),
                     src,
                     undefined
-                );
-                this._log(1, "iowr", "end");
+                )
+                .then(() => {
+                    this._log(1, "iowr", "end");
+                });
             });
         });
     }
@@ -245,7 +255,7 @@ export class AvmTransactions {
             return invokeCallback(callback, this.option(option));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(function () {
+            return this._queue(() => {
                 return this._avs.base.option(option);
             });
         });
@@ -283,7 +293,7 @@ export class AvmTransactions {
      * @param txdata    送信パケットに付加するデータ(受信時はundefined)
      * @param rxsize    受信するバイト数(送信時はundefined)
      */
-    private async _trans(transCode: number, address: number, txdata?: Uint8Array, rxsize?: number): Promise<ArrayBuffer> {
+    private _trans(transCode: number, address: number, txdata?: Uint8Array, rxsize?: number): Promise<ArrayBuffer> {
         let len: number, pkt: Uint8Array;
         if (txdata != null) {
             len = txdata.byteLength;
@@ -304,17 +314,19 @@ export class AvmTransactions {
             pkt.set(txdata, 8);
         }
         this._log(2, "_trans", "send", pkt);
-        let rxdata = await this._avs.transPacket(this._channel, pkt.buffer, rxsize || 4);
-        this._log(2, "_trans", "recv", new Uint8Array(rxdata));
-        if (rxsize != null) {
-            if (rxdata.byteLength !== rxsize) {
-                throw new Error("Received data length does not match");
+        return this._avs.transPacket(this._channel, pkt.buffer, rxsize || 4)
+        .then((rxdata) => {
+            this._log(2, "_trans", "recv", new Uint8Array(rxdata));
+            if (rxsize != null) {
+                if (rxdata.byteLength !== rxsize) {
+                    throw new Error("Received data length does not match");
+                }
+                return rxdata;
             }
-            return rxdata;
-        }
-        let res = new Uint8Array(rxdata);
-        if (!(res[0] === (pkt[0] ^ 0x80) && res[2] === pkt[2] && res[3] === pkt[3])) {
-            throw new Error("Illegal write response");
-        }
+            let res = new Uint8Array(rxdata);
+            if (!(res[0] === (pkt[0] ^ 0x80) && res[2] === pkt[2] && res[3] === pkt[3])) {
+                throw new Error("Illegal write response");
+            }
+        });
     }
 }
