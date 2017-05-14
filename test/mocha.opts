@@ -1,4 +1,0 @@
---compilers coffee:coffee-script/register
---reporter mocha-multi
---reporter-options spec=-,markdown=test/result.md
---colors
