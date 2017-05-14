@@ -1,6 +1,7 @@
 import * as SerialPort from "serialport";
 import { hexDump } from "./common";
 
+const DEBUG = 0;
 const DELAY_AFTER_CLOSE_MS = 100;
 
 /**
@@ -147,13 +148,10 @@ export class SerialWrapper {
                 if (error != null) {
                     return reject(error);
                 }
-                return this._sp.drain((error) => {
-                    if (error != null) {
-                        return reject(error);
-                    }
-                    return resolve();
-                });
+                return resolve();
             });
+        }).then(() => {
+            return this.drain();
         });
     }
 
@@ -240,7 +238,7 @@ export class SerialWrapper {
                         // Ignore errors
                     }
                 }
-                return resolve();
+                return global.setTimeout(resolve, DELAY_AFTER_CLOSE_MS);
             });
         });
     }
@@ -250,9 +248,15 @@ export class SerialWrapper {
      * @param data  受信したデータ
      */
     private _dataHandler(data: Buffer): void {
-        let func = this.onReceived;
-        if (typeof(func) === "function") {
-            func(new Uint8Array(data).buffer);
+        if (this._sp != null) {
+            let func = this.onReceived;
+            if (typeof(func) === "function") {
+                /* istanbul ignore if */
+                if (DEBUG >= 2) {
+                    console.log(`${Date.now()}:recv:${hexDump(data)}`);
+                }
+                func(new Uint8Array(data).buffer);
+            }
         }
     }
 
