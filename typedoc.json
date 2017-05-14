@@ -1,0 +1,8 @@
+{
+    "out": "doc",
+    "mode": "file",
+    "excludePrivate": true,
+    "module": "commonjs",
+    "target": "es5",
+    "theme": "default"
+}
