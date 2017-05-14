@@ -5,7 +5,7 @@ import { BaseComm } from "./base_comm";
  * I2C通信のタイムアウト時間
  */
 const I2C_TIMEOUT_MS: number = 1000;
-const I2C_INTERVAL_MS: number = 10;
+const I2C_INTERVAL_MS: number = null;
 
 /**
  * PERIDOTボードI2C通信クラス
