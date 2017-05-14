@@ -49,9 +49,12 @@ export function hexDump(data: number | number[] | ArrayBuffer | Uint8Array, maxB
         len = Math.min(len, maxBytes);
     }
     function hex(v) {
-        return "0x" + (v < 16 ? "0" : "") + ((v != null ? typeof(v.toString) === "function" ? v.toString(16) : void 0 : void 0) || "??");
+        return "0x" + (v < 16 ? "0" : "") + (v != null ? v.toString(16) : "??");
     }
-    let r = (<number[]>data).slice(0, len).map((byte) => hex(byte)).join(",");
+    let r = "";
+    for (let i = 0; i < len; ++i) {
+        r += (i > 0 ? "," : "") + hex(data[i]);
+    }
     if (data.length > len) {
         r += "...";
     }
