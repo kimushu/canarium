@@ -211,14 +211,12 @@ export class SerialWrapper {
      */
     close(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (this._sp == null) {
+            let sp = this._sp;
+            if (sp == null) {
                 return reject(new Error("disconnected"));
             }
-            return this._sp.close((error) => {
-                if (error != null) {
-                    return reject(error);
-                }
-                this._sp = null;
+            this._sp = null;
+            return sp.close(() => {
                 let func = this.onClosed;
                 if (typeof(func) === "function") {
                     try {
@@ -247,6 +245,8 @@ export class SerialWrapper {
      * 切断検知ハンドラ(NodeJSのみ)
      */
     private _closeHandler(): void {
-        this.close().catch(() => {});
+        if (this._sp != null) {
+            this.close();
+        }
     }
 }
