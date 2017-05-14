@@ -233,7 +233,7 @@ describe("Canarium", function(){
                 .then(() => {
                     return canarium.close();
                 })
-            )
+            );
         }));
     })
 });

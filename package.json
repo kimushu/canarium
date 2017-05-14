@@ -6,9 +6,9 @@
   "scripts": {
     "compile": "tsc -p ./",
     "pretest": "npm run compile",
-    "test": "mocha out/test/*.test.js --with-classic-ps",
+    "test": "mocha out/test/*.test.js",
     "pretest:coverage": "npm run pretest",
-    "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js --with-classic-ps",
+    "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js",
     "posttest:coverage": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html"
   },
   "files": [
