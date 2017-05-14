@@ -1,4 +1,7 @@
 import * as SerialPort from "serialport";
+import { hexDump } from "./common";
+
+const DELAY_AFTER_CLOSE_MS = 100;
 
 /**
  * ポート情報
@@ -114,6 +117,10 @@ export class SerialWrapper {
                 this._sp.on("data", (data) => this._dataHandler(data));
                 this._sp.on("disconnect", () => this._closeHandler());
             }
+            /* istanbul ignore if */
+            if (DEBUG >= 1) {
+                console.log(`${Date.now()}:open`);
+            }
             return this._sp.open((error) => {
                 if (error != null) {
                     return reject(error);
@@ -131,6 +138,10 @@ export class SerialWrapper {
         return new Promise<void>((resolve, reject) => {
             if (this._sp == null) {
                 return reject(new Error("disconnected"));
+            }
+            /* istanbul ignore if */
+            if (DEBUG >= 2) {
+                console.log(`${Date.now()}:send:${hexDump(data)}`);
             }
             return this._sp.write(new Buffer(new Uint8Array(data)), (error) => {
                 if (error != null) {
@@ -216,6 +227,10 @@ export class SerialWrapper {
                 return reject(new Error("disconnected"));
             }
             this._sp = null;
+            /* istanbul ignore if */
+            if (DEBUG >= 1) {
+                console.log(`${Date.now()}:close`);
+            }
             return sp.close(() => {
                 let func = this.onClosed;
                 if (typeof(func) === "function") {
@@ -246,6 +261,10 @@ export class SerialWrapper {
      */
     private _closeHandler(): void {
         if (this._sp != null) {
+            /* istanbul ignore if */
+            if (DEBUG >= 1) {
+                console.log(`${Date.now()}:_closeHandler`);
+            }
             this.close();
         }
     }
