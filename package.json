@@ -6,8 +6,10 @@
   "scripts": {
     "compile": "tsc -p ./",
     "pretest": "npm run compile",
-    "test": "istanbul cover node_modules/mocha/bin/_mocha -- out/test/*.test.js",
-    "posttest": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html"
+    "test": "mocha out/test/*.test.js --with-classic-ps",
+    "pretest:coverage": "npm run pretest",
+    "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js --with-classic-ps",
+    "posttest:coverage": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html"
   },
   "files": [
     "canarium.js",
@@ -37,6 +39,7 @@
   "homepage": "https://github.com/kimushu/canarium#readme",
   "devDependencies": {
     "@types/chai-as-promised": "0.0.30",
+    "@types/node": "^7.0.18",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "coffee-script": "^1.12.4",
