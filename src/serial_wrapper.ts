@@ -1,8 +1,11 @@
-import * as SerialPort from "serialport";
+import * as SerialPort from "serialport"; // for v4.x
+//import { SerialPort } from "serialport"; // for v2.x
 import { hexDump } from "./common";
 
 const DEBUG = 0;
-const DELAY_AFTER_CLOSE_MS = 100;
+const DELAY_AFTER_CLOSE_MS = 0;
+const MAX_RETRIES_FOR_OPEN = 5;
+const DELAY_FOR_OPEN_RETRY = 100;
 
 /**
  * ポート情報
@@ -109,25 +112,28 @@ export class SerialWrapper {
      */
     open(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (this._sp == null) {
-                let opts = Object.assign({
-                    autoOpen: false
-                }, this._options);
-
-                this._sp = new SerialPort(this._path, opts, () => null);
-                this._sp.on("data", (data) => this._dataHandler(data));
-                this._sp.on("disconnect", () => this._closeHandler());
+            if (this._sp != null) {
+                return reject(new Error("Already opened"));
             }
-            /* istanbul ignore if */
-            if (DEBUG >= 1) {
-                console.log(`${Date.now()}:open`);
-            }
-            return this._sp.open((error) => {
-                if (error != null) {
-                    return reject(error);
+            let tryOpen = (count: number) => {
+                /* istanbul ignore if */
+                if (DEBUG >= 1) {
+                    console.log(`${Date.now()}:open${count > 0 ? "(retry)" : ""}`);
                 }
-                return resolve();
-            });
+                let sp = new SerialPort(this._path, (error) => {
+                    if (error != null) {
+                        if (`${error}`.match(/Access denied$/) && count < MAX_RETRIES_FOR_OPEN) {
+                            return global.setTimeout(tryOpen, DELAY_FOR_OPEN_RETRY, count + 1);
+                        }
+                        return reject(error);
+                    }
+                    this._sp = sp;
+                    this._sp.on("data", (data) => this._dataHandler(data));
+                    this._sp.on("disconnect", () => this._closeHandler());
+                    return resolve();
+                });
+            };
+            tryOpen(0);
         });
     }
 
