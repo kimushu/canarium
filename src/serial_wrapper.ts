@@ -120,7 +120,7 @@ export class SerialWrapper {
                 if (DEBUG >= 1) {
                     console.log(`${Date.now()}:open${count > 0 ? "(retry)" : ""}`);
                 }
-                let sp = new SerialPort(this._path, (error) => {
+                let sp = new SerialPort(this._path, this._options, (error) => {
                     if (error != null) {
                         if (`${error}`.match(/Access denied$/) && count < MAX_RETRIES_FOR_OPEN) {
                             return global.setTimeout(tryOpen, DELAY_FOR_OPEN_RETRY, count + 1);
