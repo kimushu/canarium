@@ -16,6 +16,8 @@ import { waitPromise } from "../src/common";
 const TEST_DIR = path.join(__dirname, "..", "..", "test");
 const CLASSIC_RBF_PATH = path.join(TEST_DIR, "peridot_classic", "output_files", "swi_testsuite.rbf");
 const CLASSIC_RBF_DATA = fs.readFileSync(CLASSIC_RBF_PATH);
+const SWI_BASE = 0x10000000;
+const REG_SWI_MESSAGE = 6;
 
 const cond = {
     classic_ps: (process.argv.indexOf("--with-classic-ps") >= 0) ? "x" : null,
@@ -31,17 +33,19 @@ describe("(Test conditions)", function(){
     it("PERIDOT Classic (AS mode)", cond.classic_as && (() => null));
 //  it("PERIDOT NGS", cond.ngs && (() => null));
 });
+/*
 describe("stress test", function(){
     let canarium = new Canarium();
     it("open&close 10 times", function(){
         this.timeout(0);
         function loop(i){
-            return canarium.open("COM4")
+            console.log(i);
+            return canarium.open("COM3")
             .then(() => {
                 return canarium.close();
             })
             .then(() => {
-                if (i < 100) {
+                if (i < 10) {
                     return loop(i + 1);
                 }
             });
@@ -49,7 +53,7 @@ describe("stress test", function(){
         return assert.isFulfilled(loop(0));
     });
 });
-/*
+//-*/
 describe("Canarium", function(){
     describe("version", function(){
         let canarium = new Canarium();
@@ -185,6 +189,7 @@ describe("Canarium", function(){
             cond.classic_ps = item.path;
             cond.classic.push(item.path);
             cond.boards.push(item.path);
+            console.log(cond.classic_ps)
         }));
         it("should find PERIDOT Classic board for AS-mode test", cond.classic_as && (function(){
             let item = list.shift();
@@ -216,11 +221,11 @@ describe("Canarium", function(){
                 done();
             }));
         });
-        it("should return Promise and reject when called with inexistent path and no callback", function(){
+        it("should return Promise(rejection) when called with inexistent path and no callback", function(){
             return assert.isRejected(canarium.open("xxx"));
         });
     });
-    describe("open() w/ connection", cond.boards && function(){
+    xdescribe("open() w/ connection", cond.boards && function(){
         let canarium = new Canarium();
         afterEach(function(){
             return canarium.close().catch(() => {});
@@ -267,11 +272,11 @@ describe("Canarium", function(){
                 done();
             }));
         });
-        it("should return Promise and reject when port is not opened", function(){
+        it("should return Promise(rejection) when port is not opened", function(){
             return assert.isRejected(canarium.close());
         });
     });
-    describe("close() w/ connection", cond.boards && function(){
+    xdescribe("close() w/ connection", cond.boards && function(){
         let canarium = new Canarium();
         it("should success when port is opened", function(){
             this.slow(1000);
@@ -295,11 +300,11 @@ describe("Canarium", function(){
                 done();
             }));
         });
-        it("should return Promise and reject when port is not opened", function(){
+        it("should return Promise(rejection) when port is not opened", function(){
             return assert.isRejected(canarium.close());
         });
     });
-    describe("config() w/ connection to PERIDOT Classic (PS mode)", cond.classic_ps && function(){
+    xdescribe("config() w/ connection to PERIDOT Classic (PS mode)", cond.classic_ps && function(){
         let canarium = new Canarium();
         before(function(){
             this.slow(1000);
@@ -346,6 +351,65 @@ describe("Canarium", function(){
                     {serialcode: "xxxxxx-yyyyyy-zzzzzz"},
                     CLASSIC_RBF_DATA.buffer
                 )
+            );
+        });
+    });
+    describe("reconfig() w/o connection", function(){
+        let canarium = new Canarium();
+        it("should be a function", function(){
+            assert.isFunction(canarium.reconfig);
+        });
+        it("should return undefined when called with callback", function(done){
+            assert.isUndefined(canarium.reconfig((success: boolean) => {
+                assert.isFalse(success);
+                done();
+            }));
+        });
+        it("should return Promise(rejection) when port is not opened", function(){
+            return assert.isRejected(canarium.reconfig());
+        });
+    });
+    //describe("reconfig() w/ connection", function(){
+    //});
+    describe("reset() w/o connection", function(){
+        let canarium = new Canarium();
+        it("should be a function", function(){
+            assert.isFunction(canarium.reset);
+        });
+        it("should return undefined when called with callback", function(done){
+            assert.isUndefined(canarium.reset((success: boolean) => {
+                assert.isFalse(success);
+                done();
+            }));
+        });
+        it("should return Promise(rejection) when port is not opened", function(){
+            return assert.isRejected(canarium.reset());
+        });
+    });
+    describe("reset() w/ connection to PERIDOT Classic (PS mode)", cond.classic_ps && function(){
+        let canarium = new Canarium();
+        it("should success and clear SWI message register", function(){
+            this.slow(3000);
+            this.timeout(60000);
+            let dummyValue = 0xdeadbeef;
+            return assert.isFulfilled(
+                canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA.buffer})
+                .then(() => {
+                    return canarium.avm.iowr(SWI_BASE, REG_SWI_MESSAGE, dummyValue);
+                })
+                .then(() => {
+                    return canarium.avm.iord(SWI_BASE, REG_SWI_MESSAGE);
+                })
+                .then((value) => {
+                    assert.equal(value, dummyValue);
+                    return canarium.reset();
+                })
+                .then(() => {
+                    return canarium.avm.iord(SWI_BASE, REG_SWI_MESSAGE);
+                })
+                .then((value) => {
+                    assert.equal(value, 0);
+                })
             );
         });
     });
