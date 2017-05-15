@@ -721,7 +721,7 @@ export class Canarium {
             return this._base.assertConnection();
         })
         .then(() => {
-            if (boardInfo == null) {
+            if (boardInfo == null || (boardInfo.id == null && boardInfo.serialcode == null)) {
                 // すべて許可
                 return;
             }
