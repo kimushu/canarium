@@ -134,7 +134,7 @@ export class BaseComm {
      */
     connect(path: string): Promise<void> {
         if (this._connection != null) {
-            throw new Error("Already connected");
+            return Promise.reject(new Error("Already connected"));
         }
 
         this._connection = new SerialWrapper(path, {
@@ -165,7 +165,7 @@ export class BaseComm {
      */
     option(option: BaseCommOptions): Promise<void> {
         if (this._connection == null) {
-            throw new Error("Not connected");
+            return Promise.reject(new Error("Not connected"));
         }
         return Promise.resolve()
         .then(() => {
@@ -279,10 +279,10 @@ export class BaseComm {
      */
     private _transSerial(txdata: ArrayBuffer, estimator: (rxdata: ArrayBuffer, offset: number) => number|void|Error): Promise<ArrayBuffer> {
         if (this._connection == null) {
-            throw new Error("Not connected");
+            return Promise.reject(new Error("Not connected"));
         }
         if (this._receiver != null) {
-            throw new Error("Operation is in progress");
+            return Promise.reject(new Error("Operation is in progress"));
         }
         let promise = new Promise<ArrayBuffer>((resolve, reject) => {
             this._receiver = function (rxdata, error) {
@@ -312,6 +312,7 @@ export class BaseComm {
                 }
             }
         });
+        //this._connection.resume();
         let txsize = (txdata != null ? txdata.byteLength : 0);
         return loopPromise(0, txsize, SERIAL_TX_MAX_LENGTH, (pos) => {
             let data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH);

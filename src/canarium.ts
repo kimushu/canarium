@@ -444,7 +444,7 @@ export class Canarium {
             return invokeCallback(callback, this.reconfig());
         }
         if (this._configBarrier) {
-            throw new Error("(Re)configuration is now in progress");
+            return Promise.reject(new Error("(Re)configuration is now in progress"));
         }
         return wrapPromise(() => {
             this._configBarrier = true;
@@ -512,12 +512,16 @@ export class Canarium {
             return invokeCallback(callback, this.reset());
         }
         if (this._resetBarrier) {
-            throw new Error("Reset is now in progress");
+            return Promise.reject(new Error("Reset is now in progress"));
         }
         return wrapPromise(() => {
             this._resetBarrier = true;
         }, () => {
             return Promise.resolve()
+            .then(() => {
+                // 接続確認
+                return this._base.assertConnection();
+            })
             .then(() => {
                 // コンフィグモード(リセットアサート)
                 return this._base.transCommand(0x31);

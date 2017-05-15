@@ -182,7 +182,6 @@ export class SerialWrapper {
             if (this._sp == null) {
                 return reject(new Error("disconnected"));
             }
-            this._sp.resume();
             return resolve();
         });
     }
