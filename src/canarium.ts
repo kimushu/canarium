@@ -696,6 +696,9 @@ export class Canarium {
                             array[offset + index] = byte;
                         });
                     });
+                })
+                .then(() => {
+                    return this.i2c.stop();
                 });
             })
             .then(() => {
