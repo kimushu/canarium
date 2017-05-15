@@ -13,7 +13,9 @@ import { AvmTransactions } from "../src/avm_transactions";
 import { RpcClient } from "../src/rpc_client";
 import { waitPromise } from "../src/common";
 
-const CLASSIC_RBF = path.join(__dirname, "..", "..", "test", "peridot_classic", "output_files", "swi_testsuite.rbf");
+const TEST_DIR = path.join(__dirname, "..", "..", "test");
+const CLASSIC_RBF_PATH = path.join(TEST_DIR, "peridot_classic", "output_files", "swi_testsuite.rbf");
+const CLASSIC_RBF_DATA = fs.readFileSync(CLASSIC_RBF_PATH);
 
 const cond = {
     classic_ps: (process.argv.indexOf("--with-classic-ps") >= 0) ? "x" : null,
@@ -29,6 +31,25 @@ describe("(Test conditions)", function(){
     it("PERIDOT Classic (AS mode)", cond.classic_as && (() => null));
 //  it("PERIDOT NGS", cond.ngs && (() => null));
 });
+describe("stress test", function(){
+    let canarium = new Canarium();
+    it("open&close 10 times", function(){
+        this.timeout(0);
+        function loop(i){
+            return canarium.open("COM4")
+            .then(() => {
+                return canarium.close();
+            })
+            .then(() => {
+                if (i < 100) {
+                    return loop(i + 1);
+                }
+            });
+        }
+        return assert.isFulfilled(loop(0));
+    });
+});
+/*
 describe("Canarium", function(){
     describe("version", function(){
         let canarium = new Canarium();
@@ -178,11 +199,8 @@ describe("Canarium", function(){
         });
     });
 
-    describe("open()", function(){
+    describe("open() w/o connection", function(){
         let canarium = new Canarium();
-        afterEach(function(done){
-            canarium.close().catch(() => {}).then(done);
-        });
         it("should be a function", function(){
             assert.isFunction(canarium.open);
         });
@@ -201,9 +219,15 @@ describe("Canarium", function(){
         it("should return Promise and reject when called with inexistent path and no callback", function(){
             return assert.isRejected(canarium.open("xxx"));
         });
+    });
+    describe("open() w/ connection", cond.boards && function(){
+        let canarium = new Canarium();
+        afterEach(function(){
+            return canarium.close().catch(() => {});
+        });
         it("should fail when called with incorrect board ID", cond.boards && (function(){
             this.slow(3000);
-            this.timeout(5000);
+            this.timeout(6000);
             return assert.isRejected(
                 canarium.open(cond.boards[0], {id: <any>"J72A_"}),
                 "Board ID mismatch"
@@ -211,7 +235,7 @@ describe("Canarium", function(){
         }));
         it("should fail when called with incorrect serial code", cond.boards && (function(){
             this.slow(3000);
-            this.timeout(5000);
+            this.timeout(6000);
             return assert.isRejected(
                 canarium.open(cond.boards[0], {serialcode: "xxxxxx-yyyyyy-zzzzzz"}),
                 "Board serial code mismatch"
@@ -219,20 +243,20 @@ describe("Canarium", function(){
         }));
         it("should success when called with existent path", cond.boards && (function(){
             this.slow(1000);
-            this.timeout(3000);
+            this.timeout(2000);
             return assert.isFulfilled(canarium.open(cond.boards[0]));
         }));
         it("should success with configuration on PERIDOT Classic (PS mode)", cond.classic_ps && (function(){
             this.slow(3000);
-            this.timeout(5000);
+            this.timeout(6000);
             return assert.isFulfilled(
                 canarium.open(cond.classic_ps, {
-                    rbfdata: fs.readFileSync(CLASSIC_RBF).buffer
+                    rbfdata: CLASSIC_RBF_DATA.buffer
                 })
             );
         }));
     });
-    describe("close()", function(){
+    describe("close() w/o connection", function(){
         let canarium = new Canarium();
         it("should be a function", function(){
             assert.isFunction(canarium.close);
@@ -246,7 +270,12 @@ describe("Canarium", function(){
         it("should return Promise and reject when port is not opened", function(){
             return assert.isRejected(canarium.close());
         });
-        it("should success when port is opened", cond.boards && function(){
+    });
+    describe("close() w/ connection", cond.boards && function(){
+        let canarium = new Canarium();
+        it("should success when port is opened", function(){
+            this.slow(1000);
+            this.timeout(2000);
             return assert.isFulfilled(
                 canarium.open(cond.boards[0])
                 .then(() => {
@@ -255,4 +284,70 @@ describe("Canarium", function(){
             );
         });
     });
+    describe("config() w/o connection", function(){
+        let canarium = new Canarium();
+        it("should be a function", function(){
+            assert.isFunction(canarium.config);
+        });
+        it("should return undefined when called with callback", function(done){
+            assert.isUndefined(canarium.config(null, new ArrayBuffer(0), (success: boolean) => {
+                assert.isFalse(success);
+                done();
+            }));
+        });
+        it("should return Promise and reject when port is not opened", function(){
+            return assert.isRejected(canarium.close());
+        });
+    });
+    describe("config() w/ connection to PERIDOT Classic (PS mode)", cond.classic_ps && function(){
+        let canarium = new Canarium();
+        before(function(){
+            this.slow(1000);
+            this.timeout(2000);
+            return canarium.open(cond.classic_ps);
+        });
+        after(function(){
+            this.slow(1000);
+            this.timeout(2000);
+            return canarium.close().catch(() => {});
+        });
+        it("should success without board constraints", function(){
+            this.slow(2000);
+            this.slow(4000);
+            return assert.isFulfilled(
+                canarium.config(null, CLASSIC_RBF_DATA.buffer)
+            );
+        });
+        it("should success with correct board ID constraint", function(){
+            this.slow(4000);
+            this.slow(8000);
+            return assert.isFulfilled(
+                canarium.config(
+                    {id: "J72A"},
+                    CLASSIC_RBF_DATA.buffer
+                )
+            );
+        });
+        it("should fail with incorrect board ID constraint", function(){
+            this.slow(3000);
+            this.slow(6000);
+            return assert.isRejected(
+                canarium.config(
+                    {id: <any>"J72A_"},
+                    CLASSIC_RBF_DATA.buffer
+                )
+            );
+        });
+        it("should fail with incorrect board serial constraint", function(){
+            this.slow(3000);
+            this.slow(6000);
+            return assert.isRejected(
+                canarium.config(
+                    {serialcode: "xxxxxx-yyyyyy-zzzzzz"},
+                    CLASSIC_RBF_DATA.buffer
+                )
+            );
+        });
+    });
 });
+//-*/
