@@ -78,6 +78,8 @@ describe("Canarium", function(){
             cond.boards[0] || this.skip();
         });
         it("should be true after connection", function(){
+            this.slow(1000);
+            this.timeout(2000);
             return assert.isFulfilled(
                 canarium.open(cond.boards[0])
                 .then(() => {
@@ -87,6 +89,8 @@ describe("Canarium", function(){
             )
         });
         it("should be false after disconnection", function(){
+            this.slow(1000);
+            this.timeout(2000);
             return assert.isFulfilled(
                 canarium.open(cond.boards[0])
                 .then(() => {
@@ -211,8 +215,8 @@ describe("Canarium", function(){
         });
         it("should fail when called with incorrect board ID", function(){
             cond.boards[0] || this.skip();
-            //this.slow(3000);
-            this.timeout(6000);
+            this.slow(2000);
+            this.timeout(4000);
             return assert.isRejected(
                 canarium.open(cond.boards[0], {id: <any>"J72A_"}),
                 "Board ID mismatch"
@@ -220,8 +224,8 @@ describe("Canarium", function(){
         });
         it("should fail when called with incorrect serial code", function(){
             cond.boards[0] || this.skip();
-            //this.slow(3000);
-            this.timeout(6000);
+            this.slow(2000);
+            this.timeout(4000);
             return assert.isRejected(
                 canarium.open(cond.boards[0], {serialcode: "xxxxxx-yyyyyy-zzzzzz"}),
                 "Board serial code mismatch"
@@ -229,14 +233,14 @@ describe("Canarium", function(){
         });
         it("should success when called with existent path", function(){
             cond.boards[0] || this.skip();
-            //this.slow(1000);
+            this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(canarium.open(cond.boards[0]));
         });
         it("should success with configuration on PERIDOT Classic (PS mode)", function(){
             cond.classic_ps || this.skip();
-            //this.slow(3000);
-            this.timeout(6000);
+            this.slow(2000);
+            this.timeout(4000);
             return assert.isFulfilled(
                 canarium.open(cond.classic_ps, {
                     rbfdata: CLASSIC_RBF_DATA.buffer
@@ -265,7 +269,7 @@ describe("Canarium", function(){
             cond.boards[0] || this.skip();
         });
         it("should success when port is opened", function(){
-            //this.slow(1000);
+            this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(
                 canarium.open(cond.boards[0])
@@ -294,25 +298,25 @@ describe("Canarium", function(){
         let canarium = new Canarium();
         before(function(){
             cond.classic_ps || this.skip();
-            //this.slow(1000);
+            this.slow(1000);
             this.timeout(2000);
             return canarium.open(cond.classic_ps);
         });
         after(function(){
-            //this.slow(1000);
+            this.slow(1000);
             this.timeout(2000);
             return canarium.close().catch(() => {});
         });
         it("should success without board constraints", function(){
-            //this.slow(2000);
+            this.slow(2000);
             this.timeout(4000);
             return assert.isFulfilled(
                 canarium.config(null, CLASSIC_RBF_DATA.buffer)
             );
         });
         it("should success with correct board ID constraint", function(){
-            //this.slow(4000);
-            this.timeout(8000);
+            this.slow(3000);
+            this.timeout(6000);
             return assert.isFulfilled(
                 canarium.config(
                     {id: "J72A"},
@@ -321,8 +325,8 @@ describe("Canarium", function(){
             );
         });
         it("should fail with incorrect board ID constraint", function(){
-            //this.slow(3000);
-            this.timeout(6000);
+            this.slow(2000);
+            this.timeout(4000);
             return assert.isRejected(
                 canarium.config(
                     {id: <any>"J72A_"},
@@ -331,8 +335,8 @@ describe("Canarium", function(){
             );
         });
         it("should fail with incorrect board serial constraint", function(){
-            //this.slow(3000);
-            this.timeout(6000);
+            this.slow(2000);
+            this.timeout(4000);
             return assert.isRejected(
                 canarium.config(
                     {serialcode: "xxxxxx-yyyyyy-zzzzzz"},
@@ -379,8 +383,8 @@ describe("Canarium", function(){
             cond.classic_ps || this.skip();
         });
         it("should success and clear SWI message register", function(){
-            //this.slow(3000);
-            this.timeout(60000);
+            this.slow(2000);
+            this.timeout(4000);
             let dummyValue = 0xdeadbeef;
             return assert.isFulfilled(
                 canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA.buffer})
