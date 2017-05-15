@@ -9,6 +9,7 @@
  * @param msg   メッセージまたはメッセージを返す関数
  * @param data  任意のデータ
  */
+/* istanbul ignore next */
 export function printLog(cls: string, func: string, msg: string|(() => string), data?: any) {
     let out: any = {
         time: Date.now(),
@@ -30,6 +31,7 @@ export function printLog(cls: string, func: string, msg: string|(() => string), 
  * @param data      変換するデータ
  * @param maxBytes  最長バイト数(省略時無制限)
  */
+/* istanbul ignore next */
 export function hexDump(data: number | number[] | ArrayBuffer | Uint8Array, maxBytes?: number): string {
     let brace = true;
     if (typeof(data) === "number") {
