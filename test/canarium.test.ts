@@ -1,9 +1,7 @@
 import * as chai from "chai";
 chai.use(require("chai-as-promised"));
 const {assert} = chai;
-
-import * as fs from "fs";
-import * as path from "path";
+import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE } from "./test-common";
 
 import { Canarium } from "../src/canarium";
 import { BaseComm } from "../src/base_comm";
@@ -13,26 +11,6 @@ import { AvmTransactions } from "../src/avm_transactions";
 import { RpcClient } from "../src/rpc_client";
 import { waitPromise } from "../src/common";
 
-const TEST_DIR = path.join(__dirname, "..", "..", "test");
-const CLASSIC_RBF_PATH = path.join(TEST_DIR, "peridot_classic", "output_files", "swi_testsuite.rbf");
-const CLASSIC_RBF_DATA = fs.readFileSync(CLASSIC_RBF_PATH);
-const SWI_BASE = 0x10000000;
-const REG_SWI_MESSAGE = 6;
-
-const cond = {
-    classic_ps: (process.argv.indexOf("--with-classic-ps") >= 0) ? "x" : null,
-    classic_as: (process.argv.indexOf("--with-classic-as") >= 0) ? "x" : null,
-    classic:    [],
-//  ngs:        (process.argv.indexOf("--with-ngs") >= 0) ? "x" : null,
-    boards:     [],
-};
-
-describe("(Test conditions)", function(){
-    it("Bench tests (Virtual tests)", () => null);
-    it("PERIDOT Classic (PS mode)", cond.classic_ps && (() => null));
-    it("PERIDOT Classic (AS mode)", cond.classic_as && (() => null));
-//  it("PERIDOT NGS", cond.ngs && (() => null));
-});
 /*
 describe("stress test", function(){
     let canarium = new Canarium();
@@ -84,13 +62,40 @@ describe("Canarium", function(){
         })
     });
 
-    describe("connected", function(){
+    describe("connected w/o connection", function(){
         let canarium = new Canarium();
         it("should be a boolean", function(){
             assert.isBoolean(canarium.connected);
         });
         it("should be false before connection", function(){
             assert.isFalse(canarium.connected);
+        });
+    })
+
+    describe("connected w/ connection", function(){
+        let canarium = new Canarium();
+        before(function(){
+            cond.boards[0] || this.skip();
+        });
+        it("should be true after connection", function(){
+            return assert.isFulfilled(
+                canarium.open(cond.boards[0])
+                .then(() => {
+                    assert.isTrue(canarium.connected);
+                    return canarium.close();                    
+                })
+            )
+        });
+        it("should be false after disconnection", function(){
+            return assert.isFulfilled(
+                canarium.open(cond.boards[0])
+                .then(() => {
+                    return canarium.close();                    
+                })
+                .then(() => {
+                    assert.isFalse(canarium.connected);
+                })
+            )
         });
     })
 
@@ -173,35 +178,6 @@ describe("Canarium", function(){
                 done();
             }));
         });
-        let list;
-        it("should return Promise<Array> when called without callback", function(){
-            return assert.isFulfilled(
-                Canarium.enumerate().then((result) => {
-                    list = result;
-                    assert.isArray(result);
-                })
-            );
-        });
-        it("should find PERIDOT Classic board for PS-mode test", cond.classic_ps && (function(){
-            let item = list.shift();
-            assert.equal(item.vendorId, 0x0403);
-            assert.equal(item.productId, 0x6015);
-            cond.classic_ps = item.path;
-            cond.classic.push(item.path);
-            cond.boards.push(item.path);
-            console.log(cond.classic_ps)
-        }));
-        it("should find PERIDOT Classic board for AS-mode test", cond.classic_as && (function(){
-            let item = list.shift();
-            assert.equal(item.vendorId, 0x0403);
-            assert.equal(item.productId, 0x6015);
-            cond.classic_as = item.path;
-            cond.classic.push(item.path);
-            cond.boards.push(item.path);
-        }));
-        it("should not find any other boards", function(){
-            assert.equal(list.length, 0);
-        });
     });
 
     describe("open() w/o connection", function(){
@@ -225,41 +201,48 @@ describe("Canarium", function(){
             return assert.isRejected(canarium.open("xxx"));
         });
     });
-    xdescribe("open() w/ connection", cond.boards && function(){
+    describe("open() w/ connection", function(){
         let canarium = new Canarium();
+        before(function(){
+            cond.boards[0] || this.skip();
+        });
         afterEach(function(){
             return canarium.close().catch(() => {});
         });
-        it("should fail when called with incorrect board ID", cond.boards && (function(){
-            this.slow(3000);
+        it("should fail when called with incorrect board ID", function(){
+            cond.boards[0] || this.skip();
+            //this.slow(3000);
             this.timeout(6000);
             return assert.isRejected(
                 canarium.open(cond.boards[0], {id: <any>"J72A_"}),
                 "Board ID mismatch"
             );
-        }));
-        it("should fail when called with incorrect serial code", cond.boards && (function(){
-            this.slow(3000);
+        });
+        it("should fail when called with incorrect serial code", function(){
+            cond.boards[0] || this.skip();
+            //this.slow(3000);
             this.timeout(6000);
             return assert.isRejected(
                 canarium.open(cond.boards[0], {serialcode: "xxxxxx-yyyyyy-zzzzzz"}),
                 "Board serial code mismatch"
             );
-        }));
-        it("should success when called with existent path", cond.boards && (function(){
-            this.slow(1000);
+        });
+        it("should success when called with existent path", function(){
+            cond.boards[0] || this.skip();
+            //this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(canarium.open(cond.boards[0]));
-        }));
-        it("should success with configuration on PERIDOT Classic (PS mode)", cond.classic_ps && (function(){
-            this.slow(3000);
+        });
+        it("should success with configuration on PERIDOT Classic (PS mode)", function(){
+            cond.classic_ps || this.skip();
+            //this.slow(3000);
             this.timeout(6000);
             return assert.isFulfilled(
                 canarium.open(cond.classic_ps, {
                     rbfdata: CLASSIC_RBF_DATA.buffer
                 })
             );
-        }));
+        });
     });
     describe("close() w/o connection", function(){
         let canarium = new Canarium();
@@ -276,10 +259,13 @@ describe("Canarium", function(){
             return assert.isRejected(canarium.close());
         });
     });
-    xdescribe("close() w/ connection", cond.boards && function(){
+    describe("close() w/ connection", function(){
         let canarium = new Canarium();
+        before(function(){
+            cond.boards[0] || this.skip();
+        });
         it("should success when port is opened", function(){
-            this.slow(1000);
+            //this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(
                 canarium.open(cond.boards[0])
@@ -304,28 +290,29 @@ describe("Canarium", function(){
             return assert.isRejected(canarium.close());
         });
     });
-    xdescribe("config() w/ connection to PERIDOT Classic (PS mode)", cond.classic_ps && function(){
+    describe("config() w/ connection to PERIDOT Classic (PS mode)", function(){
         let canarium = new Canarium();
         before(function(){
-            this.slow(1000);
+            cond.classic_ps || this.skip();
+            //this.slow(1000);
             this.timeout(2000);
             return canarium.open(cond.classic_ps);
         });
         after(function(){
-            this.slow(1000);
+            //this.slow(1000);
             this.timeout(2000);
             return canarium.close().catch(() => {});
         });
         it("should success without board constraints", function(){
-            this.slow(2000);
-            this.slow(4000);
+            //this.slow(2000);
+            this.timeout(4000);
             return assert.isFulfilled(
                 canarium.config(null, CLASSIC_RBF_DATA.buffer)
             );
         });
         it("should success with correct board ID constraint", function(){
-            this.slow(4000);
-            this.slow(8000);
+            //this.slow(4000);
+            this.timeout(8000);
             return assert.isFulfilled(
                 canarium.config(
                     {id: "J72A"},
@@ -334,8 +321,8 @@ describe("Canarium", function(){
             );
         });
         it("should fail with incorrect board ID constraint", function(){
-            this.slow(3000);
-            this.slow(6000);
+            //this.slow(3000);
+            this.timeout(6000);
             return assert.isRejected(
                 canarium.config(
                     {id: <any>"J72A_"},
@@ -344,8 +331,8 @@ describe("Canarium", function(){
             );
         });
         it("should fail with incorrect board serial constraint", function(){
-            this.slow(3000);
-            this.slow(6000);
+            //this.slow(3000);
+            this.timeout(6000);
             return assert.isRejected(
                 canarium.config(
                     {serialcode: "xxxxxx-yyyyyy-zzzzzz"},
@@ -386,10 +373,13 @@ describe("Canarium", function(){
             return assert.isRejected(canarium.reset());
         });
     });
-    describe("reset() w/ connection to PERIDOT Classic (PS mode)", cond.classic_ps && function(){
+    describe("reset() w/ connection to PERIDOT Classic (PS mode)", function(){
         let canarium = new Canarium();
+        before(function(){
+            cond.classic_ps || this.skip();
+        });
         it("should success and clear SWI message register", function(){
-            this.slow(3000);
+            //this.slow(3000);
             this.timeout(60000);
             let dummyValue = 0xdeadbeef;
             return assert.isFulfilled(
