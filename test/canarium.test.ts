@@ -11,51 +11,30 @@ import { AvmTransactions } from "../src/avm_transactions";
 import { RpcClient } from "../src/rpc_client";
 import { waitPromise } from "../src/common";
 
-/*
-describe("stress test", function(){
-    let canarium = new Canarium();
-    it("open&close 10 times", function(){
-        this.timeout(0);
-        function loop(i){
-            console.log(i);
-            return canarium.open("COM3")
-            .then(() => {
-                return canarium.close();
-            })
-            .then(() => {
-                if (i < 10) {
-                    return loop(i + 1);
-                }
-            });
-        }
-        return assert.isFulfilled(loop(0));
-    });
-});
-//-*/
 describe("Canarium", function(){
     describe("version", function(){
         let canarium = new Canarium();
-        it("should be a string", function(){
+        it("is a string", function(){
             assert.isString(canarium.version);
         });
-        it("should have a valid format", function(){
+        it("has a valid format", function(){
             assert.match(canarium.version, /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/);
         });
     });
 
     describe("boardInfo", function(){
         let canarium = new Canarium();
-        it("should be a property", function(){
+        it("is a property", function(){
             assert.property(canarium, "boardInfo");
         });
     });
 
     describe("serialBitrate", function(){
         let canarium = new Canarium();
-        it("should be a number", function(){
+        it("is a number", function(){
             assert.isNumber(canarium.serialBitrate);
         });
-        it("should be writable", function(){
+        it("is writable", function(){
             let value = canarium.serialBitrate * 2;
             canarium.serialBitrate = value;
             assert.equal(canarium.serialBitrate, value);
@@ -64,10 +43,10 @@ describe("Canarium", function(){
 
     describe("connected w/o connection", function(){
         let canarium = new Canarium();
-        it("should be a boolean", function(){
+        it("is a boolean", function(){
             assert.isBoolean(canarium.connected);
         });
-        it("should be false before connection", function(){
+        it("is false before connection", function(){
             assert.isFalse(canarium.connected);
         });
     })
@@ -77,7 +56,7 @@ describe("Canarium", function(){
         before(function(){
             cond.boards[0] || this.skip();
         });
-        it("should be true after connection", function(){
+        it("is true after connection", function(){
             this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(
@@ -88,7 +67,7 @@ describe("Canarium", function(){
                 })
             )
         });
-        it("should be false after disconnection", function(){
+        it("is false after disconnection", function(){
             this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(
@@ -105,55 +84,55 @@ describe("Canarium", function(){
 
     describe("configured", function(){
         let canarium = new Canarium();
-        it("should be a boolean", function(){
+        it("is a boolean", function(){
             assert.isBoolean(canarium.configured);
         });
-        it("should be false before connection", function(){
+        it("is false before connection", function(){
             assert.isFalse(canarium.configured);
         });
     });
 
     describe("base", function(){
         let canarium = new Canarium();
-        it("should be an instance of BaseComm", function(){
+        it("is an instance of BaseComm", function(){
             assert.instanceOf(canarium.base, BaseComm);
         });
     });
 
     describe("i2c", function(){
         let canarium = new Canarium();
-        it("should be an instance of I2CComm", function(){
+        it("is an instance of I2CComm", function(){
             assert.instanceOf(canarium.i2c, I2CComm);
         });
     });
 
     describe("avs", function(){
         let canarium = new Canarium();
-        it("should be an instance of AvsPackets", function(){
+        it("is an instance of AvsPackets", function(){
             assert.instanceOf(canarium.avs, AvsPackets);
         });
     });
 
     describe("avm", function(){
         let canarium = new Canarium();
-        it("should be an instance of AvmTransactions", function(){
+        it("is an instance of AvmTransactions", function(){
             assert.instanceOf(canarium.avm, AvmTransactions);
         });
     });
 
     describe("rpcClient", function(){
         let canarium = new Canarium();
-        it("should be an instance of RpcClient", function(){
+        it("is an instance of RpcClient", function(){
             assert.instanceOf(canarium.rpcClient, RpcClient);
         });
     });
 
     describe("swiBase", function(){
         let canarium = new Canarium();
-        it("should be a number", function(){
+        it("is a number", function(){
             assert.isNumber(canarium.swiBase);
         });
-        it("should be writable", function(){
+        it("is writable", function(){
             let value = canarium.swiBase + 16;
             canarium.swiBase = value;
             assert.equal(canarium.swiBase, value);
@@ -162,10 +141,10 @@ describe("Canarium", function(){
 
     describe("onClosed", function(){
         let canarium = new Canarium();
-        it("should be a property", function(){
+        it("is a property", function(){
             assert.property(canarium, "onClosed");
         });
-        it("should be writable", function(){
+        it("is writable", function(){
             let value = () => null;
             canarium.onClosed = value;
             assert.equal(canarium.onClosed, value);
@@ -173,10 +152,10 @@ describe("Canarium", function(){
     });
 
     describe("static enumerate()", function(){
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(Canarium.enumerate);
         });
-        it("should return undefined when called with callback", function(done){
+        it("returns undefined when called with callback", function(done){
             assert.isUndefined(Canarium.enumerate((success: boolean, result: any[]) => {
                 assert.isTrue(success);
                 done();
@@ -186,22 +165,22 @@ describe("Canarium", function(){
 
     describe("open() w/o connection", function(){
         let canarium = new Canarium();
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(canarium.open);
         });
-        it("should return undefined when called with callback", function(done){
+        it("returns undefined when called with callback", function(done){
             assert.isUndefined(canarium.open("xxx", (success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return undefined when called with boardInfo and callback", function(done){
+        it("returns undefined when called with boardInfo and callback", function(done){
             assert.isUndefined(canarium.open("xxx", {}, (success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return Promise(rejection) when called with inexistent path and no callback", function(){
+        it("returns Promise(rejection) when called with inexistent path and no callback", function(){
             return assert.isRejected(canarium.open("xxx"));
         });
     });
@@ -213,7 +192,7 @@ describe("Canarium", function(){
         afterEach(function(){
             return canarium.close().catch(() => {});
         });
-        it("should fail when called with incorrect board ID", function(){
+        it("fails when called with incorrect board ID", function(){
             cond.boards[0] || this.skip();
             this.slow(2000);
             this.timeout(4000);
@@ -222,7 +201,7 @@ describe("Canarium", function(){
                 "Board ID mismatch"
             );
         });
-        it("should fail when called with incorrect serial code", function(){
+        it("fails when called with incorrect serial code", function(){
             cond.boards[0] || this.skip();
             this.slow(2000);
             this.timeout(4000);
@@ -231,13 +210,13 @@ describe("Canarium", function(){
                 "Board serial code mismatch"
             );
         });
-        it("should success when called with existent path", function(){
+        it("succeeds when called with existent path", function(){
             cond.boards[0] || this.skip();
             this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(canarium.open(cond.boards[0]));
         });
-        it("should success with configuration on PERIDOT Classic (PS mode)", function(){
+        it("succeeds with configuration on PERIDOT Classic (PS mode)", function(){
             cond.classic_ps || this.skip();
             this.slow(2000);
             this.timeout(4000);
@@ -250,16 +229,16 @@ describe("Canarium", function(){
     });
     describe("close() w/o connection", function(){
         let canarium = new Canarium();
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(canarium.close);
         });
-        it("should return undefined when called with callback", function(done){
+        it("returns undefined when called with callback", function(done){
             assert.isUndefined(canarium.close((success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return Promise(rejection) when port is not opened", function(){
+        it("returns Promise(rejection) when port is not opened", function(){
             return assert.isRejected(canarium.close());
         });
     });
@@ -268,7 +247,7 @@ describe("Canarium", function(){
         before(function(){
             cond.boards[0] || this.skip();
         });
-        it("should success when port is opened", function(){
+        it("succeeds when port is opened", function(){
             this.slow(1000);
             this.timeout(2000);
             return assert.isFulfilled(
@@ -281,16 +260,16 @@ describe("Canarium", function(){
     });
     describe("config() w/o connection", function(){
         let canarium = new Canarium();
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(canarium.config);
         });
-        it("should return undefined when called with callback", function(done){
+        it("returns undefined when called with callback", function(done){
             assert.isUndefined(canarium.config(null, Buffer.alloc(0), (success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return Promise(rejection) when port is not opened", function(){
+        it("returns Promise(rejection) when port is not opened", function(){
             return assert.isRejected(canarium.close());
         });
     });
@@ -307,14 +286,14 @@ describe("Canarium", function(){
             this.timeout(2000);
             return canarium.close().catch(() => {});
         });
-        it("should success without board constraints", function(){
+        it("succeeds without board constraints", function(){
             this.slow(2000);
             this.timeout(4000);
             return assert.isFulfilled(
                 canarium.config(null, CLASSIC_RBF_DATA)
             );
         });
-        it("should success with correct board ID constraint", function(){
+        it("succeeds with correct board ID constraint", function(){
             this.slow(3000);
             this.timeout(6000);
             return assert.isFulfilled(
@@ -324,7 +303,7 @@ describe("Canarium", function(){
                 )
             );
         });
-        it("should fail with incorrect board ID constraint", function(){
+        it("fails with incorrect board ID constraint", function(){
             this.slow(2000);
             this.timeout(4000);
             return assert.isRejected(
@@ -334,7 +313,7 @@ describe("Canarium", function(){
                 )
             );
         });
-        it("should fail with incorrect board serial constraint", function(){
+        it("fails with incorrect board serial constraint", function(){
             this.slow(2000);
             this.timeout(4000);
             return assert.isRejected(
@@ -347,16 +326,16 @@ describe("Canarium", function(){
     });
     describe("reconfig() w/o connection", function(){
         let canarium = new Canarium();
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(canarium.reconfig);
         });
-        it("should return undefined when called with callback", function(done){
+        it("returns undefined when called with callback", function(done){
             assert.isUndefined(canarium.reconfig((success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return Promise(rejection) when port is not opened", function(){
+        it("returns Promise(rejection) when port is not opened", function(){
             return assert.isRejected(canarium.reconfig());
         });
     });
@@ -364,16 +343,16 @@ describe("Canarium", function(){
     //});
     describe("reset() w/o connection", function(){
         let canarium = new Canarium();
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(canarium.reset);
         });
-        it("should return undefined when called with callback", function(done){
+        it("returns undefined when called with callback", function(done){
             assert.isUndefined(canarium.reset((success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
         });
-        it("should return Promise(rejection) when port is not opened", function(){
+        it("returns Promise(rejection) when port is not opened", function(){
             return assert.isRejected(canarium.reset());
         });
     });
@@ -382,7 +361,7 @@ describe("Canarium", function(){
         before(function(){
             cond.classic_ps || this.skip();
         });
-        it("should success and clear SWI message register", function(){
+        it("succeeds and clear SWI message register", function(){
             this.slow(2000);
             this.timeout(4000);
             let dummyValue = 0xdeadbeef;

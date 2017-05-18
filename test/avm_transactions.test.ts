@@ -21,15 +21,15 @@ describe("AvmTransactions", function(){
         }
     });
     describe("base", function(){
-        it("should equal to canarium.base", function(){
+        it("equals to canarium.base", function(){
             assert.equal(avm.base, canarium.base);
         });
     });
     describe("swiBase", function(){
-        it("should be a number", function(){
+        it("is a number", function(){
             assert.isNumber(avm.swiBase);
         });
-        it("should be writable", function(){
+        it("is writable", function(){
             let oldValue = avm.swiBase;
             let newValue = oldValue + 4;
             avm.swiBase = newValue;
@@ -38,23 +38,23 @@ describe("AvmTransactions", function(){
         });
     });
     describe("iord() w/o connection", function(){
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(avm.iord);
         });
     });
     describe("iord() w/ connection", function(){
-        it("should return undefined and success when called with callback", function(done){
+        it("returns undefined and success when called with callback", function(done){
             assert.isUndefined(avm.iord(SWI_BASE, REG_SWI_CLASSID, (success: boolean) => {
                 assert.isTrue(success);
                 done();
             }));
         });
-        it("should return Promise(fulfilled) when called without callback", function(){
+        it("returns Promise(fulfilled) when called without callback", function(){
             return assert.isFulfilled(
                 avm.iord(SWI_BASE, REG_SWI_CLASSID)
             );
         });
-        it("should success with correct value (offset=1)", function(){
+        it("succeeds with correct value (offset=1)", function(){
             return assert.isFulfilled(
                 avm.iord(SWI_BASE - 4, REG_SWI_CLASSID + 1)
                 .then((value) => {
@@ -63,7 +63,7 @@ describe("AvmTransactions", function(){
             );
         });
         for (let byteoffset = 0; byteoffset <= 4; ++byteoffset) {
-            it(`should success with correct value (byteoffset=${byteoffset})`, function(){
+            it(`succeeds with correct value (byteoffset=${byteoffset})`, function(){
                 return assert.isFulfilled(
                     avm.iord(SWI_BASE + byteoffset, REG_SWI_CLASSID)
                     .then((value) => {
@@ -78,24 +78,24 @@ describe("AvmTransactions", function(){
         }
     });
     describe("iowr() w/o connection", function(){
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(avm.iowr);
         });
     });
     describe("iowr() w/ connection", function(){
         let scratch_base = IPL_BASE + IPL_SPAN - 8;
-        it("should return undefined and success when called with callback", function(done){
+        it("returns undefined and success when called with callback", function(done){
             assert.isUndefined(avm.iowr(scratch_base, 0, 0, (success: boolean) => {
                 assert.isTrue(success);
                 done();
             }));
         });
-        it("should return Promise(fulfilled) when called without callback", function(){
+        it("returns Promise(fulfilled) when called without callback", function(){
             return assert.isFulfilled(
                 avm.iowr(scratch_base, 0, 0)
             );
         });
-        it("should success with correct value (offset=1)", function(){
+        it("succeeds with correct value (offset=1)", function(){
             let dummyValue = 0xdeadbeef;
             return assert.isFulfilled(
                 avm.iowr(scratch_base - 4, 1, dummyValue)
@@ -108,7 +108,7 @@ describe("AvmTransactions", function(){
             );
         });
         for (let byteoffset = 0; byteoffset <= 4; ++byteoffset) {
-            it(`should success with correct value (byteoffset=${byteoffset})`, function(){
+            it(`succeeds with correct value (byteoffset=${byteoffset})`, function(){
                 let dummyValue = 0xbadcafe0 + byteoffset;
                 return assert.isFulfilled(
                     avm.iowr(scratch_base + byteoffset, 0, dummyValue)
@@ -133,7 +133,7 @@ describe("AvmTransactions", function(){
     xdescribe("option()", function(){
     });
     describe("read() w/o connection", function(){
-        it("should be a function", function(){
+        it("is a function", function(){
             assert.isFunction(avm.read);
         });
     });
