@@ -14,7 +14,7 @@
     "pretest:coverage": "npm run pretest",
     "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js",
     "posttest:coverage": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html",
-    "doc": "typedoc --options typedoc.json"
+    "docs": "typedoc --options typedoc.json"
   },
   "files": [
     "out/src/*.js",
