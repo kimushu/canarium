@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "bson": "^1.0.4",
-    "serialport": "github:kimushu/node-serialport#master"
+    "serialport": "^4.0.7"
   },
   "keywords": [
     "PERIDOT",
