@@ -145,7 +145,10 @@ export class BaseComm {
         .then(() => {
             this._connection.onClosed = () => {
                 this._connection = null;
-                this._onClosed && (this._onClosed)();
+                let onClosed = this._onClosed;
+                if (typeof(onClosed) === "function") {
+                    onClosed();
+                }
             };
             this._connection.onReceived = (data) => {
                 this._receiver(data);

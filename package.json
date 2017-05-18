@@ -8,7 +8,8 @@
     "compile": "tsc -p ./",
     "pretest": "npm run prepublish",
     "test": "node node_modules/mocha/bin/_mocha -- out/test/*.test.js",
-    "prepublish": "npm-run-all clean compile",
+    "lint": "tslint -p ./",
+    "prepublish": "npm-run-all clean compile lint",
     "pretest:coverage": "npm run pretest",
     "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js",
     "posttest:coverage": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html",
@@ -55,6 +56,7 @@
     "npm-run-all": "^4.0.2",
     "remap-istanbul": "^0.9.5",
     "rimraf": "^2.6.1",
+    "tslint": "^5.2.0",
     "typedoc": "^0.7.0",
     "typescript": "^2.3.2",
     "uglifyjs": "^2.4.10"
