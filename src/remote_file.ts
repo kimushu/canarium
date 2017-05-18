@@ -139,15 +139,15 @@ export class RemoteFile {
      * @param length        読み込むバイト数
      * @param autoContinue  読み込んだバイト数がlengthに達するまで繰り返すか否か
      */
-    read(length: number, autoContinue: boolean = false): Promise<ArrayBuffer> {
+    read(length: number, autoContinue: boolean = false): Promise<Buffer> {
         if (typeof(length) !== "number") {
             throw new TypeError("length must be a number");
         }
-        let buffers = [];
+        let buffers: Buffer[] = [];
         let total_read = 0;
-        function loop(): Promise<void> {
+        let loop = (): Promise<void> => {
             if (this._fd == null) {
-                throw new Error("File not opened");
+                return Promise.reject(new Error("File not opened"));
             }
             return this._rpcClient.doCall("fs.read", {
                 fd: this._fd,
@@ -156,7 +156,7 @@ export class RemoteFile {
             .then((result) => {
                 let read_length = result.length;
                 if (read_length > 0) {
-                    buffers.push(Buffer.from(result.data.read(0, read_length)));
+                    buffers.push(result.data.read(0, read_length));
                     total_read += read_length;
                 }
             }, (error) => {
@@ -175,15 +175,7 @@ export class RemoteFile {
         }
         return loop()
         .then(() => {
-            let buffer = new ArrayBuffer(total_read);
-            let combined = Buffer.from(buffer);
-            let offset = 0;
-            for (let i = 0; i < buffers.length; ++i) {
-                let part = buffers[i];
-                part.copy(combined, offset);
-                offset += part.length;
-            }
-            return buffer;
+            return Buffer.concat(buffers, total_read);
         });
     }
 
@@ -193,18 +185,16 @@ export class RemoteFile {
      * @param data          書き込むデータ
      * @param autoContinue  書き込んだバイト数がlengthに達するまで繰り返すか否か
      */
-    write(data: ArrayBuffer, autoContinue: boolean = false): Promise<number> {
-        if (!(data instanceof ArrayBuffer)) {
-            throw new TypeError("data must be an ArrayBuffer");
-        }
+    write(data: Buffer, autoContinue: boolean = false): Promise<number> {
+        data = Buffer.from(data);
         let total_written = 0;
-        function loop(): Promise<void> {
+        let loop = (): Promise<void> => {
             if (this._fd == null) {
-                throw new Error("File not opened");
+                return Promise.reject(new Error("File not opened"));
             }
             return this._rpcClient.doCall("fs.write", {
                 fd: this._fd,
-                data: Buffer.from(data, total_written)
+                data: data.slice(total_written)
             })
             .then((result) => {
                 total_written += result.length;
@@ -217,7 +207,7 @@ export class RemoteFile {
                 throw error;
             })
             .then(() => {
-                if (autoContinue && total_written < data.byteLength) {
+                if (autoContinue && total_written < data.length) {
                     return loop();
                 }
             });
@@ -257,11 +247,11 @@ export class RemoteFile {
     }
 
     fstat(): Promise<any> {
-        throw new Error("Not implemented");
+        return Promise.reject(new Error("Not implemented"));
     }
 
     ioctl(): Promise<any> {
-        throw new Error("Not implemented");
+        return Promise.reject(new Error("Not implemented"));
     }
 
     /**

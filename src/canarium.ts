@@ -86,7 +86,7 @@ export interface BoardInfoAtOpen extends BoardInfo {
     /**
      * 接続後に書き込むrbfやrpdのデータ
      */
-    rbfdata?: ArrayBuffer;
+    rbfdata?: Buffer;
 }
 
 /**
@@ -263,14 +263,14 @@ export class Canarium {
             return this._eepromRead(0x00, 4);
         })
         .then((result) => {
-            let header = new Uint8Array(result);
             /* istanbul ignore if */
-            if (!(header[0] === 0x4a && header[1] === 0x37 && header[2] === 0x57)) {
+            if (!(result[0] === 0x4a && result[1] === 0x37 && result[2] === 0x57)) {
                 throw new Error("EEPROM header is invalid");
             }
-            this._log(1, "open", /* istanbul ignore next */ () => "done(version=" + (hexDump(header[3])) + ")");
+            /* istanbul ignore next */
+            this._log(1, "open", () => "done(version=" + (hexDump(result[3])) + ")");
             this._boardInfo = {
-                version: header[3]
+                version: result[3]
             };
             return this._base.transCommand(0x39);
         })
@@ -325,7 +325,7 @@ export class Canarium {
      * @param boardInfo ボード情報(ボードIDやシリアル番号を限定したい場合)
      * @param rbfdata   rbfまたはrpdのデータ
      */
-    config(boardInfo: BoardInfo|void, rbfdata: ArrayBuffer): Promise<void>;
+    config(boardInfo: BoardInfo|void, rbfdata: Buffer): Promise<void>;
 
     /**
      * ボードのFPGAコンフィグレーション
@@ -334,12 +334,13 @@ export class Canarium {
      * @param rbfdata   rbfまたはrpdのデータ
      * @param callback  コールバック関数
      */
-    config(boardInfo: BoardInfo|void, rbfdata: ArrayBuffer, callback: (success: boolean, result: void|Error) => void): void;
+    config(boardInfo: BoardInfo|void, rbfdata: Buffer, callback: (success: boolean, result: void|Error) => void): void;
 
-    config(boardInfo: BoardInfo|void, rbfdata: ArrayBuffer, callback?: (success: boolean, result: void|Error) => void): any {
+    config(boardInfo: BoardInfo|void, rbfdata: Buffer, callback?: (success: boolean, result: void|Error) => void): any {
         if (callback != null) {
             return invokeCallback(callback, this.config(boardInfo, rbfdata));
         }
+        rbfdata = Buffer.from(rbfdata);
         let timeLimit: TimeLimit;
         return Promise.resolve()
         .then(() => {
@@ -578,11 +579,10 @@ export class Canarium {
                     // ver.1 ヘッダ
                     return this._eepromRead(0x04, 8)
                     .then((readdata) => {
-                        let info = new Uint8Array(readdata);
-                        this._log(1, "getinfo", "ver1", info);
-                        let mid = (info[0] << 8) | (info[1] << 0);
-                        let pid = (info[2] << 8) | (info[3] << 0);
-                        let sid = (info[4] << 24) | (info[5] << 16) | (info[6] << 8) | (info[7] << 0);
+                        this._log(1, "getinfo", "ver1", readdata);
+                        let mid = readdata.readUInt16BE(0);
+                        let pid = readdata.readUInt16BE(2);
+                        let sid = readdata.readUInt32BE(4);
                         if (mid === 0x0072) {
                             let s = ("000" + pid.toString(16)).substr(-4) +
                                     ("0000000" + sid.toString(16)).substr(-8);
@@ -594,16 +594,9 @@ export class Canarium {
                     // ver.2 ヘッダ
                     return this._eepromRead(0x04, 22)
                     .then((readdata) => {
-                        let info = new Uint8Array(readdata);
-                        this._log(1, "getinfo", "ver2", info);
-                        let bid = "";
-                        for (let i = 0; i < 4; ++i) {
-                            bid += String.fromCharCode(info[i]);
-                        }
-                        let s = "";
-                        for (let i = 4; i < 22; ++i) {
-                            s += String.fromCharCode(info[i]);
-                        }
+                        this._log(1, "getinfo", "ver2", readdata);
+                        let bid = String.fromCharCode(...Array.from(readdata.slice(0, 4)));
+                        let s = String.fromCharCode(...Array.from(readdata.slice(4, 22)));
                         this._boardInfo.id = <any>bid;
                         this._boardInfo.serialcode = (s.substr(0, 6)) + "-" + (s.substr(6, 6)) + "-" + (s.substr(12, 6));
                     });
@@ -656,15 +649,16 @@ export class Canarium {
      * @param startaddr 読み出し開始アドレス
      * @param readbytes 読み出しバイト数
      */
-    private _eepromRead(startaddr: number, readbytes: number): Promise<ArrayBuffer> {
+    private _eepromRead(startaddr: number, readbytes: number): Promise<Buffer> {
         return wrapPromise(() => null, () => {
-            let array = new Uint8Array(readbytes);
+            let array = Buffer.allocUnsafe(readbytes);
             let split = SPLIT_EEPROM_BURST || readbytes;
             return loopPromise(0, readbytes, split, (offset) => {
                 let length = Math.min(split, readbytes - offset);
                 let ack;
 
-                this._log(1, "_eepromRead", /* istanbul ignore next */ () => "begin(addr=" + (hexDump(startaddr)) + ",bytes=" + (hexDump(readbytes)) + ")");
+                /* istanbul ignore next */
+                this._log(1, "_eepromRead", () => "begin(addr=" + (hexDump(startaddr)) + ",bytes=" + (hexDump(readbytes)) + ")");
 
                 return Promise.resolve()
                 .then(() => {
@@ -713,7 +707,7 @@ export class Canarium {
             })
             .then(() => {
                 this._log(1, "_eepromRead", "end", array);
-                return array.buffer;
+                return array;
             })
         }, () => {
             return this.i2c.stop();

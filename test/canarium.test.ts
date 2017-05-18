@@ -243,7 +243,7 @@ describe("Canarium", function(){
             this.timeout(4000);
             return assert.isFulfilled(
                 canarium.open(cond.classic_ps, {
-                    rbfdata: CLASSIC_RBF_DATA.buffer
+                    rbfdata: CLASSIC_RBF_DATA
                 })
             );
         });
@@ -285,7 +285,7 @@ describe("Canarium", function(){
             assert.isFunction(canarium.config);
         });
         it("should return undefined when called with callback", function(done){
-            assert.isUndefined(canarium.config(null, new ArrayBuffer(0), (success: boolean) => {
+            assert.isUndefined(canarium.config(null, Buffer.alloc(0), (success: boolean) => {
                 assert.isFalse(success);
                 done();
             }));
@@ -311,7 +311,7 @@ describe("Canarium", function(){
             this.slow(2000);
             this.timeout(4000);
             return assert.isFulfilled(
-                canarium.config(null, CLASSIC_RBF_DATA.buffer)
+                canarium.config(null, CLASSIC_RBF_DATA)
             );
         });
         it("should success with correct board ID constraint", function(){
@@ -320,7 +320,7 @@ describe("Canarium", function(){
             return assert.isFulfilled(
                 canarium.config(
                     {id: "J72A"},
-                    CLASSIC_RBF_DATA.buffer
+                    CLASSIC_RBF_DATA
                 )
             );
         });
@@ -330,7 +330,7 @@ describe("Canarium", function(){
             return assert.isRejected(
                 canarium.config(
                     {id: <any>"J72A_"},
-                    CLASSIC_RBF_DATA.buffer
+                    CLASSIC_RBF_DATA
                 )
             );
         });
@@ -340,7 +340,7 @@ describe("Canarium", function(){
             return assert.isRejected(
                 canarium.config(
                     {serialcode: "xxxxxx-yyyyyy-zzzzzz"},
-                    CLASSIC_RBF_DATA.buffer
+                    CLASSIC_RBF_DATA
                 )
             );
         });
@@ -387,7 +387,7 @@ describe("Canarium", function(){
             this.timeout(4000);
             let dummyValue = 0xdeadbeef;
             return assert.isFulfilled(
-                canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA.buffer})
+                canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA})
                 .then(() => {
                     return canarium.avm.iowr(SWI_BASE, REG_SWI_MESSAGE, dummyValue);
                 })

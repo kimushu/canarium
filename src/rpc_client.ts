@@ -43,7 +43,7 @@ export class RpcClient {
     /**
      * ホストID
      */
-    private _hostId: Uint32Array = null;
+    private _hostId: Buffer = null;
 
     /**
      * ポーリングの2重起動防止バリア
@@ -232,10 +232,10 @@ export class RpcClient {
 
                 // ホストIDを書き込み
                 let newId = Date.now();
-                this._hostId = new Uint32Array(2);
-                this._hostId[0] = newId & 0xffffffff;
-                this._hostId[1] = newId >>> 32;
-                return this._avm.write(this._srvInfoPtr + 4, this._hostId.buffer);
+                this._hostId = Buffer.allocUnsafe(8);
+                this._hostId.writeUInt32LE(newId & 0xffffffff, 0);
+                this._hostId.writeUInt32LE(newId >>> 32, 4);
+                return this._avm.write(this._srvInfoPtr + 4, this._hostId);
             })
             .then(() => {
                 // (再)接続完了
@@ -261,7 +261,7 @@ export class RpcClient {
 
                 // 空きが有るため、新規リクエストの送信準備を行う
                 let call = this._pendingCalls.shift();
-                let bsonData;
+                let bsonData: Buffer;
 
                 return Promise.resolve()
                 .then(() => {
@@ -278,7 +278,7 @@ export class RpcClient {
 
                     if (typeof(params) === "function") {
                         // paramsが関数の場合、その戻り値を使ってBSONを再生成
-                        obj.params = params(reqLen - bsonData.byteLength);
+                        obj.params = params(reqLen - bsonData.length);
                         bsonData = bson.serialize(obj);
                     }
 
@@ -292,7 +292,7 @@ export class RpcClient {
                     }
 
                     // BSONデータサイズ確認
-                    if (bsonData.byteLength > reqLen) {
+                    if (bsonData.length > reqLen) {
                         throw new Error("Request data is too large");
                     }
 
@@ -334,9 +334,9 @@ export class RpcClient {
 
                 // データがあるため、レスポンスを受信する
                 return this._avm.read(resPtr, size)
-                .then((ab) => {
+                .then((buffer) => {
                     // 受信したBSONデータをECMAオブジェクトに戻す
-                    let obj = bson.deserialize(Buffer.from(ab));
+                    let obj = bson.deserialize(buffer);
 
                     // 受信データの検証
 

@@ -55,7 +55,7 @@ export class SerialWrapper {
      * データを受信したときに呼び出されるコールバック関数
      * (もし登録されていない場合、受信したデータは破棄される)
      */
-    public onReceived: (data: ArrayBuffer) => void;
+    public onReceived: (data: Buffer) => void;
 
     /**
      * シリアルポートインスタンス
@@ -150,7 +150,7 @@ export class SerialWrapper {
             if (DEBUG >= 2) {
                 console.log(`${Date.now()}:send:${hexDump(data)}`);
             }
-            return this._sp.write(new Buffer(new Uint8Array(data)), (error) => {
+            return this._sp.write(Buffer.from(data), (error) => {
                 if (error != null) {
                     return reject(error);
                 }
@@ -260,7 +260,7 @@ export class SerialWrapper {
                 if (DEBUG >= 2) {
                     console.log(`${Date.now()}:recv:${hexDump(data)}`);
                 }
-                func(new Uint8Array(data).buffer);
+                func(data);
             }
         }
     }

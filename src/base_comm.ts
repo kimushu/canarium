@@ -94,12 +94,12 @@ export class BaseComm {
     /**
      * 受信中データ
      */
-    private _rxBuffer: ArrayBuffer;
+    private _rxBuffer: Buffer;
 
     /**
      * 受信処理を行う関数
      */
-    private _receiver: (chunk?: ArrayBuffer, error?: Error) => void;
+    private _receiver: (chunk?: Buffer, error?: Error) => void;
 
     /**
      * 接続対象デバイスを列挙する
@@ -208,16 +208,16 @@ export class BaseComm {
      * @param command   コマンドバイト
      */
     transCommand(command: number): Promise<number> {
-        let txarray = new Uint8Array(2);
+        let txarray = Buffer.allocUnsafe(2);
         txarray[0] = 0x3a;
         txarray[1] = command;
-        return this._transSerial(txarray.buffer, (rxdata) => {
-            if (rxdata.byteLength >= 1) {
+        return this._transSerial(txarray, (rxdata) => {
+            if (rxdata.length >= 1) {
                 return 1;
             }
         })
         .then((rxdata) => {
-            return (new Uint8Array(rxdata))[0];
+            return rxdata[0];
         });
     }
 
@@ -232,13 +232,12 @@ export class BaseComm {
      *                  - undefined : 追加データを要求
      *                  - Error : エラー発生時のエラー情報
      */
-    transData(txdata?: ArrayBuffer, estimator?: (rxdata: ArrayBuffer, offset: number) => number|void|Error): Promise<ArrayBuffer> {
+    transData(txdata?: Buffer, estimator?: (rxdata: Buffer, offset: number) => number|void|Error): Promise<Buffer> {
         if (txdata != null) {
-            let src = new Uint8Array(txdata);
-            let dst = new Uint8Array(txdata.byteLength * 2);
+            let dst = Buffer.allocUnsafe(txdata.length * 2);
             let len = 0;
-            for (let i = 0; i < src.length; ++i) {
-                let byte = src[i];
+            for (let i = 0; i < txdata.length; ++i) {
+                let byte = txdata[i];
                 if (byte === 0x3a || byte === 0x3d) {
                     dst[len] = 0x3d;
                     len += 1;
@@ -247,7 +246,7 @@ export class BaseComm {
                 dst[len] = byte;
                 len += 1;
             }
-            txdata = dst.buffer.slice(0, len);
+            txdata = dst.slice(0, len);
         }
         return this._transSerial(txdata, estimator);
     }
@@ -277,24 +276,25 @@ export class BaseComm {
      *                  - undefined : 追加データを要求
      *                  - Error : エラー発生時のエラー情報
      */
-    private _transSerial(txdata: ArrayBuffer, estimator: (rxdata: ArrayBuffer, offset: number) => number|void|Error): Promise<ArrayBuffer> {
+    private _transSerial(txdata: Buffer, estimator: (rxdata: Buffer, offset: number) => number|void|Error): Promise<Buffer> {
         if (this._connection == null) {
             return Promise.reject(new Error("Not connected"));
         }
         if (this._receiver != null) {
             return Promise.reject(new Error("Operation is in progress"));
         }
-        let promise = new Promise<ArrayBuffer>((resolve, reject) => {
-            this._receiver = function (rxdata, error) {
+        let promise = new Promise<Buffer>((resolve, reject) => {
+            this._receiver = (rxdata, error) => {
                 let result: number|void|Error;
                 if (rxdata != null) {
-                    let offset = (this._rxBuffer != null ? this._rxBuffer.byteLength : 0);
-                    let newArray = new Uint8Array(offset + rxdata.byteLength);
+                    let offset: number;
                     if (this._rxBuffer != null) {
-                        newArray.set(new Uint8Array(this._rxBuffer));
+                        offset = this._rxBuffer.length;
+                        this._rxBuffer = Buffer.concat([this._rxBuffer, rxdata]);
+                    } else {
+                        offset = 0;
+                        this._rxBuffer = Buffer.from(rxdata);
                     }
-                    newArray.set(new Uint8Array(rxdata), offset);
-                    this._rxBuffer = newArray.buffer;
                     result = estimator(this._rxBuffer, offset);
                 } else {
                     result = error;
@@ -304,22 +304,22 @@ export class BaseComm {
                     this._receiver = null;
                     return reject(result);
                 }
-                if (result != null) {
+                if (typeof(result) === "number") {
                     rxdata = this._rxBuffer.slice(0, result);
                     this._rxBuffer = this._rxBuffer.slice(result);
                     this._receiver = null;
                     return resolve(rxdata);
                 }
-            }
+            };
         });
         //this._connection.resume();
-        let txsize = (txdata != null ? txdata.byteLength : 0);
+        let txsize = (txdata != null ? txdata.length : 0);
         return loopPromise(0, txsize, SERIAL_TX_MAX_LENGTH, (pos) => {
             let data = txdata.slice(pos, pos + SERIAL_TX_MAX_LENGTH);
-            let size = data.byteLength;
+            let size = data.length;
             return this._connection.write(data)
             .then(() => {
-                this._log(1, "_transSerial", "sent", new Uint8Array(data));
+                this._log(1, "_transSerial", "sent", data);
                 if (SUCCESSIVE_TX_WAIT_MS > 0) {
                     return waitPromise(SUCCESSIVE_TX_WAIT_MS);
                 }
@@ -328,7 +328,7 @@ export class BaseComm {
         .then(() => {
             if (estimator == null) {
                 this._receiver = null;
-                return new ArrayBuffer(0);
+                return Buffer.alloc(0);
             }
             this._log(1, "_transSerial", "wait", promise);
             return promise;

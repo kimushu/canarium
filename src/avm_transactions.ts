@@ -59,7 +59,7 @@ export class AvmTransactions {
      * @param address   読み込み元アドレス(バイト単位)
      * @param bytenum   読み込むバイト数
      */
-    read(address: number, bytenum: number): Promise<ArrayBuffer>;
+    read(address: number, bytenum: number): Promise<Buffer>;
 
     /**
      * AvalonMMメモリリード(IORD_DIRECT)
@@ -68,19 +68,19 @@ export class AvmTransactions {
      * @param bytenum   読み込むバイト数
      * @param callback  コールバック関数
      */
-    read(address: number, bytenum: number, callback: (success: boolean, result: ArrayBuffer | Error) => void): void;
+    read(address: number, bytenum: number, callback: (success: boolean, result: Buffer | Error) => void): void;
 
-    read(address: number, bytenum: number, callback?: (success: boolean, result: ArrayBuffer | Error) => void): any {
+    read(address: number, bytenum: number, callback?: (success: boolean, result: Buffer | Error) => void): any {
         if (callback != null) {
             return invokeCallback(callback, this.read(address, bytenum));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(() => {
+            return this._queue<Buffer>(() => {
                 this._log(1, "read", () => "begin(address=" + (hexDump(address)) + ")");
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
                 }
-                let dest = new Uint8Array(bytenum);
+                let dest = Buffer.allocUnsafe(bytenum);
                 return loopPromise(0, bytenum, AVM_TRANS_MAX_BYTES, (pos) => {
                     let partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
                     this._log(2, "read", () => "partial(offset=" + (hexDump(pos)) + ",size=" + (hexDump(partialSize)) + ")");
@@ -91,12 +91,12 @@ export class AvmTransactions {
                         partialSize
                     )
                     .then((partialData) => {
-                        dest.set(new Uint8Array(partialData), pos);
+                        partialData.copy(dest, pos);
                     })
                 })
                 .then(() => {
                     this._log(1, "read", "end", dest);
-                    return dest.buffer;
+                    return dest;
                 });
             });
         });
@@ -108,7 +108,7 @@ export class AvmTransactions {
      * @param address   書き込み先アドレス(バイト単位)
      * @param writedata 書き込むデータ
      */
-    write(address: number, writedata: ArrayBuffer): Promise<void>;
+    write(address: number, writedata: Buffer): Promise<void>;
 
     /**
      * AvalonMMメモリライト(IOWR_DIRECT)
@@ -117,21 +117,23 @@ export class AvmTransactions {
      * @param writedata 書き込むデータ
      * @param callback  コールバック関数
      */
-    write(address: number, writedata: ArrayBuffer, callback: (success: boolean, result?: Error) => void): void;
+    write(address: number, writedata: Buffer, callback: (success: boolean, result?: Error) => void): void;
 
-    write(address: number, writedata: ArrayBuffer, callback?: (success: boolean, result?: Error) => void): any {
+    write(address: number, writedata: Buffer, callback?: (success: boolean, result?: Error) => void): any {
         if (callback != null) {
             return invokeCallback(callback, this.write(address, writedata));
         }
-        let src = new Uint8Array(writedata.slice(0));
+        let src = Buffer.from(writedata);
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(() => {
+            return this._queue<void>(() => {
+                /* istanbul ignore next */
                 this._log(1, "write", () => "begin(address=" + (hexDump(address)) + ")", src);
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
                 }
-                return loopPromise(0, src.byteLength, AVM_TRANS_MAX_BYTES, (pos) => {
-                    let partialData = src.subarray(pos, pos + AVM_TRANS_MAX_BYTES);
+                return loopPromise(0, src.length, AVM_TRANS_MAX_BYTES, (pos) => {
+                    let partialData = src.slice(pos, pos + AVM_TRANS_MAX_BYTES);
+                    /* istanbul ignore next */
                     this._log(2, "write", () => "partial(offset=" + (hexDump(pos)) + ")", partialData);
                     return this._trans(
                         0x04,   // Write, incrementing address
@@ -169,7 +171,7 @@ export class AvmTransactions {
             return invokeCallback(callback, this.iord(address, offset));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(() => {
+            return this._queue<number>(() => {
                 this._log(1, "iord", () => "begin(address=" + (hexDump(address)) + "+" + offset + ")");
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
@@ -181,8 +183,7 @@ export class AvmTransactions {
                     4
                 )
                 .then((rxdata) => {
-                    let src = new Uint8Array(rxdata);
-                    let readData = ((src[3] << 24) | (src[2] << 16) | (src[1] << 8) | (src[0] << 0)) >>> 0;
+                    let readData = rxdata.readUInt32LE(0);
                     this._log(1, "iord", "end", readData);
                     return readData;
                 });
@@ -214,16 +215,13 @@ export class AvmTransactions {
             return invokeCallback(callback, this.iowr(address, offset, writedata));
         }
         return this._avs.base.assertConnection().then(() => {
-            return this._queue(() => {
+            return this._queue<void>(() => {
                 this._log(1, "iowr", () => "begin(address=" + (hexDump(address)) + "+" + offset + ")", writedata);
                 if (!this._avs.base.configured) {
                     throw new Error("Device is not configured");
                 }
-                let src = new Uint8Array(4);
-                src[0] = (writedata >>> 0) & 0xff;
-                src[1] = (writedata >>> 8) & 0xff;
-                src[2] = (writedata >>> 16) & 0xff;
-                src[3] = (writedata >>> 24) & 0xff;
+                let src = Buffer.allocUnsafe(4);
+                src.writeUInt32LE(writedata >>> 0, 0);
                 return this._trans(
                     0x00,   // Write, non-incrementing address
                     (address & 0xfffffffc) + (offset << 2),
@@ -293,38 +291,33 @@ export class AvmTransactions {
      * @param txdata    送信パケットに付加するデータ(受信時はundefined)
      * @param rxsize    受信するバイト数(送信時はundefined)
      */
-    private _trans(transCode: number, address: number, txdata?: Uint8Array, rxsize?: number): Promise<ArrayBuffer> {
-        let len: number, pkt: Uint8Array;
+    private _trans(transCode: number, address: number, txdata?: Buffer, rxsize?: number): Promise<Buffer> {
+        let len: number, pkt: Buffer;
         if (txdata != null) {
-            len = txdata.byteLength;
-            pkt = new Uint8Array(8 + len);
+            len = txdata.length;
+            pkt = Buffer.allocUnsafe(8 + len);
         } else {
             len = rxsize
-            pkt = new Uint8Array(8);
+            pkt = Buffer.allocUnsafe(8);
         }
         pkt[0] = transCode;
         pkt[1] = 0x00;
-        pkt[2] = (len >>> 8) & 0xff;
-        pkt[3] = (len >>> 0) & 0xff;
-        pkt[4] = (address >>> 24) & 0xff;
-        pkt[5] = (address >>> 16) & 0xff;
-        pkt[6] = (address >>> 8) & 0xff;
-        pkt[7] = (address >>> 0) & 0xff;
+        pkt.writeUInt16BE(len, 2)
+        pkt.writeUInt32BE(address >>> 0, 4);
         if (txdata != null) {
-            pkt.set(txdata, 8);
+            txdata.copy(pkt, 8);
         }
         this._log(2, "_trans", "send", pkt);
-        return this._avs.transPacket(this._channel, pkt.buffer, rxsize || 4)
+        return this._avs.transPacket(this._channel, pkt, rxsize || 4)
         .then((rxdata) => {
-            this._log(2, "_trans", "recv", new Uint8Array(rxdata));
+            this._log(2, "_trans", "recv", rxdata);
             if (rxsize != null) {
-                if (rxdata.byteLength !== rxsize) {
+                if (rxdata.length !== rxsize) {
                     throw new Error("Received data length does not match");
                 }
                 return rxdata;
             }
-            let res = new Uint8Array(rxdata);
-            if (!(res[0] === (pkt[0] ^ 0x80) && res[2] === pkt[2] && res[3] === pkt[3])) {
+            if (!(rxdata[0] === (pkt[0] ^ 0x80) && rxdata[2] === pkt[2] && rxdata[3] === pkt[3])) {
                 throw new Error("Illegal write response");
             }
         });

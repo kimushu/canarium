@@ -11,7 +11,8 @@ describe("AvmTransactions", function(){
     beforeEach(function(){
         cond.classic_ps || this.skip();
         if (!canarium.connected) {
-            return canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA.buffer});
+            this.timeout(5000);
+            return canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA});
         }
     });
     after(function(){
