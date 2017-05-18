@@ -1,7 +1,7 @@
-Canarium - PERIDOT board driver for Node.js applications
+Canarium - PERIDOT board driver
 ========
 
-Canarium is JavaScript-based driver for [PERIDOT boards](https://github.com/osafune/peridot).
+Canarium is [PERIDOT boards](https://github.com/osafune/peridot) driver for Node.js applications.
 
 Example
 -------

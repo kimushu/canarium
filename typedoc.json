@@ -4,5 +4,6 @@
     "excludePrivate": true,
     "module": "commonjs",
     "target": "es5",
-    "theme": "default"
+    "theme": "default",
+    "entryPoint": "Canarium"
 }
