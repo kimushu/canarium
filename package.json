@@ -26,12 +26,10 @@
   },
   "dependencies": {
     "bson": "^1.0.4",
-    "es6-promise": "^3.3.1",
     "serialport": "github:kimushu/node-serialport#master"
   },
   "keywords": [
     "PERIDOT",
-    "Chrome",
     "canarium"
   ],
   "author": "kimu_shu",
