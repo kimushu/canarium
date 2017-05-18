@@ -1,15 +1,39 @@
-Canarium
+Canarium - PERIDOT board driver for Node.js applications
 ========
 
-Canarium is JavaScript-based driver for [PERIDOT](https://github.com/osafune/peridot) boards.
+Canarium is JavaScript-based driver for [PERIDOT boards](https://github.com/osafune/peridot).
 
-Documentation
--------------
+Example
+-------
+```js
+const { Canarium } = require('canarium');
+const fs = require('fs');
 
-The documentation for Canarium is published [here](https://kimushu.github.io/canarium/) (currently Japanese-only)
+let canarium = new Canarium();
+// Connect to PERIDOT Classic (PS mode) on COM3 port
+canarium.open('COM3')
+.then(() => {
+    // Program FPGA
+    return canarium.config(fs.readFileSync('test.rbf'));
+})
+.then(() => {
+    // Read memory
+    return canarium.avm.read(0x10000000, 256);
+})
+.then((data) => {
+    // Show memory dump
+    console.log(data);
+
+    // Disconnect
+    return canarium.close();
+});
+```
+
+History
+-------
+See CHANGELOG.md
 
 License
 -------
 
 This package is distributed under MIT license.
-
