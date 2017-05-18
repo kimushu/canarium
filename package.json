@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "rimraf out types",
     "compile": "tsc -p ./",
-    "pretest": "npm run prepublish",
+    "pretest": "npm run compile",
     "test": "node node_modules/mocha/bin/_mocha -- out/test/*.test.js",
     "lint": "tslint -p ./",
     "prepublish": "npm-run-all clean compile lint",
