@@ -2,7 +2,8 @@
   "name": "canarium",
   "version": "1.0.0-beta1",
   "description": "PERIDOT board driver library",
-  "main": "./out/src/canarium.js",
+  "main": "out/src/canarium.js",
+  "types": "types/src/canarium.d.ts",
   "scripts": {
     "clean": "rimraf out types",
     "compile": "tsc -p ./",

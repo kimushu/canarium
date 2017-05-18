@@ -1,17 +1,11 @@
 import * as path from "path";
 import { hexDump, invokeCallback, loopPromise, printLog, waitPromise, wrapPromise, TimeLimit } from "./common";
-import { BaseComm, BoardCandidate } from "./base_comm";
-export { BaseComm, BoardCandidate } from "./base_comm";
-import { I2CComm } from "./i2c_comm";
-export { I2CComm } from "./i2c_comm";
-import { AvsPackets } from "./avs_packets";
-export { AvsPackets } from "./avs_packets";
-import { AvmTransactions } from "./avm_transactions";
-export { AvmTransactions } from "./avm_transactions";
-import { RpcClient } from "./rpc_client";
-export { RpcClient } from "./rpc_client";
-import { FileOpenFlags, RemoteFile } from "./remote_file";
-export { FileOpenFlags, RemoteFile } from "./remote_file";
+import * as modBaseComm from "./base_comm";
+import * as modI2CComm from "./i2c_comm";
+import * as modAvsPackets from "./avs_packets";
+import * as modAvmTransactions from "./avm_transactions";
+import * as modRpcClient from "./rpc_client";
+import * as modRemoteFile from "./remote_file";
 
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
@@ -89,6 +83,23 @@ export interface BoardInfoAtOpen extends BoardInfo {
     rbfdata?: Buffer;
 }
 
+/*
+ * ネストされた型情報の提供
+ */
+export module Canarium {
+    export type BaseComm = modBaseComm.BaseComm;
+    export type BaseCommOptions = modBaseComm.BaseCommOptions;
+    export type BoardCandidate = modBaseComm.BoardCandidate;
+    export type I2CComm = modI2CComm.I2CComm;
+    export type AvsPackets = modAvsPackets.AvsPackets;
+    export type AvmTransactions = modAvmTransactions.AvmTransactions;
+    export type AvmTransactionsOptions = modAvmTransactions.AvmTransactionsOptions;
+    export type RpcClient = modRpcClient.RpcClient;
+    export type RemoteFile = modRemoteFile.RemoteFile;
+    export type FileOpenFlags = modRemoteFile.FileOpenFlags;
+    export type FileSeekWhence = modRemoteFile.FileSeekWhence;
+}
+
 /**
  * PERIDOTボードドライバ
  */
@@ -138,7 +149,7 @@ export class Canarium {
     /**
      * 下位層通信クラスのインスタンス
      */
-    private _base: BaseComm = new BaseComm();
+    private _base: Canarium.BaseComm = new modBaseComm.BaseComm();
 
     /**
      * I2C通信制御クラスのインスタンス
@@ -148,7 +159,7 @@ export class Canarium {
     /**
      * I2C通信制御クラスのインスタンス
      */
-    private _i2c: I2CComm = new I2CComm(this._base);
+    private _i2c: Canarium.I2CComm = new modI2CComm.I2CComm(this._base);
 
     /**
      * Avalon-STパケット層通信クラスのインスタンス
@@ -158,7 +169,7 @@ export class Canarium {
     /**
      * Avalon-STパケット層通信クラスのインスタンス
      */
-    private _avs: AvsPackets = new AvsPackets(this._base);
+    private _avs: Canarium.AvsPackets = new modAvsPackets.AvsPackets(this._base);
 
     /**
      * Avalon-MMトランザクション層通信クラスのインスタンス
@@ -168,7 +179,7 @@ export class Canarium {
     /**
      * Avalon-MMトランザクション層通信クラスのインスタンス
      */
-    private _avm: AvmTransactions = new AvmTransactions(this._avs, AVM_CHANNEL);
+    private _avm: Canarium.AvmTransactions = new modAvmTransactions.AvmTransactions(this._avs, AVM_CHANNEL);
 
     /**
      * RPCクライアントクラスのインスタンス
@@ -178,7 +189,7 @@ export class Canarium {
     /**
      * RPCクライアントクラスのインスタンス
      */
-    private _rpcClient: RpcClient = new RpcClient(this._avm);
+    private _rpcClient: Canarium.RpcClient = new modRpcClient.RpcClient(this._avm);
 
     /**
      * ホスト通信用ペリフェラル(SWI)のベースアドレス
@@ -212,7 +223,7 @@ export class Canarium {
      * 接続対象デバイスを列挙する
      * (PERIDOTでないデバイスも列挙される可能性があることに注意)
      */
-    static enumerate(): Promise<BoardCandidate[]>;
+    static enumerate(): Promise<Canarium.BoardCandidate[]>;
 
     /**
      * 接続対象デバイスを列挙する
@@ -220,13 +231,13 @@ export class Canarium {
      *
      * @param callback  コールバック関数
      */
-    static enumerate(callback: (success: boolean, result: BoardCandidate[]|Error) => void): void;
+    static enumerate(callback: (success: boolean, result: Canarium.BoardCandidate[]|Error) => void): void;
 
-    static enumerate(callback?: (success: boolean, result: BoardCandidate[]|Error) => void): any {
+    static enumerate(callback?: (success: boolean, result: Canarium.BoardCandidate[]|Error) => void): any {
         if (callback != null) {
             return invokeCallback(callback, this.enumerate());
         }
-        return BaseComm.enumerate();
+        return modBaseComm.BaseComm.enumerate();
     }
 
     /**
@@ -617,7 +628,7 @@ export class Canarium {
      * @param mode     ファイル作成時のパーミッション
      * @param interval RPCポーリング周期
      */
-    openRemoteFile(path: string, flags: number|FileOpenFlags, mode?: number, interval?: number): Promise<RemoteFile>;
+    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number): Promise<Canarium.RemoteFile>;
 
     /**
      * ボード上のファイルを開く
@@ -627,9 +638,9 @@ export class Canarium {
      * @param interval RPCポーリング周期
      * @param callback コールバック関数
      */
-    openRemoteFile(path: string, flags: number|FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: RemoteFile|Error) => void): void;
+    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): void;
 
-    openRemoteFile(path: string, flags: number|FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: RemoteFile|Error) => void): any {
+    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): any {
         if (typeof(mode) === "function") {
             callback = mode;
             interval = null;
@@ -641,7 +652,7 @@ export class Canarium {
         if (callback != null) {
             return invokeCallback(callback, this.openRemoteFile(path, flags, mode, interval));
         }
-        return RemoteFile.open(this._rpcClient, path, flags, mode, interval);
+        return modRemoteFile.RemoteFile.open(this._rpcClient, path, flags, mode, interval);
     }
 
     /**
