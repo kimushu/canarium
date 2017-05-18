@@ -1,11 +1,17 @@
 import * as path from "path";
 import { hexDump, invokeCallback, loopPromise, printLog, waitPromise, wrapPromise, TimeLimit } from "./common";
 import { BaseComm, BoardCandidate } from "./base_comm";
+export { BaseComm, BoardCandidate } from "./base_comm";
 import { I2CComm } from "./i2c_comm";
+export { I2CComm } from "./i2c_comm";
 import { AvsPackets } from "./avs_packets";
+export { AvsPackets } from "./avs_packets";
 import { AvmTransactions } from "./avm_transactions";
+export { AvmTransactions } from "./avm_transactions";
 import { RpcClient } from "./rpc_client";
+export { RpcClient } from "./rpc_client";
 import { FileOpenFlags, RemoteFile } from "./remote_file";
+export { FileOpenFlags, RemoteFile } from "./remote_file";
 
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
@@ -768,4 +774,5 @@ export class Canarium {
             printLog("Canarium", func, msg, data);
         }
     }
+
 }
