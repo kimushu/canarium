@@ -1,5 +1,5 @@
 import { hexDump, invokeCallback, printLog, loopPromise } from "./common";
-import { BaseCommOptions } from "./base_comm";
+import { BaseComm, BaseCommOptions } from "./base_comm";
 import { AvsPackets } from "./avs_packets";
 
 /**
