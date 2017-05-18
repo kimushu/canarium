@@ -39,7 +39,7 @@ describe("Canarium", function(){
             assert.isString(canarium.version);
         });
         it("should have a valid format", function(){
-            assert.match(canarium.version, /^\d+\.\d+\.\d+$/);
+            assert.match(canarium.version, /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/);
         });
     });
 
