@@ -6,6 +6,7 @@ import * as modAvsPackets from './avs_packets';
 import * as modAvmTransactions from './avm_transactions';
 import * as modRpcClient from './rpc_client';
 import * as modRemoteFile from './remote_file';
+import * as modRemoteError from './remote_error';
 
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
@@ -98,6 +99,7 @@ export module Canarium {
     export type RemoteFile = modRemoteFile.RemoteFile;
     export type FileOpenFlags = modRemoteFile.FileOpenFlags;
     export type FileSeekWhence = modRemoteFile.FileSeekWhence;
+    export type RemoteError = modRemoteError.RemoteError;
 }
 
 /**
