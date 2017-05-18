@@ -1,6 +1,6 @@
-import { RpcClient } from "./rpc_client";
-import { RemoteError } from "./remote_error";
-import { printLog } from "./common";
+import { RpcClient } from './rpc_client';
+import { RemoteError } from './remote_error';
+import { printLog } from './common';
 
 /**
  * RPCポーリング周期のデフォルト値
@@ -83,16 +83,16 @@ export class RemoteFile {
      * @param interval  RPCポーリング周期
      */
     static open(rpcClient: RpcClient, path: string, flags: number|FileOpenFlags, mode: number = 511, interval = REMOTEFILE_DEFAULT_INTERVAL): Promise<RemoteFile> {
-        if (Object.prototype.toString.call(path) !== "[object String]") {
-            throw new TypeError("path must be a string");
+        if (Object.prototype.toString.call(path) !== '[object String]') {
+            throw new TypeError('path must be a string');
         }
         if (flags == null) {
-            throw new TypeError("flags must be a number or Object");
+            throw new TypeError('flags must be a number or Object');
         }
-        if (typeof(mode) !== "number") {
-            throw new TypeError("mode must be a number");
+        if (typeof(mode) !== 'number') {
+            throw new TypeError('mode must be a number');
         }
-        if (typeof(flags) !== "number") {
+        if (typeof(flags) !== 'number') {
             let n = this.O_RDONLY;
             if (flags.O_WRONLY) {
                 n = this.O_WRONLY;
@@ -114,7 +114,7 @@ export class RemoteFile {
             }
             flags = n;
         }
-        return rpcClient.doCall("fs.open", {path, flags, mode}, interval)
+        return rpcClient.doCall('fs.open', {path, flags, mode}, interval)
         .then((result) => {
             return new this(rpcClient, result.fd);
         });
@@ -125,9 +125,9 @@ export class RemoteFile {
      */
     close(): Promise<void> {
         if (this._fd == null) {
-            throw new Error("File not opened");
+            throw new Error('File not opened');
         }
-        return this._rpcClient.doCall("fs.close", {fd: this._fd})
+        return this._rpcClient.doCall('fs.close', {fd: this._fd})
         .then(() => {
             this._fd = null;
         });
@@ -140,16 +140,16 @@ export class RemoteFile {
      * @param autoContinue  読み込んだバイト数がlengthに達するまで繰り返すか否か
      */
     read(length: number, autoContinue: boolean = false): Promise<Buffer> {
-        if (typeof(length) !== "number") {
-            throw new TypeError("length must be a number");
+        if (typeof(length) !== 'number') {
+            throw new TypeError('length must be a number');
         }
         let buffers: Buffer[] = [];
         let total_read = 0;
         let loop = (): Promise<void> => {
             if (this._fd == null) {
-                return Promise.reject(new Error("File not opened"));
+                return Promise.reject(new Error('File not opened'));
             }
-            return this._rpcClient.doCall("fs.read", {
+            return this._rpcClient.doCall('fs.read', {
                 fd: this._fd,
                 length: length - total_read
             })
@@ -190,9 +190,9 @@ export class RemoteFile {
         let total_written = 0;
         let loop = (): Promise<void> => {
             if (this._fd == null) {
-                return Promise.reject(new Error("File not opened"));
+                return Promise.reject(new Error('File not opened'));
             }
-            return this._rpcClient.doCall("fs.write", {
+            return this._rpcClient.doCall('fs.write', {
                 fd: this._fd,
                 data: data.slice(total_written)
             })
@@ -221,10 +221,10 @@ export class RemoteFile {
      * @param whence    移動の基点を示す値(SEEK_SET=0,SEEK_CUR=1,SEEK_END=2)またはECMAオブジェクト
      */
     lseek(offset: number, whence: number|FileSeekWhence): Promise<number> {
-        if (typeof(offset) !== "number") {
-            throw new TypeError("offset must be a number");
+        if (typeof(offset) !== 'number') {
+            throw new TypeError('offset must be a number');
         }
-        if (typeof(whence) !== "number" && whence != null) {
+        if (typeof(whence) !== 'number' && whence != null) {
             if (whence.SEEK_SET && !whence.SEEK_CUR && !whence.SEEK_END) {
                 whence = 0;
             } else if (!whence.SEEK_SET && whence.SEEK_CUR && !whence.SEEK_END) {
@@ -233,10 +233,10 @@ export class RemoteFile {
                 whence = 2;
             }
         }
-        if (typeof(whence) !== "number") {
-            throw new TypeError("whence must be a number or object with SEEK_xxx key");
+        if (typeof(whence) !== 'number') {
+            throw new TypeError('whence must be a number or object with SEEK_xxx key');
         }
-        return this._rpcClient.doCall("fs.lseek", {
+        return this._rpcClient.doCall('fs.lseek', {
             fd: this._fd,
             offset: offset,
             whence: whence
@@ -247,11 +247,11 @@ export class RemoteFile {
     }
 
     fstat(): Promise<any> {
-        return Promise.reject(new Error("Not implemented"));
+        return Promise.reject(new Error('Not implemented'));
     }
 
     ioctl(): Promise<any> {
-        return Promise.reject(new Error("Not implemented"));
+        return Promise.reject(new Error('Not implemented'));
     }
 
     /**
@@ -273,7 +273,7 @@ export class RemoteFile {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
         if (RemoteFile.verbosity >= lvl) {
-            printLog("RemoteFile", func, msg, data);
+            printLog('RemoteFile', func, msg, data);
         }
     }
 }

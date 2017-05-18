@@ -15,7 +15,7 @@ export function printLog(cls: string, func: string, msg: string|(() => string), 
         time: Date.now(),
         //stack: new Error().stack.split(/\n\s*/).slice(1),
     };
-    out["" + cls + "#" + func] = (typeof(msg) === "function") ? msg() : msg;
+    out['' + cls + '#' + func] = (typeof(msg) === 'function') ? msg() : msg;
     if (data) {
         out.data = data;
     }
@@ -34,7 +34,7 @@ export function printLog(cls: string, func: string, msg: string|(() => string), 
 /* istanbul ignore next */
 export function hexDump(data: number | number[] | ArrayBuffer | Uint8Array, maxBytes?: number): string {
     let brace = true;
-    if (typeof(data) === "number") {
+    if (typeof(data) === 'number') {
         brace = false;
         data = [data];
     } else if (data instanceof ArrayBuffer) {
@@ -42,24 +42,24 @@ export function hexDump(data: number | number[] | ArrayBuffer | Uint8Array, maxB
     } else if (data instanceof Uint8Array) {
     } else if (data instanceof Array) {
     } else {
-        throw new Error("Unsupported data type: " + data);
+        throw new Error('Unsupported data type: ' + data);
     }
     let len = data.length;
     if (maxBytes != null) {
         len = Math.min(len, maxBytes);
     }
     function hex(v) {
-        return "0x" + (v < 16 ? "0" : "") + (v != null ? v.toString(16) : "??");
+        return '0x' + (v < 16 ? '0' : '') + (v != null ? v.toString(16) : '??');
     }
-    let r = "";
+    let r = '';
     for (let i = 0; i < len; ++i) {
-        r += (i > 0 ? "," : "") + hex(data[i]);
+        r += (i > 0 ? ',' : '') + hex(data[i]);
     }
     if (data.length > len) {
-        r += "...";
+        r += '...';
     }
     if (brace) {
-        r = "[" + r + "]";
+        r = '[' + r + ']';
     }
     return r;
 }

@@ -1,5 +1,5 @@
-import { BaseComm } from "./base_comm";
-import { printLog } from "./common";
+import { BaseComm } from './base_comm';
+import { printLog } from './common';
 
 /**
  * PERIDOTボードAvalon-STパケット層通信クラス
@@ -56,7 +56,7 @@ export class AvsPackets {
         len = pushWithEscape(dst, len, src[src.length - 1]);
         txdata = dst.slice(0, len);
         let totalRxLen = rxsize + header.length + 1;
-        this._log(1, "transPacket", "begin", {
+        this._log(1, 'transPacket', 'begin', {
             source: src,
             encoded: txdata
         });
@@ -71,12 +71,12 @@ export class AvsPackets {
         }
         return this._base.transData(txdata, eopFinder)
         .then((rxdata) => {
-            this._log(1, "transPacket", "recv", {
+            this._log(1, 'transPacket', 'recv', {
                 encoded: rxdata
             });
             for (let i = 0; i < header.length; ++i) {
                 if (rxdata[i] !== header[i]) {
-                    throw new Error("Illegal packetize control bytes");
+                    throw new Error('Illegal packetize control bytes');
                 }
             }
             src = rxdata.slice(header.length);
@@ -86,7 +86,7 @@ export class AvsPackets {
             for (let i = 0; i < src.length; ++i) {
                 let byte = src[i];
                 if (pos === rxsize) {
-                    throw new Error("Received data is too large");
+                    throw new Error('Received data is too large');
                 }
                 if (byte === 0x7b) {
                     continue;
@@ -99,9 +99,9 @@ export class AvsPackets {
                 }
             }
             if (pos < rxsize) {
-                throw new Error("Received data is too small");
+                throw new Error('Received data is too small');
             }
-            this._log(1, "transPacket", "end", {
+            this._log(1, 'transPacket', 'end', {
                 decoded: dst
             });
             return dst;
@@ -118,7 +118,7 @@ export class AvsPackets {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any): void {
         if (AvsPackets.verbosity >= lvl) {
-            printLog("AvsPackets", func, msg, data);
+            printLog('AvsPackets', func, msg, data);
         }
     }
 }

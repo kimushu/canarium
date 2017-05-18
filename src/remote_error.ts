@@ -1,28 +1,28 @@
 const MESSAGES = {
-    "-32700": "Parse error",
-    "-32600": "Invalid request",
-    "-32601": "Method not found",
-    "-32602": "Invalid params",
-    "-32603": "Internal error",
-           1: "Operation not permitted",
-           2: "No such file or directory",
-           5: "Input/output error",
-           9: "Bad file number",
-          11: "Operation would block",
-          12: "Not enough space",
-          13: "Permission denied",
-          16: "Device or resource busy",
-          17: "File exists",
-          19: "No such device",
-          20: "Not a directory",
-          21: "Is a directory",
-          22: "Invalid argument",
-          24: "Too many open files",
-          28: "No space left on device",
-          88: "Function not implemented",
-         133: "Stale file handle",
-         134: "Not supported",
-         140: "Operation cancelled",
+    '-32700': 'Parse error',
+    '-32600': 'Invalid request',
+    '-32601': 'Method not found',
+    '-32602': 'Invalid params',
+    '-32603': 'Internal error',
+           1: 'Operation not permitted',
+           2: 'No such file or directory',
+           5: 'Input/output error',
+           9: 'Bad file number',
+          11: 'Operation would block',
+          12: 'Not enough space',
+          13: 'Permission denied',
+          16: 'Device or resource busy',
+          17: 'File exists',
+          19: 'No such device',
+          20: 'Not a directory',
+          21: 'Is a directory',
+          22: 'Invalid argument',
+          24: 'Too many open files',
+          28: 'No space left on device',
+          88: 'Function not implemented',
+         133: 'Stale file handle',
+         134: 'Not supported',
+         140: 'Operation cancelled',
 };
 
 /**
@@ -65,7 +65,7 @@ export class RemoteError extends Error {
      * @param obj JSON-RPCエラー情報
      */
     constructor(obj: any) {
-        if (typeof(obj) === "number") {
+        if (typeof(obj) === 'number') {
             obj = {
                 code: obj,
                 message: MESSAGES[obj]

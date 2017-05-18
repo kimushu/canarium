@@ -1,14 +1,14 @@
-import * as chai from "chai";
-chai.use(require("chai-as-promised"));
+import * as chai from 'chai';
+chai.use(require('chai-as-promised'));
 const {assert} = chai;
-import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE, REG_SWI_CLASSID, CLASSIC_CLASSID, IPL_BASE, IPL_SPAN } from "./test-common";
+import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE, REG_SWI_CLASSID, CLASSIC_CLASSID, IPL_BASE, IPL_SPAN } from './test-common';
 
-import { Canarium } from "../src/canarium";
+import { Canarium } from '../src/canarium';
 
-describe("AvmTransactions", function(){
+describe('AvmTransactions', function(){
     let canarium = new Canarium();
     let avm = canarium.avm;
-    beforeEach(function(){
+    before(function(){
         cond.classic_ps || this.skip();
         if (!canarium.connected) {
             this.timeout(5000);
@@ -20,16 +20,16 @@ describe("AvmTransactions", function(){
             return canarium.close();
         }
     });
-    describe("base", function(){
-        it("equals to canarium.base", function(){
+    describe('base', function(){
+        it('equals to canarium.base', function(){
             assert.equal(avm.base, canarium.base);
         });
     });
-    describe("swiBase", function(){
-        it("is a number", function(){
+    describe('swiBase', function(){
+        it('is a number', function(){
             assert.isNumber(avm.swiBase);
         });
-        it("is writable", function(){
+        it('is writable', function(){
             let oldValue = avm.swiBase;
             let newValue = oldValue + 4;
             avm.swiBase = newValue;
@@ -37,24 +37,24 @@ describe("AvmTransactions", function(){
             avm.swiBase = oldValue;
         });
     });
-    describe("iord() w/o connection", function(){
-        it("is a function", function(){
+    describe('iord() w/o connection', function(){
+        it('is a function', function(){
             assert.isFunction(avm.iord);
         });
     });
-    describe("iord() w/ connection", function(){
-        it("returns undefined and success when called with callback", function(done){
+    describe('iord() w/ connection', function(){
+        it('returns undefined and success when called with callback', function(done){
             assert.isUndefined(avm.iord(SWI_BASE, REG_SWI_CLASSID, (success: boolean) => {
                 assert.isTrue(success);
                 done();
             }));
         });
-        it("returns Promise(fulfilled) when called without callback", function(){
+        it('returns Promise(fulfilled) when called without callback', function(){
             return assert.isFulfilled(
                 avm.iord(SWI_BASE, REG_SWI_CLASSID)
             );
         });
-        it("succeeds with correct value (offset=1)", function(){
+        it('succeeds with correct value (offset=1)', function(){
             return assert.isFulfilled(
                 avm.iord(SWI_BASE - 4, REG_SWI_CLASSID + 1)
                 .then((value) => {
@@ -77,25 +77,25 @@ describe("AvmTransactions", function(){
             });
         }
     });
-    describe("iowr() w/o connection", function(){
-        it("is a function", function(){
+    describe('iowr() w/o connection', function(){
+        it('is a function', function(){
             assert.isFunction(avm.iowr);
         });
     });
-    describe("iowr() w/ connection", function(){
+    describe('iowr() w/ connection', function(){
         let scratch_base = IPL_BASE + IPL_SPAN - 8;
-        it("returns undefined and success when called with callback", function(done){
+        it('returns undefined and success when called with callback', function(done){
             assert.isUndefined(avm.iowr(scratch_base, 0, 0, (success: boolean) => {
                 assert.isTrue(success);
                 done();
             }));
         });
-        it("returns Promise(fulfilled) when called without callback", function(){
+        it('returns Promise(fulfilled) when called without callback', function(){
             return assert.isFulfilled(
                 avm.iowr(scratch_base, 0, 0)
             );
         });
-        it("succeeds with correct value (offset=1)", function(){
+        it('succeeds with correct value (offset=1)', function(){
             let dummyValue = 0xdeadbeef;
             return assert.isFulfilled(
                 avm.iowr(scratch_base - 4, 1, dummyValue)
@@ -130,10 +130,13 @@ describe("AvmTransactions", function(){
             });
         }
     });
-    xdescribe("option()", function(){
+    describe('write() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(avm.write);
+        });
     });
-    describe("read() w/o connection", function(){
-        it("is a function", function(){
+    describe('read() w/o connection', function(){
+        it('is a function', function(){
             assert.isFunction(avm.read);
         });
     });

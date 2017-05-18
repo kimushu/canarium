@@ -1,6 +1,6 @@
-import * as SerialPort from "serialport"; // for v4.x
+import * as SerialPort from 'serialport'; // for v4.x
 //import { SerialPort } from "serialport"; // for v2.x
-import { hexDump } from "./common";
+import { hexDump } from './common';
 
 const DEBUG = 0;
 const DELAY_AFTER_CLOSE_MS = 0;
@@ -76,9 +76,9 @@ export class SerialWrapper {
                     let port: any = ports[i];
                     if ((port.pnpId != null) || (port.locationId != null)) {
                         results.push({
-                            path: "" + port.comName,
-                            manufacturer: "" + port.manufacturer,
-                            serialNumber: "" + port.serialNumber,
+                            path: '' + port.comName,
+                            manufacturer: '' + port.manufacturer,
+                            serialNumber: '' + port.serialNumber,
                             vendorId: parseInt(port.vendorId, 16),
                             productId: parseInt(port.productId, 16)
                         });
@@ -113,12 +113,12 @@ export class SerialWrapper {
     open(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._sp != null) {
-                return reject(new Error("Already opened"));
+                return reject(new Error('Already opened'));
             }
             let tryOpen = (count: number) => {
                 /* istanbul ignore if */
                 if (DEBUG >= 1) {
-                    console.log(`${Date.now()}:open${count > 0 ? "(retry)" : ""}`);
+                    console.log(`${Date.now()}:open${count > 0 ? '(retry)' : ''}`);
                 }
                 let sp = new SerialPort(this._path, this._options, (error) => {
                     if (error != null) {
@@ -128,8 +128,8 @@ export class SerialWrapper {
                         return reject(error);
                     }
                     this._sp = sp;
-                    this._sp.on("data", (data) => this._dataHandler(data));
-                    this._sp.on("disconnect", () => this._closeHandler());
+                    this._sp.on('data', (data) => this._dataHandler(data));
+                    this._sp.on('disconnect', () => this._closeHandler());
                     return resolve();
                 });
             };
@@ -144,7 +144,7 @@ export class SerialWrapper {
     write(data): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._sp == null) {
-                return reject(new Error("disconnected"));
+                return reject(new Error('disconnected'));
             }
             /* istanbul ignore if */
             if (DEBUG >= 2) {
@@ -167,7 +167,7 @@ export class SerialWrapper {
     pause(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._sp == null) {
-                return reject(new Error("disconnected"));
+                return reject(new Error('disconnected'));
             }
             this._sp.pause();
             return resolve();
@@ -180,7 +180,7 @@ export class SerialWrapper {
     resume(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._sp == null) {
-                return reject(new Error("disconnected"));
+                return reject(new Error('disconnected'));
             }
             return resolve();
         });
@@ -192,7 +192,7 @@ export class SerialWrapper {
     flush(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._sp == null) {
-                return reject(new Error("disconnected"));
+                return reject(new Error('disconnected'));
             }
             return this._sp.flush((error) => {
                 if (error != null) {
@@ -209,7 +209,7 @@ export class SerialWrapper {
     drain(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._sp == null) {
-                return reject(new Error("disconnected"));
+                return reject(new Error('disconnected'));
             }
             return this._sp.drain((error) => {
                 if (error != null) {
@@ -227,7 +227,7 @@ export class SerialWrapper {
         return new Promise<void>((resolve, reject) => {
             let sp = this._sp;
             if (sp == null) {
-                return reject(new Error("disconnected"));
+                return reject(new Error('disconnected'));
             }
             this._sp = null;
             /* istanbul ignore if */
@@ -236,7 +236,7 @@ export class SerialWrapper {
             }
             return sp.close(() => {
                 let func = this.onClosed;
-                if (typeof(func) === "function") {
+                if (typeof(func) === 'function') {
                     try {
                         func();
                     } catch (error) {
@@ -255,7 +255,7 @@ export class SerialWrapper {
     private _dataHandler(data: Buffer): void {
         if (this._sp != null) {
             let func = this.onReceived;
-            if (typeof(func) === "function") {
+            if (typeof(func) === 'function') {
                 /* istanbul ignore if */
                 if (DEBUG >= 2) {
                     console.log(`${Date.now()}:recv:${hexDump(data)}`);

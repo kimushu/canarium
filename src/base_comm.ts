@@ -1,5 +1,5 @@
-import { loopPromise, printLog, waitPromise } from "./common";
-import { SerialWrapper } from "./serial_wrapper";
+import { loopPromise, printLog, waitPromise } from './common';
+import { SerialWrapper } from './serial_wrapper';
 
 /**
  * 1回のシリアル送信の最大バイト数
@@ -51,7 +51,7 @@ export class BaseComm {
     /**
      * 接続しているシリアル通信デバイスのパス
      */
-    get path(): string { return "" + this._path; }
+    get path(): string { return '' + this._path; }
     private _path: string;
 
     /**
@@ -110,15 +110,15 @@ export class BaseComm {
             var name, path;
             name = port.manufacturer;
             path = port.path;
-            if (name && name !== "") {
-                return name + " (" + path + ")";
+            if (name && name !== '') {
+                return name + ' (' + path + ')';
             }
-            return "" + path;
+            return '' + path;
         }
         return SerialWrapper.list().then((ports: any[]) => {
             return ports.map((port) => {
                 return {
-                    path: "" + port.path,
+                    path: '' + port.path,
                     name: getFriendlyName(port),
                     vendorId: port.vendorId,
                     productId: port.productId
@@ -134,7 +134,7 @@ export class BaseComm {
      */
     connect(path: string): Promise<void> {
         if (this._connection != null) {
-            return Promise.reject(new Error("Already connected"));
+            return Promise.reject(new Error('Already connected'));
         }
 
         this._connection = new SerialWrapper(path, {
@@ -146,7 +146,7 @@ export class BaseComm {
             this._connection.onClosed = () => {
                 this._connection = null;
                 let onClosed = this._onClosed;
-                if (typeof(onClosed) === "function") {
+                if (typeof(onClosed) === 'function') {
                     onClosed();
                 }
             };
@@ -168,7 +168,7 @@ export class BaseComm {
      */
     option(option: BaseCommOptions): Promise<void> {
         if (this._connection == null) {
-            return Promise.reject(new Error("Not connected"));
+            return Promise.reject(new Error('Not connected'));
         }
         return Promise.resolve()
         .then(() => {
@@ -200,7 +200,7 @@ export class BaseComm {
      */
     assertConnection(): Promise<void> {
         if (this._connection == null) {
-            return Promise.reject(new Error("Not connected"));
+            return Promise.reject(new Error('Not connected'));
         }
         return Promise.resolve();
     }
@@ -264,7 +264,7 @@ export class BaseComm {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
         if (BaseComm.verbosity >= lvl) {
-            printLog("BaseComm", func, msg, data);
+            printLog('BaseComm', func, msg, data);
         }
     }
 
@@ -281,10 +281,10 @@ export class BaseComm {
      */
     private _transSerial(txdata: Buffer, estimator: (rxdata: Buffer, offset: number) => number|void|Error): Promise<Buffer> {
         if (this._connection == null) {
-            return Promise.reject(new Error("Not connected"));
+            return Promise.reject(new Error('Not connected'));
         }
         if (this._receiver != null) {
-            return Promise.reject(new Error("Operation is in progress"));
+            return Promise.reject(new Error('Operation is in progress'));
         }
         let promise = new Promise<Buffer>((resolve, reject) => {
             this._receiver = (rxdata, error) => {
@@ -307,7 +307,7 @@ export class BaseComm {
                     this._receiver = null;
                     return reject(result);
                 }
-                if (typeof(result) === "number") {
+                if (typeof(result) === 'number') {
                     rxdata = this._rxBuffer.slice(0, result);
                     this._rxBuffer = this._rxBuffer.slice(result);
                     this._receiver = null;
@@ -322,7 +322,7 @@ export class BaseComm {
             let size = data.length;
             return this._connection.write(data)
             .then(() => {
-                this._log(1, "_transSerial", "sent", data);
+                this._log(1, '_transSerial', 'sent', data);
                 if (SUCCESSIVE_TX_WAIT_MS > 0) {
                     return waitPromise(SUCCESSIVE_TX_WAIT_MS);
                 }
@@ -333,7 +333,7 @@ export class BaseComm {
                 this._receiver = null;
                 return Buffer.alloc(0);
             }
-            this._log(1, "_transSerial", "wait", promise);
+            this._log(1, '_transSerial', 'wait', promise);
             return promise;
         });
     }

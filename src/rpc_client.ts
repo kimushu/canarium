@@ -1,13 +1,13 @@
-import * as BSON from "bson";
-import { AvmTransactions } from "./avm_transactions";
-import { RemoteError } from "./remote_error";
-import { printLog } from "./common";
+import * as BSON from 'bson';
+import { AvmTransactions } from './avm_transactions';
+import { RemoteError } from './remote_error';
+import { printLog } from './common';
 
 const bson = new BSON();
 const SWI_REG_MSG = 6;
 const SWI_REG_SWI = 7;
 const PERIDOT_RPCSRV_IF_VER = 0x0101;
-const JSONRPC_VERSION = "2.0";
+const JSONRPC_VERSION = '2.0';
 const MIN_POLLING_INTERVAL_MS = 50;
 const MAX_POLLING_INTERVAL_MS = 1000;
 
@@ -91,7 +91,7 @@ export class RpcClient {
      * 接続のリセット
      */
     resetConnection(): Promise<void> {
-        let error = Error("RPC connection has been reset by client");
+        let error = Error('RPC connection has been reset by client');
         this._abortPendingCalls(error);
         this._abortOngoingCalls(error);
         this._srvInfoPtr = null;
@@ -159,7 +159,7 @@ export class RpcClient {
             this._pollingBarrier = false;
         }, (error) => {
             this._pollingBarrier = false;
-            console.error("Error during poll:", error);
+            console.error('Error during poll:', error);
         });
     }
 
@@ -185,7 +185,7 @@ export class RpcClient {
                 [id0, id1, reqLen, reqPtr, resLen, resPtr] = Array.from(new Uint32Array(ab));
                 if ((id0 !== this._hostId[0]) || (id1 !== this._hostId[1])) {
                     // ホストID不一致 (サーバー側が意図せず再起動したと判断)
-                    throw new Error("RPC server has been reset (Host ID does not match)");
+                    throw new Error('RPC server has been reset (Host ID does not match)');
                 }
                 // 接続維持確認完了
                 serverReady = true;
@@ -224,7 +224,7 @@ export class RpcClient {
                 if ((if_ver & 0xffff) !== PERIDOT_RPCSRV_IF_VER) {
                     // バージョン不整合
                     // リクエスト送信およびレスポンス待ちをすべてエラーで中断する
-                    let error = new Error("Unsupported remote version");
+                    let error = new Error('Unsupported remote version');
                     this._abortPendingCalls(error);
                     this._abortOngoingCalls(error);
                     throw error;
@@ -271,29 +271,29 @@ export class RpcClient {
                         method: call.method.toString(),
                         id: call.tag
                     };
-                    obj.params = (typeof(params) === "function" ? null : params);
+                    obj.params = (typeof(params) === 'function' ? null : params);
 
                     // 送信するBSONデータを生成
                     bsonData = bson.serialize(obj);
 
-                    if (typeof(params) === "function") {
+                    if (typeof(params) === 'function') {
                         // paramsが関数の場合、その戻り値を使ってBSONを再生成
                         obj.params = params(reqLen - bsonData.length);
                         bsonData = bson.serialize(obj);
                     }
 
                     switch (Object.prototype.toString.call(obj.params)) {
-                        case "[object Object]":
-                        case "[object Array]":
+                        case '[object Object]':
+                        case '[object Array]':
                             // OK
                             break;
                         default:
-                            throw new TypeError("Invalid parameter type");
+                            throw new TypeError('Invalid parameter type');
                     }
 
                     // BSONデータサイズ確認
                     if (bsonData.length > reqLen) {
-                        throw new Error("Request data is too large");
+                        throw new Error('Request data is too large');
                     }
 
                     // BSONデータ書き込み(先頭ワード以外と、先頭ワードに分けて書き込む)
@@ -329,7 +329,7 @@ export class RpcClient {
 
                 // データサイズが不正な場合、レスポンスの削除のみを行う
                 if (size > resLen) {
-                    throw new Error("Invalid response length");
+                    throw new Error('Invalid response length');
                 }
 
                 // データがあるため、レスポンスを受信する
@@ -342,19 +342,19 @@ export class RpcClient {
 
                     // バージョンの確認
                     if (obj.jsonrpc !== JSONRPC_VERSION) {
-                        throw new Error("Invalid JSONRPC response");
+                        throw new Error('Invalid JSONRPC response');
                     }
 
                     // タグの取得
                     let tag = (obj.id != null) ? obj.id.toNumber() : null;
                     if (tag == null) {
-                        throw new Error("No valid id");
+                        throw new Error('No valid id');
                     }
 
                     // 対象のcallを特定
                     let call = this._ongoingCalls[tag];
                     if (call == null) {
-                        throw new Error("No RPC request tagged #" + tag);
+                        throw new Error('No RPC request tagged #' + tag);
                     }
                     delete this._ongoingCalls[tag];
                     this._updateTimer();
@@ -367,7 +367,7 @@ export class RpcClient {
                     }
                 })
                 .catch((error) => {
-                    this._log(0, "_poll", "receiving response: (" + error.name + ") " + error.message);
+                    this._log(0, '_poll', 'receiving response: (' + error.name + ') ' + error.message);
                 })
                 .then(() => {
                     // レスポンスの削除を行う
@@ -377,7 +377,7 @@ export class RpcClient {
                     raiseIrq = true;
                 })
                 .catch((error) => {
-                    this._log(0, "_poll", "deleting response: (" + error.name + ") " + error.message);
+                    this._log(0, '_poll', 'deleting response: (' + error.name + ') ' + error.message);
                 });
             });
         })
@@ -409,7 +409,7 @@ export class RpcClient {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
         if (RpcClient.verbosity >= lvl) {
-            printLog("RpcClient", func, msg, data);
+            printLog('RpcClient', func, msg, data);
         }
     }
 }

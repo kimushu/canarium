@@ -1,6 +1,6 @@
-import { hexDump, invokeCallback, printLog, loopPromise } from "./common";
-import { BaseComm, BaseCommOptions } from "./base_comm";
-import { AvsPackets } from "./avs_packets";
+import { hexDump, invokeCallback, printLog, loopPromise } from './common';
+import { BaseComm, BaseCommOptions } from './base_comm';
+import { AvsPackets } from './avs_packets';
 
 /**
  * ホスト通信用ペリフェラル(SWI)のベースアドレスの既定値
@@ -30,9 +30,9 @@ export class AvmTransactions {
     /**
      * ホスト通信用ペリフェラル(SWI)のベースアドレス
      */
-    private _swiBase: number;
     get swiBase(): number { return this._swiBase; }
     set swiBase(value: number) { this._swiBase = parseInt(<any>value); }
+    private _swiBase: number;
 
     /**
      * デバッグ出力の細かさ(0で出力無し)
@@ -76,14 +76,14 @@ export class AvmTransactions {
         }
         return this._avs.base.assertConnection().then(() => {
             return this._queue<Buffer>(() => {
-                this._log(1, "read", () => "begin(address=" + (hexDump(address)) + ")");
+                this._log(1, 'read', () => 'begin(address=' + (hexDump(address)) + ')');
                 if (!this._avs.base.configured) {
-                    throw new Error("Device is not configured");
+                    throw new Error('Device is not configured');
                 }
                 let dest = Buffer.allocUnsafe(bytenum);
                 return loopPromise(0, bytenum, AVM_TRANS_MAX_BYTES, (pos) => {
                     let partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
-                    this._log(2, "read", () => "partial(offset=" + (hexDump(pos)) + ",size=" + (hexDump(partialSize)) + ")");
+                    this._log(2, 'read', () => 'partial(offset=' + (hexDump(pos)) + ',size=' + (hexDump(partialSize)) + ')');
                     return this._trans(
                         0x14,   // Read, incrementing address
                         address + pos,
@@ -95,7 +95,7 @@ export class AvmTransactions {
                     })
                 })
                 .then(() => {
-                    this._log(1, "read", "end", dest);
+                    this._log(1, 'read', 'end', dest);
                     return dest;
                 });
             });
@@ -127,14 +127,14 @@ export class AvmTransactions {
         return this._avs.base.assertConnection().then(() => {
             return this._queue<void>(() => {
                 /* istanbul ignore next */
-                this._log(1, "write", () => "begin(address=" + (hexDump(address)) + ")", src);
+                this._log(1, 'write', () => 'begin(address=' + (hexDump(address)) + ')', src);
                 if (!this._avs.base.configured) {
-                    throw new Error("Device is not configured");
+                    throw new Error('Device is not configured');
                 }
                 return loopPromise(0, src.length, AVM_TRANS_MAX_BYTES, (pos) => {
                     let partialData = src.slice(pos, pos + AVM_TRANS_MAX_BYTES);
                     /* istanbul ignore next */
-                    this._log(2, "write", () => "partial(offset=" + (hexDump(pos)) + ")", partialData);
+                    this._log(2, 'write', () => 'partial(offset=' + (hexDump(pos)) + ')', partialData);
                     return this._trans(
                         0x04,   // Write, incrementing address
                         address + pos,
@@ -143,7 +143,7 @@ export class AvmTransactions {
                     );
                 })
                 .then(() => {
-                    this._log(1, "write", "end");
+                    this._log(1, 'write', 'end');
                 });
             });
         });
@@ -172,9 +172,9 @@ export class AvmTransactions {
         }
         return this._avs.base.assertConnection().then(() => {
             return this._queue<number>(() => {
-                this._log(1, "iord", () => "begin(address=" + (hexDump(address)) + "+" + offset + ")");
+                this._log(1, 'iord', () => 'begin(address=' + (hexDump(address)) + '+' + offset + ')');
                 if (!this._avs.base.configured) {
-                    throw new Error("Device is not configured");
+                    throw new Error('Device is not configured');
                 }
                 return this._trans(
                     0x10,   // Read, non-incrementing address
@@ -184,7 +184,7 @@ export class AvmTransactions {
                 )
                 .then((rxdata) => {
                     let readData = rxdata.readUInt32LE(0);
-                    this._log(1, "iord", "end", readData);
+                    this._log(1, 'iord', 'end', readData);
                     return readData;
                 });
             });
@@ -216,9 +216,9 @@ export class AvmTransactions {
         }
         return this._avs.base.assertConnection().then(() => {
             return this._queue<void>(() => {
-                this._log(1, "iowr", () => "begin(address=" + (hexDump(address)) + "+" + offset + ")", writedata);
+                this._log(1, 'iowr', () => 'begin(address=' + (hexDump(address)) + '+' + offset + ')', writedata);
                 if (!this._avs.base.configured) {
-                    throw new Error("Device is not configured");
+                    throw new Error('Device is not configured');
                 }
                 let src = Buffer.allocUnsafe(4);
                 src.writeUInt32LE(writedata >>> 0, 0);
@@ -229,7 +229,7 @@ export class AvmTransactions {
                     undefined
                 )
                 .then(() => {
-                    this._log(1, "iowr", "end");
+                    this._log(1, 'iowr', 'end');
                 });
             });
         });
@@ -279,7 +279,7 @@ export class AvmTransactions {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
         if (AvmTransactions.verbosity >= lvl) {
-            printLog("AvmTransactions", func, msg, data);
+            printLog('AvmTransactions', func, msg, data);
         }
     }
 
@@ -307,18 +307,18 @@ export class AvmTransactions {
         if (txdata != null) {
             txdata.copy(pkt, 8);
         }
-        this._log(2, "_trans", "send", pkt);
+        this._log(2, '_trans', 'send', pkt);
         return this._avs.transPacket(this._channel, pkt, rxsize || 4)
         .then((rxdata) => {
-            this._log(2, "_trans", "recv", rxdata);
+            this._log(2, '_trans', 'recv', rxdata);
             if (rxsize != null) {
                 if (rxdata.length !== rxsize) {
-                    throw new Error("Received data length does not match");
+                    throw new Error('Received data length does not match');
                 }
                 return rxdata;
             }
             if (!(rxdata[0] === (pkt[0] ^ 0x80) && rxdata[2] === pkt[2] && rxdata[3] === pkt[3])) {
-                throw new Error("Illegal write response");
+                throw new Error('Illegal write response');
             }
         });
     }

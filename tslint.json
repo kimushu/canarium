@@ -5,6 +5,7 @@
 		"curly": true,
 		"class-name": true,
 		"semicolon": ["always"],
-		"triple-equals": [true, "allow-null-check"]
+		"triple-equals": [true, "allow-null-check"],
+		"quotemark": [true, "single"]
 	}
 }

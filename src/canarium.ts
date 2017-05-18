@@ -1,11 +1,11 @@
-import * as path from "path";
-import { hexDump, invokeCallback, loopPromise, printLog, waitPromise, wrapPromise, TimeLimit } from "./common";
-import * as modBaseComm from "./base_comm";
-import * as modI2CComm from "./i2c_comm";
-import * as modAvsPackets from "./avs_packets";
-import * as modAvmTransactions from "./avm_transactions";
-import * as modRpcClient from "./rpc_client";
-import * as modRemoteFile from "./remote_file";
+import * as path from 'path';
+import { hexDump, invokeCallback, loopPromise, printLog, waitPromise, wrapPromise, TimeLimit } from './common';
+import * as modBaseComm from './base_comm';
+import * as modI2CComm from './i2c_comm';
+import * as modAvsPackets from './avs_packets';
+import * as modAvmTransactions from './avm_transactions';
+import * as modRpcClient from './rpc_client';
+import * as modRemoteFile from './remote_file';
 
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
@@ -35,22 +35,22 @@ const AVM_CHANNEL = 0;
 /**
  * 標準PERIDOTのボードID
  */
-const BOARDID_STANDARD = "J72A";
+const BOARDID_STANDARD = 'J72A';
 
 /**
  * PERIDOT-NewGenのボードID
  */
-const BOARDID_NEWGEN = "J72N";
+const BOARDID_NEWGEN = 'J72N';
 
 /**
  * VirtualモードHostbridgeのボードID
  */
-const BOARDID_VIRTUAL = "J72B";
+const BOARDID_VIRTUAL = 'J72B';
 
 /**
  * GenericモードHostbridgeのボードID
  */
-const BOARDID_GENERIC = "J72X";
+const BOARDID_GENERIC = 'J72X';
 
 /**
  * ボード情報
@@ -63,7 +63,7 @@ export interface BoardInfo {
      * - 'J72B' (Virtual - コンフィグレーションレイヤをFPGA側に内蔵)
      * - 'J72X' (Generic - Avalon-MMブリッジのみ使う汎用型)
      */
-    id?: "J72A"|"J72N"|"J72B"|"J72X";
+    id?: 'J72A'|'J72N'|'J72B'|'J72X';
 
     /**
      * シリアル番号('xxxxxx-yyyyyy-zzzzzz')
@@ -109,7 +109,7 @@ export class Canarium {
      */
     get version() {
         if (this._version == null) {
-            this._version = require(path.join(__dirname, "..", "..", "package.json")).version;
+            this._version = require(path.join(__dirname, '..', '..', 'package.json')).version;
         }
         return this._version;
     }
@@ -258,7 +258,7 @@ export class Canarium {
     open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): void;
 
     open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): any {
-        if (typeof(boardInfo) === "function") {
+        if (typeof(boardInfo) === 'function') {
             callback = boardInfo;
             boardInfo = null;
         }
@@ -276,10 +276,10 @@ export class Canarium {
         .then((result) => {
             /* istanbul ignore if */
             if (!(result[0] === 0x4a && result[1] === 0x37 && result[2] === 0x57)) {
-                throw new Error("EEPROM header is invalid");
+                throw new Error('EEPROM header is invalid');
             }
             /* istanbul ignore next */
-            this._log(1, "open", () => "done(version=" + (hexDump(result[3])) + ")");
+            this._log(1, 'open', () => 'done(version=' + (hexDump(result[3])) + ')');
             this._boardInfo = {
                 version: result[3]
             };
@@ -356,7 +356,7 @@ export class Canarium {
         return Promise.resolve()
         .then(() => {
             if (this._configBarrier) {
-                throw new Error("Configuration is now in progress");
+                throw new Error('Configuration is now in progress');
             }
             this._configBarrier = true;
             let response;
@@ -378,7 +378,7 @@ export class Canarium {
         .then((response) => {
             if ((response & 0x01) !== 0x00) {
                 // ASモード(NG)
-                throw new Error("Not PS mode");
+                throw new Error('Not PS mode');
             }
             // PSモード(OK)
 
@@ -422,7 +422,7 @@ export class Canarium {
         })
         .then((response) => {
             if ((response & 0x06) !== 0x06) {
-                throw new Error("FPGA configuration failed");
+                throw new Error('FPGA configuration failed');
             }
             // nSTATUS=H, CONF_DONE=H => OK
 
@@ -462,7 +462,7 @@ export class Canarium {
             return invokeCallback(callback, this.reconfig());
         }
         if (this._configBarrier) {
-            return Promise.reject(new Error("(Re)configuration is now in progress"));
+            return Promise.reject(new Error('(Re)configuration is now in progress'));
         }
         return wrapPromise(() => {
             this._configBarrier = true;
@@ -477,7 +477,7 @@ export class Canarium {
             })
             .then(() => {
                 if (this._boardInfo == null || this._boardInfo.id === BOARDID_STANDARD) {
-                    throw new Error("reconfig() cannot be used on this board");
+                    throw new Error('reconfig() cannot be used on this board');
                 }
 
                 // タイムアウト計算の基点を保存
@@ -530,7 +530,7 @@ export class Canarium {
             return invokeCallback(callback, this.reset());
         }
         if (this._resetBarrier) {
-            return Promise.reject(new Error("Reset is now in progress"));
+            return Promise.reject(new Error('Reset is now in progress'));
         }
         return wrapPromise(() => {
             this._resetBarrier = true;
@@ -585,35 +585,35 @@ export class Canarium {
             switch (this._boardInfo != null ? this._boardInfo.version : null) {
                 /* istanbul ignore next */
                 case null:
-                    throw new Error("Boardinfo not loaded");
+                    throw new Error('Boardinfo not loaded');
                 case 1:
                     // ver.1 ヘッダ
                     return this._eepromRead(0x04, 8)
                     .then((readdata) => {
-                        this._log(1, "getinfo", "ver1", readdata);
+                        this._log(1, 'getinfo', 'ver1', readdata);
                         let mid = readdata.readUInt16BE(0);
                         let pid = readdata.readUInt16BE(2);
                         let sid = readdata.readUInt32BE(4);
                         if (mid === 0x0072) {
-                            let s = ("000" + pid.toString(16)).substr(-4) +
-                                    ("0000000" + sid.toString(16)).substr(-8);
+                            let s = ('000' + pid.toString(16)).substr(-4) +
+                                    ('0000000' + sid.toString(16)).substr(-8);
                             this._boardInfo.id = BOARDID_STANDARD;
-                            this._boardInfo.serialcode = (s.substr(0, 6)) + "-" + (s.substr(6, 6)) + "-000000";
+                            this._boardInfo.serialcode = (s.substr(0, 6)) + '-' + (s.substr(6, 6)) + '-000000';
                         }
                     });
                 case 2:
                     // ver.2 ヘッダ
                     return this._eepromRead(0x04, 22)
                     .then((readdata) => {
-                        this._log(1, "getinfo", "ver2", readdata);
+                        this._log(1, 'getinfo', 'ver2', readdata);
                         let bid = String.fromCharCode(...Array.from(readdata.slice(0, 4)));
                         let s = String.fromCharCode(...Array.from(readdata.slice(4, 22)));
                         this._boardInfo.id = <any>bid;
-                        this._boardInfo.serialcode = (s.substr(0, 6)) + "-" + (s.substr(6, 6)) + "-" + (s.substr(12, 6));
+                        this._boardInfo.serialcode = (s.substr(0, 6)) + '-' + (s.substr(6, 6)) + '-' + (s.substr(12, 6));
                     });
                 default:
                     // 未知のヘッダバージョン
-                    throw new Error("Unknown boardinfo version");
+                    throw new Error('Unknown boardinfo version');
             }
         })
         .then(() => {
@@ -641,11 +641,11 @@ export class Canarium {
     openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): void;
 
     openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): any {
-        if (typeof(mode) === "function") {
+        if (typeof(mode) === 'function') {
             callback = mode;
             interval = null;
             mode = null;
-        } else if (typeof(interval) === "function") {
+        } else if (typeof(interval) === 'function') {
             callback = interval;
             interval = null;
         }
@@ -669,7 +669,7 @@ export class Canarium {
                 let ack;
 
                 /* istanbul ignore next */
-                this._log(1, "_eepromRead", () => "begin(addr=" + (hexDump(startaddr)) + ",bytes=" + (hexDump(readbytes)) + ")");
+                this._log(1, '_eepromRead', () => 'begin(addr=' + (hexDump(startaddr)) + ',bytes=' + (hexDump(readbytes)) + ')');
 
                 return Promise.resolve()
                 .then(() => {
@@ -682,7 +682,7 @@ export class Canarium {
                 })
                 .then((ack) => {
                     if (!ack) {
-                        throw new Error("EEPROM is not found.");
+                        throw new Error('EEPROM is not found.');
                     }
 
                     // Send EEPROM address
@@ -690,7 +690,7 @@ export class Canarium {
                 })
                 .then((ack) => {
                     if (!ack) {
-                        throw new Error("Cannot write address in EEPROM");
+                        throw new Error('Cannot write address in EEPROM');
                     }
 
                     // Repeat start condition
@@ -702,7 +702,7 @@ export class Canarium {
                 })
                 .then((ack) => {
                     if (!ack) {
-                        throw new Error("EEPROM is not found.");
+                        throw new Error('EEPROM is not found.');
                     }
 
                     return loopPromise(0, length, 1, (index) => {
@@ -717,7 +717,7 @@ export class Canarium {
                 });
             })
             .then(() => {
-                this._log(1, "_eepromRead", "end", array);
+                this._log(1, '_eepromRead', 'end', array);
                 return array;
             })
         }, () => {
@@ -753,10 +753,10 @@ export class Canarium {
                     return (a != null ? a !== b : false);
                 }
                 if (mismatch(boardInfo.id, this._boardInfo.id)) {
-                    throw new Error("Board ID mismatch");
+                    throw new Error('Board ID mismatch');
                 }
                 if (mismatch(boardInfo.serialcode, this._boardInfo.serialcode)) {
-                    throw new Error("Board serial code mismatch");
+                    throw new Error('Board serial code mismatch');
                 }
             });
         });
@@ -776,7 +776,7 @@ export class Canarium {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
         if (Canarium.verbosity >= lvl) {
-            printLog("Canarium", func, msg, data);
+            printLog('Canarium', func, msg, data);
         }
     }
 
