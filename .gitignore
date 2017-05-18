@@ -1,6 +1,7 @@
-doc/
-node_modules/
-typings/
-out/
-coverage/
-types/
+/doc
+node_modules
+typings
+/out
+/coverage
+/types
+npm-debug.log
