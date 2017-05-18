@@ -189,10 +189,10 @@ set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name SMART_RECOMPILE ON
 set_global_assignment -name ENABLE_SIGNALTAP OFF
 set_global_assignment -name USE_SIGNALTAP_FILE stp1.stp
-set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 
 
 set_global_assignment -name VERILOG_FILE swi_testsuite_top.v
-set_global_assignment -name QSYS_FILE swi_testsuite_core.qsys
+set_global_assignment -name QIP_FILE swi_testsuite_core/synthesis/swi_testsuite_core.qip
 set_global_assignment -name SDC_FILE peridot.sdc
 set_global_assignment -name QIP_FILE syspll.qip
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

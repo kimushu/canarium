@@ -74,6 +74,7 @@ module swi_testsuite_top(
 	wire			clock_core_sig;
 	wire			clock_peri_sig;
 	wire			cpureset_sig;
+	wire			cpu_reset_hold_sig;
 	reg  [1:0]		resetreq_reg;
 
 
@@ -99,35 +100,37 @@ module swi_testsuite_top(
 
 	swi_testsuite_core
 	u1 (
-        .reset_reset_n   (qsys_reset_n_sig),		//    reset.reset_n
-        .clk_100m_clk    (clock_core_sig),			// clk_100m.clk
-        .clk_25m_clk     (clock_peri_sig),			//  clk_25m.clk
+        .reset_reset_n   (qsys_reset_n_sig),                //     reset.reset_n
+        .clk_100m_clk    (clock_core_sig),                  //  clk_100m.clk
+        .clk_25m_clk     (clock_peri_sig),                  //   clk_25m.clk
 
-        .nios2_cpu_resetrequest (resetreq_reg[1]),	//    nios2.cpu_resetrequest <-- NiosIIのバストランザクションを完了させるリセット要求 
-        .nios2_cpu_resettaken   (),					//         .cpu_resettaken
+        .nios2_cpu_resetrequest (resetreq_reg[1]),          //     nios2.cpu_resetrequest <-- NiosIIのバストランザクションを完了させるリセット要求 
+        .nios2_cpu_resettaken   (),                         //          .cpu_resettaken
 
-        .sci_sclk        (SCI_SCLK),				//      sci.sclk
-        .sci_txd         (SCI_TXD),					//         .txd
-        .sci_txr_n       (SCI_TXR_N),				//         .txr_n
-        .sci_rxd         (SCI_RXD),					//         .rxd
-        .sci_rxr_n       (SCI_RXR_N),				//         .rxr_n
+        .cpu_reset_export       (cpu_reset_hold_sig),       // cpu_reset.export
 
-        .sdr_addr        (SDR_A),					//      sdr.addr
-        .sdr_ba          (SDR_BA),					//         .ba
-        .sdr_cs_n        (SDR_CS_N),				//         .cs_n
-        .sdr_ras_n       (SDR_RAS_N),				//         .ras_n
-        .sdr_cas_n       (SDR_CAS_N),				//         .cas_n
-        .sdr_we_n        (SDR_WE_N),				//         .we_n
-        .sdr_dq          (SDR_DQ),					//         .dq
-        .sdr_dqm         (SDR_DQM),					//         .dqm
-        .sdr_cke         (SDR_CKE),					//         .cke
+        .sci_sclk               (SCI_SCLK),                 //       sci.sclk
+        .sci_txd                (SCI_TXD),                  //          .txd
+        .sci_txr_n              (SCI_TXR_N),                //          .txr_n
+        .sci_rxd                (SCI_RXD),                  //          .rxd
+        .sci_rxr_n              (SCI_RXR_N),                //          .rxr_n
 
-        .swi_cpureset    (cpureset_sig),			//      swi.cpureset
-        .swi_led         (START_LED),				//         .led
-        .swi_cso_n       (EPCS_CSO_N),				//         .cso_n
-        .swi_dclk        (DCLK_OUT),				//         .dclk
-        .swi_asdo        (EPCS_ASDO),				//         .asdo
-        .swi_data0       (EPCS_DATA0)				//         .data0
+        .sdr_addr               (SDR_A),                    //       sdr.addr
+        .sdr_ba                 (SDR_BA),                   //          .ba
+        .sdr_cs_n               (SDR_CS_N),                 //          .cs_n
+        .sdr_ras_n              (SDR_RAS_N),                //          .ras_n
+        .sdr_cas_n              (SDR_CAS_N),                //          .cas_n
+        .sdr_we_n               (SDR_WE_N),                 //          .we_n
+        .sdr_dq                 (SDR_DQ),                   //          .dq
+        .sdr_dqm                (SDR_DQM),                  //          .dqm
+        .sdr_cke                (SDR_CKE),                  //          .cke
+
+        .swi_cpureset           (cpureset_sig),             //       swi.cpureset
+        .swi_led                (START_LED),                //          .led
+        .swi_cso_n              (EPCS_CSO_N),               //          .cso_n
+        .swi_dclk               (DCLK_OUT),                 //          .dclk
+        .swi_asdo               (EPCS_ASDO),                //          .asdo
+        .swi_data0              (EPCS_DATA0)                //          .data0
     );
 
 
@@ -135,10 +138,10 @@ module swi_testsuite_top(
 
 	always @(posedge clock_core_sig or negedge qsys_reset_n_sig) begin
 		if (!qsys_reset_n_sig) begin
-			resetreq_reg <= 2'b00;
+			resetreq_reg <= 2'b11;
 		end
 		else begin
-			resetreq_reg <= {resetreq_reg[0], cpureset_sig};
+			resetreq_reg <= {resetreq_reg[0], cpureset_sig | cpu_reset_hold_sig};
 		end
 	end
 
