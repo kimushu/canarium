@@ -4,3 +4,7 @@
 [submodule "test/peridot_classic/ip/peridot_sw_packages"]
 	path = test/peridot_classic/ip/peridot_sw_packages
 	url = https://github.com/kimushu/peridot_sw_packages.git
+[submodule "docs"]
+	path = docs
+	url = https://github.com/kimushu/canarium.git
+	branch = gh-pages
