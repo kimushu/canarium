@@ -22,7 +22,7 @@ const MESSAGES = {
           88: 'Function not implemented',
          133: 'Stale file handle',
          134: 'Not supported',
-         140: 'Operation cancelled',
+         140: 'Operation canceled',
 };
 
 /**
@@ -57,7 +57,7 @@ export class RemoteError extends Error {
     /** Function not implemented */     static get ENOSYS() { return 88; }
     /** Stale file handle */            static get ESTALE() { return 133; }
     /** Not supported */                static get ENOTSUP() { return 134; }
-    /** Operation cancelled */          static get ECANCELED() { return 140; }
+    /** Operation canceled */           static get ECANCELED() { return 140; }
 
     /**
      * コンストラクタ(エラーオブジェクトを生成)
