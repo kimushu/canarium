@@ -777,6 +777,7 @@ export class Canarium {
      * @param data  任意のデータ
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
+        /* istanbul ignore next */
         if (Canarium.verbosity >= lvl) {
             printLog('Canarium', func, msg, data);
         }

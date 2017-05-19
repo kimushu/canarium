@@ -117,6 +117,7 @@ export class AvsPackets {
      * @param data      任意のデータ
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any): void {
+        /* istanbul ignore next */
         if (AvsPackets.verbosity >= lvl) {
             printLog('AvsPackets', func, msg, data);
         }

@@ -263,6 +263,7 @@ export class BaseComm {
      * @param data  任意のデータ
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
+        /* istanbul ignore next */
         if (BaseComm.verbosity >= lvl) {
             printLog('BaseComm', func, msg, data);
         }

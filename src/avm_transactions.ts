@@ -76,6 +76,7 @@ export class AvmTransactions {
         }
         return this._avs.base.assertConnection().then(() => {
             return this._queue<Buffer>(() => {
+                /* istanbul ignore next */
                 this._log(1, 'read', () => 'begin(address=' + (hexDump(address)) + ')');
                 if (!this._avs.base.configured) {
                     throw new Error('Device is not configured');
@@ -83,6 +84,7 @@ export class AvmTransactions {
                 let dest = Buffer.allocUnsafe(bytenum);
                 return loopPromise(0, bytenum, AVM_TRANS_MAX_BYTES, (pos) => {
                     let partialSize = Math.min(bytenum - pos, AVM_TRANS_MAX_BYTES);
+                    /* istanbul ignore next */
                     this._log(2, 'read', () => 'partial(offset=' + (hexDump(pos)) + ',size=' + (hexDump(partialSize)) + ')');
                     return this._trans(
                         0x14,   // Read, incrementing address
@@ -172,6 +174,7 @@ export class AvmTransactions {
         }
         return this._avs.base.assertConnection().then(() => {
             return this._queue<number>(() => {
+                /* istanbul ignore next */
                 this._log(1, 'iord', () => 'begin(address=' + (hexDump(address)) + '+' + offset + ')');
                 if (!this._avs.base.configured) {
                     throw new Error('Device is not configured');
@@ -216,6 +219,7 @@ export class AvmTransactions {
         }
         return this._avs.base.assertConnection().then(() => {
             return this._queue<void>(() => {
+                /* istanbul ignore next */
                 this._log(1, 'iowr', () => 'begin(address=' + (hexDump(address)) + '+' + offset + ')', writedata);
                 if (!this._avs.base.configured) {
                     throw new Error('Device is not configured');
@@ -278,6 +282,7 @@ export class AvmTransactions {
      * @param data  任意のデータ
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
+        /* istanbul ignore next */
         if (AvmTransactions.verbosity >= lvl) {
             printLog('AvmTransactions', func, msg, data);
         }

@@ -46,6 +46,7 @@
     "chai-as-promised": "^6.0.0",
     "coffee-script": "^1.12.4",
     "elfy": "^0.1.0",
+    "fs-extra": "^3.0.1",
     "inquirer": "^3.0.1",
     "istanbul": "^0.4.5",
     "jsonfilter": "^1.1.2",

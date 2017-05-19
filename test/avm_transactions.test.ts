@@ -1,7 +1,7 @@
 import * as chai from 'chai';
 chai.use(require('chai-as-promised'));
 const {assert} = chai;
-import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE, REG_SWI_CLASSID, CLASSIC_CLASSID, IPL_BASE, IPL_SPAN } from './test-common';
+import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE, REG_SWI_CLASSID, CLASSIC_CLASSID, SDRAM_BASE, SDRAM_SPAN } from './test-common';
 
 import { Canarium } from '../src/canarium';
 
@@ -12,7 +12,10 @@ describe('AvmTransactions', function(){
         cond.classic_ps || this.skip();
         if (!canarium.connected) {
             this.timeout(5000);
-            return canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA});
+            return canarium.open(cond.classic_ps)
+            .then(() => {
+                assert.isFalse(canarium.configured);
+            });
         }
     });
     after(function(){
@@ -37,13 +40,70 @@ describe('AvmTransactions', function(){
             avm.swiBase = oldValue;
         });
     });
+    describe('option() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(avm.option);
+        })
+    });
     describe('iord() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(avm.iord);
         });
     });
+    describe('iowr() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(avm.iowr);
+        });
+    });
+    describe('write() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(avm.write);
+        });
+    });
+    describe('read() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(avm.read);
+        });
+    });
+    [['iord', [0, 0]], ['iowr', [0, 0, 0]], ['read', [0, 4]], ['write', [0, Buffer.alloc(4)]]].forEach((x) => {
+        let fn = <string>x[0];
+        let args = <any[]>x[1];
+        describe(`${fn}() before configuration`, function(){
+            let msg = 'Device is not configured';
+            it('returns undefined and fails when called before configuration', function(done){
+                assert.isUndefined(avm[fn](...args, (success: boolean, error: Error) => {
+                    assert.isFalse(success);
+                    assert.instanceOf(error, Error);
+                    assert.include(`${error}`, msg);
+                    done();
+                }));
+            });
+            it('returns Promise(rejected) when called before configuration', function(){
+                return assert.isRejected(avm[fn](...args), msg);
+            });
+        });
+    });
+    describe('prepare for read/write tests', function(){
+        it('configuration', function(){
+            this.slow(1000);
+            return assert.isFulfilled(canarium.config(null, CLASSIC_RBF_DATA));
+        });
+    });
+    describe('option() w/ connection', function(){
+        it('returns undefined and succeeds when called with callback', function(done){
+            assert.isUndefined(avm.option({}, (success: boolean) => {
+                assert.isTrue(success);
+                done();
+            }));
+        });
+        it('returns Promise(fulfilled) when called without callback', function(){
+            return assert.isFulfilled(
+                avm.option({})
+            );
+        });
+    });
     describe('iord() w/ connection', function(){
-        it('returns undefined and success when called with callback', function(done){
+        it('returns undefined and succeeds when called with callback', function(done){
             assert.isUndefined(avm.iord(SWI_BASE, REG_SWI_CLASSID, (success: boolean) => {
                 assert.isTrue(success);
                 done();
@@ -77,14 +137,9 @@ describe('AvmTransactions', function(){
             });
         }
     });
-    describe('iowr() w/o connection', function(){
-        it('is a function', function(){
-            assert.isFunction(avm.iowr);
-        });
-    });
     describe('iowr() w/ connection', function(){
-        let scratch_base = IPL_BASE + IPL_SPAN - 8;
-        it('returns undefined and success when called with callback', function(done){
+        let scratch_base = SDRAM_BASE + 8;
+        it('returns undefined and succeeds when called with callback', function(done){
             assert.isUndefined(avm.iowr(scratch_base, 0, 0, (success: boolean) => {
                 assert.isTrue(success);
                 done();
@@ -130,14 +185,99 @@ describe('AvmTransactions', function(){
             });
         }
     });
-    describe('write() w/o connection', function(){
-        it('is a function', function(){
-            assert.isFunction(avm.write);
+    describe('iowr() and iord() queueing', function(){
+        it('queued in the order of calling', function(){
+            let p1, p2, p3;
+            let dummyValue1 = 0xdeadbeef;
+            let dummyValue2 = 0x7d7dcafe;
+            return assert.isFulfilled(
+                avm.iowr(SDRAM_BASE, 0, dummyValue1)
+                .then(() => {
+                    p1 = avm.iord(SDRAM_BASE, 0);
+                    p2 = avm.iowr(SDRAM_BASE, 0, dummyValue2);
+                    p3 = avm.iord(SDRAM_BASE, 0);
+                    return p1;
+                })
+                .then((value) => {
+                    assert.equal(value, dummyValue1);
+                    return p3;
+                })
+                .then((value) => {
+                    assert.equal(value, dummyValue2);
+                    return p2;
+                })
+            );
         });
     });
-    describe('read() w/o connection', function(){
-        it('is a function', function(){
-            assert.isFunction(avm.read);
+    let largeData: Buffer;
+    describe('write() w/ connection', function(){
+        it('returns undefined and succeeds when called with callback', function(done){
+            assert.isUndefined(avm.write(SDRAM_BASE, Buffer.alloc(64), (success: boolean) => {
+                assert.isTrue(success);
+                done();
+            }));
+        });
+        it('returns Promise(fulfilled) when called without callback', function(){
+            return assert.isFulfilled(
+                avm.write(SDRAM_BASE, Buffer.alloc(64).fill('0'))
+            );
+        });
+        it('succeeds for unaligned address', function(){
+            return assert.isFulfilled(
+                avm.write(SDRAM_BASE + 3, Buffer.alloc(6).fill('1'))
+                .then(() => {
+                    return Promise.all([
+                        avm.iord(SDRAM_BASE, 0),
+                        avm.iord(SDRAM_BASE, 1),
+                        avm.iord(SDRAM_BASE, 2),
+                    ])
+                })
+                .then((values) => {
+                    assert.equal(values[0], 0x31303030);
+                    assert.equal(values[1], 0x31313131);
+                    assert.equal(values[2], 0x30303031);
+                })
+            );
+        });
+        it('succeeds for large data (> 32kbytes)', function(){
+            this.slow(500);
+            largeData = Buffer.allocUnsafe(64*1024);
+            for (let i = 0; i < largeData.length; i += 2) {
+                largeData.writeUInt16LE(i & 0xffff, i);
+            }
+            return assert.isFulfilled(
+                avm.write(SDRAM_BASE, largeData)
+            );
+        });
+    });
+    describe('read() w/ connection', function(){
+        it('returns undefined and succeeds when called with callback', function(done){
+            assert.isUndefined(avm.read(SDRAM_BASE, 64, (success: boolean, readdata: Buffer) => {
+                assert.isTrue(success);
+                done();
+            }));
+        });
+        it('returns Promise(fulfilled) when called without callback', function(){
+            return assert.isFulfilled(
+                avm.read(SDRAM_BASE, 64)
+            );
+        });
+        it('succeeds for unaligned access', function(){
+            return assert.isFulfilled(
+                avm.read(SDRAM_BASE + 3, 6)
+                .then((readdata) => {
+                    assert.equal(readdata.compare(largeData.slice(3, 3 + 6)), 0);
+                })
+            )
+        });
+        it('succeeds for large data (> 32kbytes)', function(){
+            this.slow(500);
+            return assert.isFulfilled(
+                avm.read(SDRAM_BASE, largeData.length)
+                .then((readdata) => {
+                    assert.equal(readdata.compare(largeData), 0);
+                })
+            )
         });
     });
 });
