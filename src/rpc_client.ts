@@ -10,6 +10,7 @@ const PERIDOT_RPCSRV_IF_VER = 0x0101;
 const JSONRPC_VERSION = '2.0';
 const MIN_POLLING_INTERVAL_MS = 50;
 const MAX_POLLING_INTERVAL_MS = 1000;
+const DEFAULT_TIMEOUT_MS = 10000;
 
 /**
  * PERIDOTボードRPCクライアントクラス
@@ -77,10 +78,7 @@ export class RpcClient {
      * @param interval  ポーリング周期(ms)
      * @param timeout   タイムアウト時間(ms)
      */
-    doCall(method: string, params: any, interval?: number, timeout?: number): Promise<any> {
-        if (interval == null) {
-            interval = MAX_POLLING_INTERVAL_MS;
-        }
+    doCall(method: string, params: any, interval: number = MAX_POLLING_INTERVAL_MS, timeout: number = DEFAULT_TIMEOUT_MS): Promise<any> {
         return new Promise((resolve, reject) => {
             let tag = this._getNewTag();
             if (timeout != null) {
