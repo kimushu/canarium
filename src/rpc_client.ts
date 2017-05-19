@@ -209,6 +209,7 @@ export class RpcClient {
             .then((ptr) => {
                 if (ptr === 0) {
                     let error = new RemoteError(RemoteError.ECANCELED);
+                    this._abortPendingCalls(error);
                     this._abortOngoingCalls(error);
                     throw error;
                 }
@@ -408,6 +409,7 @@ export class RpcClient {
      * @param data  任意のデータ
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
+        /* istanbul ignore next */
         if (RpcClient.verbosity >= lvl) {
             printLog('RpcClient', func, msg, data);
         }
