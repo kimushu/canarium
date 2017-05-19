@@ -784,3 +784,13 @@ export class Canarium {
     }
 
 }
+
+export module Canarium {
+    export const BaseComm = modBaseComm.BaseComm;
+    export const I2CComm = modI2CComm.I2CComm;
+    export const AvsPackets = modAvsPackets.AvsPackets;
+    export const AvmTransactions = modAvmTransactions.AvmTransactions;
+    export const RpcClient = modRpcClient.RpcClient;
+    export const RemoteFile = modRemoteFile.RemoteFile;
+    export const RemoteError = modRemoteError.RemoteError;
+}
