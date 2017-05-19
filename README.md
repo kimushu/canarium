@@ -3,6 +3,11 @@ Canarium - PERIDOT board driver
 
 Canarium is [PERIDOT boards](https://github.com/osafune/peridot) driver for Node.js applications.
 
+Links
+-------
+- [GitHub](https://github.com/kimushu/canarium)
+- [npmjs](https://www.npmjs.com/package/canarium)
+
 Documents
 -------
 - For `0.9.x` releases, see [v0.9 documents](http://kimushu.github.io/canarium/v0.9)
@@ -34,9 +39,16 @@ canarium.open('COM3')
 });
 ```
 
+How to install
+-------
+- For Node.js environment (Version 1.0.x) *[BETA]*
+  - `npm install canarium@beta`
+- For Chrome environment (Version 0.9.x)
+  - `npm install canarium`
+
 History
 -------
-See CHANGELOG.md
+See [CHANGELOG.md](https://github.com/kimushu/canarium/blob/master/CHANGELOG.md)
 
 License
 -------
