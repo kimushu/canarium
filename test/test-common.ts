@@ -4,6 +4,7 @@ import * as chai from 'chai';
 import { exec, ExecOptionsWithStringEncoding } from 'child_process';
 chai.use(require('chai-as-promised'));
 const {assert} = chai;
+import * as elfy from 'elfy';
 import { Canarium } from '../src/canarium';
 
 export const TEST_DIR = path.join(__dirname, '..', '..', 'test');
@@ -11,6 +12,31 @@ export const SWI = {
     REG_CLASSID: 0,
     REG_MESSAGE: 6,
 };
+
+elfy.constants.machine['113'] = 'nios2';
+
+export function writeElf(canarium: Canarium, data: Buffer): Promise<void> {
+    return Promise.resolve()
+    .then(() => {
+        return elfy.parse(data);
+    })
+    .then((elf) => {
+        if (elf.machine !== 'nios2') {
+            throw new Error('Not NiosII program');
+        }
+        return elf.body.programs.reduce(
+            (promise, program) => {
+                if (program.type !== 'load') {
+                    return promise;
+                }
+                return promise
+                .then(() => {
+                    return canarium.avm.write(program.vaddr, program.data);
+                });
+            }, Promise.resolve()
+        );
+    });
+}
 
 export const cond = {
     classic_ps: <string>null,
@@ -111,10 +137,6 @@ describe('(Test data generation)', function(){
     const TEST_DIR = path.normalize(path.join(__dirname, '..', '..', 'test'));
     const SRC_DIR = path.join(TEST_DIR, 'app-src');
     const ELF_NAME = 'test.elf';
-
-    if (!quartus_installed) {
-        return;
-    }
     const REGENERATE = (process.env.REGENERATE != null);
 
     function doCommand(cmd: string, slow_sec: number, log: string, cwd?: string) {
