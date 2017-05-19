@@ -63,7 +63,14 @@ describe('RpcClient', function(){
     describe('doCall() w/ server', function(){
         it('fails with ENOSYS error when non-existent method used', function(){
             this.slow(500);
-            return assert.isRejected(rpcClient.doCall('xxx', {}, 100), 'Function not implemented');
+            return assert.isFulfilled(
+                rpcClient.doCall('xxx', {}, 100)
+                .then(() => {
+                    assert.fail();
+                }, (error) => {
+                    assert.equal(error.code, Canarium.RemoteError.ENOSYS);
+                })
+            );
         });
         it('succeeds with correct result for "echo" method', function(){
             let dummyData = {a: 1, b: [2, 3, 4], c: {d: 567}};
