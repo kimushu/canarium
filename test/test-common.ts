@@ -31,7 +31,7 @@ export function writeElf(canarium: Canarium, data: Buffer): Promise<void> {
                 }
                 return promise
                 .then(() => {
-                    return canarium.avm.write(program.vaddr, program.data);
+                    return canarium.avm.write(program.paddr, program.data);
                 });
             }, Promise.resolve()
         );
