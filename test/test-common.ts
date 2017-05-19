@@ -7,20 +7,54 @@ const {assert} = chai;
 import { Canarium } from '../src/canarium';
 
 export const TEST_DIR = path.join(__dirname, '..', '..', 'test');
-export const CLASSIC_RBF_PATH = path.join(TEST_DIR, 'peridot_classic', 'output_files', 'swi_testsuite.rbf');
-export let CLASSIC_RBF_DATA;
-export const CLASSIC_CLASSID = 0x72a09001;
-export const SWI_BASE = 0x10000000;
-export const REG_SWI_CLASSID = 0;
-export const REG_SWI_MESSAGE = 6;
-export const SDRAM_BASE = 0x00000000;
-export const SDRAM_SPAN = 8*1024*1024;
+export const SWI = {
+    REG_CLASSID: 0,
+    REG_MESSAGE: 6,
+};
 
 export const cond = {
     classic_ps: <string>null,
     classic_as: <string>null,
     classic:    <string[]>[],
     boards:     <string[]>[],
+};
+
+export interface TestData {
+    board: string;
+    workdir: string;
+    project: string;
+    revision?: string;
+    fpga_output_name: string;
+    fpga_output_data?: Buffer;
+    sopcinfo?: string;
+    bsp_hal?: string;
+    bsp_pkgs?: string[];
+    apps: {[n: string]: Buffer};
+    info?: any;
+};
+export interface TestDataCollection {
+    [n: string]: TestData;
+}
+
+export const testdatacol: TestDataCollection = {
+    classic_ps: {
+        board: 'PERIDOT Classic',
+        workdir: 'peridot_classic',
+        project: 'swi_testsuite',
+        fpga_output_name: 'swi_testsuite.rbf',
+        bsp_pkgs: ['peridot_rpc_server', 'peridot_client_fs', 'named_fifo'],
+        apps: {
+            rpcsrv: null,
+            clientfs: null,
+        },
+        info: {
+            CLASSID:    0x72a09001,
+            SDRAM_BASE: 0x00000000,
+            SDRAM_SPAN: 8*1024*1024,
+            SWI_BASE:   0x10000000,
+            RESET_BASE: 0x10000020,
+        }
+    }
 };
 
 (()=>{
@@ -73,66 +107,62 @@ describe('(Test data generation)', function(){
         }
     }
     it(`Check Quartus installation (QUARTUS_ROOTDIR="${QUARTUS_ROOTDIR}")`, quartus_installed && function(){})
-    after(function(){
-        CLASSIC_RBF_DATA = fs.readFileSync(CLASSIC_RBF_PATH);
-    });
-    if (!quartus_installed) {
-        return;
-    }
+
     const TEST_DIR = path.normalize(path.join(__dirname, '..', '..', 'test'));
     const SRC_DIR = path.join(TEST_DIR, 'app-src');
     const ELF_NAME = 'test.elf';
+
+    if (!quartus_installed) {
+        return;
+    }
     const REGENERATE = (process.env.REGENERATE != null);
 
-    interface GenerateOptions {
-        board: string;
-        cond: string;
-        workdir: string;
-        project: string;
-        revision?: string;
-        fpga_output: string;
-        sopcinfo?: string;
-        bsp_hal?: string;
-        bsp_pkgs?: string[];
-        apps: string[];
-    };
-
-    function generate(o: GenerateOptions){
-        function doCommand(cmd: string, slow_sec: number, log: string, cwd?: string) {
-            it(`${cmd.substr(0, 64)}...`, function(done){
-                this.slow(slow_sec * 1000);
-                this.timeout(0);
-                exec(cmd, {cwd: cwd}, (error, stdout, stderr) => {
-                    fs.writeFileSync(log, stdout);
-                    if (error) {
-                        console.error(error);
-                    }
-                    done(error);
-                });
-            })
-        }
-        let revision = o.revision || o.project;
-        describe(o.board, function(){
-            before(function(){
-                o.cond || this.skip();
+    function doCommand(cmd: string, slow_sec: number, log: string, cwd?: string) {
+        it(`${cmd.substr(0, 64)}...`, function(done){
+            this.slow(slow_sec * 1000);
+            this.timeout(0);
+            exec(cmd, {cwd: cwd}, (error, stdout, stderr) => {
+                fs.writeFileSync(log, stdout);
+                if (error) {
+                    console.error(error);
+                }
+                done(error);
             });
-            const fpga_dir = path.join(TEST_DIR, o.workdir);
-            const out_dir = path.join(fpga_dir, 'output_files');
+        })
+    }
+    Object.keys(testdatacol).forEach((key) => {
+        const d = testdatacol[key];
+        d.revision || (d.revision = d.project);
+        d.bsp_hal || (d.bsp_hal = 'hal');
+        const fpga_dir = path.join(TEST_DIR, d.workdir);
+        const out_dir = path.join(fpga_dir, 'output_files');
+        const sw_dir = path.join(fpga_dir, 'software');
+        const bsp_dir = path.join(sw_dir, 'bsp');
+        after(function(){
+            d.fpga_output_data = fs.readFileSync(path.join(out_dir, d.fpga_output_name));
+            Object.keys(d.apps).forEach((app) => {
+                d.apps[app] = fs.readFileSync(path.join(sw_dir, app, ELF_NAME));
+            });
+        });
+        if (!quartus_installed) {
+            return;
+        }
+        describe(d.board, function(){
+            before(function(){
+                cond[key] || this.skip();
+            });
             describe('Compile FPGA design (This may take a few minutes...)', function(){
                 before(function(){
-                    REGENERATE || fs.existsSync(path.join(out_dir, o.fpga_output)) && this.skip();
+                    REGENERATE || fs.existsSync(path.join(out_dir, d.fpga_output_name)) && this.skip();
                 });
                 doCommand(
-                    `${QUARTUS_SH} --flow compile ${o.project} -c ${revision}`,
+                    `${QUARTUS_SH} --flow compile ${d.project} -c ${d.revision}`,
                     60*5,
-                    path.join(fpga_dir, `${revision}.log`),
+                    path.join(fpga_dir, `${d.revision}.log`),
                     fpga_dir
                 );
             });
-            const sopcinfo = path.join(fpga_dir, o.sopcinfo || `${revision}_core.sopcinfo`);
-            const sw_dir = path.join(fpga_dir, 'software');
-            const bsp_dir = path.join(sw_dir, 'bsp');
-            const hal = o.bsp_hal || 'hal';
+            const sopcinfo = path.join(fpga_dir, d.sopcinfo || `${d.revision}_core.sopcinfo`);
             let bsp_regen = false;
             describe('Generate BSP', function(){
                 before(function(){
@@ -142,20 +172,20 @@ describe('(Test data generation)', function(){
                     fs.ensureDirSync(bsp_dir);
                 });
                 doCommand(
-                    `${path.join(NIOS2_BIN, 'nios2-bsp')} ${hal} ${bsp_dir} ${sopcinfo} ${
-                        (o.bsp_pkgs || []).map((pkg) => `--cmd enable_sw_package ${pkg}`).join(' ')}`,
+                    `${path.join(NIOS2_BIN, 'nios2-bsp')} ${d.bsp_hal} ${bsp_dir} ${sopcinfo} ${
+                        (d.bsp_pkgs || []).map((pkg) => `--cmd enable_sw_package ${pkg}`).join(' ')}`,
                     20,
                     path.join(bsp_dir, 'generate.log')
                 );
             });
             describe('Build BSP', function(){
                 before(function(){
-                    REGENERATE || bsp_regen || fs.existsSync(path.join(bsp_dir, `lib${hal}_bsp.a`)) && this.skip();
+                    REGENERATE || bsp_regen || fs.existsSync(path.join(bsp_dir, `lib${d.bsp_hal}_bsp.a`)) && this.skip();
                     assert.isTrue(fs.existsSync(path.join(bsp_dir, 'Makefile')));
                 });
                 doCommand(`make -C ${bsp_dir}`, 40, path.join(bsp_dir, 'build.log'));
             });
-            o.apps.forEach((app) => {
+            Object.keys(d.apps).forEach((app) => {
                 let app_dir = path.join(sw_dir, app);
                 let src_name = `${app}.c`;
                 let app_regen = false;
@@ -186,16 +216,6 @@ describe('(Test data generation)', function(){
                     );
                 });
             });
-        })
-    }
-
-    generate({
-        board: 'PERIDOT Classic',
-        cond: cond.classic_ps,
-        workdir: 'peridot_classic',
-        project: 'swi_testsuite',
-        fpga_output: 'swi_testsuite.rbf',
-        bsp_pkgs: ['peridot_rpc_server', 'peridot_client_fs', 'named_fifo'],
-        apps: ['rpcsrv', 'clientfs']
+        });
     });
 });

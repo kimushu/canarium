@@ -1,7 +1,7 @@
 import * as chai from 'chai';
 chai.use(require('chai-as-promised'));
 const {assert} = chai;
-import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE } from './test-common';
+import { cond, testdatacol, SWI } from './test-common';
 
 import { Canarium } from '../src/canarium';
 import { BaseComm } from '../src/base_comm';
@@ -222,7 +222,7 @@ describe('Canarium', function(){
             this.timeout(4000);
             return assert.isFulfilled(
                 canarium.open(cond.classic_ps, {
-                    rbfdata: CLASSIC_RBF_DATA
+                    rbfdata: testdatacol.classic_ps.fpga_output_data
                 })
             );
         });
@@ -290,7 +290,7 @@ describe('Canarium', function(){
             this.slow(2000);
             this.timeout(4000);
             return assert.isFulfilled(
-                canarium.config(null, CLASSIC_RBF_DATA)
+                canarium.config(null, testdatacol.classic_ps.fpga_output_data)
             );
         });
         it('succeeds with correct board ID constraint', function(){
@@ -299,7 +299,7 @@ describe('Canarium', function(){
             return assert.isFulfilled(
                 canarium.config(
                     {id: 'J72A'},
-                    CLASSIC_RBF_DATA
+                    testdatacol.classic_ps.fpga_output_data
                 )
             );
         });
@@ -309,7 +309,7 @@ describe('Canarium', function(){
             return assert.isRejected(
                 canarium.config(
                     {id: <any>'J72A_'},
-                    CLASSIC_RBF_DATA
+                    testdatacol.classic_ps.fpga_output_data
                 )
             );
         });
@@ -319,7 +319,7 @@ describe('Canarium', function(){
             return assert.isRejected(
                 canarium.config(
                     {serialcode: 'xxxxxx-yyyyyy-zzzzzz'},
-                    CLASSIC_RBF_DATA
+                    testdatacol.classic_ps.fpga_output_data
                 )
             );
         });
@@ -357,6 +357,7 @@ describe('Canarium', function(){
         });
     });
     describe('reset() w/ connection to PERIDOT Classic (PS mode)', function(){
+        const { SWI_BASE } = testdatacol.classic_ps.info;
         let canarium = new Canarium();
         before(function(){
             cond.classic_ps || this.skip();
@@ -366,19 +367,19 @@ describe('Canarium', function(){
             this.timeout(4000);
             let dummyValue = 0xdeadbeef;
             return assert.isFulfilled(
-                canarium.open(cond.classic_ps, {rbfdata: CLASSIC_RBF_DATA})
+                canarium.open(cond.classic_ps, {rbfdata: testdatacol.classic_ps.fpga_output_data})
                 .then(() => {
-                    return canarium.avm.iowr(SWI_BASE, REG_SWI_MESSAGE, dummyValue);
+                    return canarium.avm.iowr(SWI_BASE, SWI.REG_MESSAGE, dummyValue);
                 })
                 .then(() => {
-                    return canarium.avm.iord(SWI_BASE, REG_SWI_MESSAGE);
+                    return canarium.avm.iord(SWI_BASE, SWI.REG_MESSAGE);
                 })
                 .then((value) => {
                     assert.equal(value, dummyValue);
                     return canarium.reset();
                 })
                 .then(() => {
-                    return canarium.avm.iord(SWI_BASE, REG_SWI_MESSAGE);
+                    return canarium.avm.iord(SWI_BASE, SWI.REG_MESSAGE);
                 })
                 .then((value) => {
                     assert.equal(value, 0);

@@ -1,11 +1,13 @@
 import * as chai from 'chai';
 chai.use(require('chai-as-promised'));
 const {assert} = chai;
-import { cond, CLASSIC_RBF_DATA, SWI_BASE, REG_SWI_MESSAGE, REG_SWI_CLASSID, CLASSIC_CLASSID, SDRAM_BASE, SDRAM_SPAN } from './test-common';
+import { cond, testdatacol, SWI } from './test-common';
 
 import { Canarium } from '../src/canarium';
 
 describe('AvmTransactions', function(){
+    let testdata = testdatacol.classic_ps;
+    let { SWI_BASE, SDRAM_BASE, CLASSID } = testdata.info;
     let canarium = new Canarium();
     let avm = canarium.avm;
     before(function(){
@@ -86,7 +88,7 @@ describe('AvmTransactions', function(){
     describe('prepare for read/write tests', function(){
         it('configuration', function(){
             this.slow(1000);
-            return assert.isFulfilled(canarium.config(null, CLASSIC_RBF_DATA));
+            return assert.isFulfilled(canarium.config(null, testdata.fpga_output_data));
         });
     });
     describe('option() w/ connection', function(){
@@ -104,33 +106,33 @@ describe('AvmTransactions', function(){
     });
     describe('iord() w/ connection', function(){
         it('returns undefined and succeeds when called with callback', function(done){
-            assert.isUndefined(avm.iord(SWI_BASE, REG_SWI_CLASSID, (success: boolean) => {
+            assert.isUndefined(avm.iord(SWI_BASE, SWI.REG_CLASSID, (success: boolean) => {
                 assert.isTrue(success);
                 done();
             }));
         });
         it('returns Promise(fulfilled) when called without callback', function(){
             return assert.isFulfilled(
-                avm.iord(SWI_BASE, REG_SWI_CLASSID)
+                avm.iord(SWI_BASE, SWI.REG_CLASSID)
             );
         });
         it('succeeds with correct value (offset=1)', function(){
             return assert.isFulfilled(
-                avm.iord(SWI_BASE - 4, REG_SWI_CLASSID + 1)
+                avm.iord(SWI_BASE - 4, SWI.REG_CLASSID + 1)
                 .then((value) => {
-                    assert.equal(value, CLASSIC_CLASSID);
+                    assert.equal(value, CLASSID);
                 })
             );
         });
         for (let byteoffset = 0; byteoffset <= 4; ++byteoffset) {
             it(`succeeds with correct value (byteoffset=${byteoffset})`, function(){
                 return assert.isFulfilled(
-                    avm.iord(SWI_BASE + byteoffset, REG_SWI_CLASSID)
+                    avm.iord(SWI_BASE + byteoffset, SWI.REG_CLASSID)
                     .then((value) => {
                         if (byteoffset < 4) {
-                            assert.equal(value, CLASSIC_CLASSID);
+                            assert.equal(value, CLASSID);
                         } else {
-                            assert.notEqual(value, CLASSIC_CLASSID);
+                            assert.notEqual(value, CLASSID);
                         }
                     })
                 );
