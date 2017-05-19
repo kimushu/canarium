@@ -185,10 +185,13 @@ export class RpcClient {
             }
             // 接続済みの場合
             return this._avm.read(this._srvInfoPtr + 4, 6 * 4)
-            .then((ab) => {
-                let id0, id1;
-                [id0, id1, reqLen, reqPtr, resLen, resPtr] = Array.from(new Uint32Array(ab));
-                if ((id0 !== this._hostId[0]) || (id1 !== this._hostId[1])) {
+            .then((buf) => {
+                reqLen  = buf.readUInt32LE(0x08);
+                reqPtr  = buf.readUInt32LE(0x0c);
+                resLen  = buf.readUInt32LE(0x10);
+                resPtr  = buf.readUInt32LE(0x14);
+
+                if (this._hostId.compare(buf, 0, 8) !== 0) {
                     // ホストID不一致 (サーバー側が意図せず再起動したと判断)
                     throw new Error('RPC server has been reset (Host ID does not match)');
                 }
@@ -222,11 +225,15 @@ export class RpcClient {
                 this._srvInfoPtr = ptr;
                 return this._avm.read(this._srvInfoPtr, 7 * 4);
             })
-            .then((ab) => {
+            .then((buf) => {
                 // サーバー情報全体を取得し、バージョン等をチェック
-                let if_ver, id0, id1;
-                [if_ver, id0, id1, reqLen, reqPtr, resLen, resPtr] = Array.from(new Uint32Array(ab));
-                if ((if_ver & 0xffff) !== PERIDOT_RPCSRV_IF_VER) {
+                let if_ver;
+                if_ver  = buf.readUInt16LE(0x00);
+                reqLen  = buf.readUInt32LE(0x0c);
+                reqPtr  = buf.readUInt32LE(0x10);
+                resLen  = buf.readUInt32LE(0x14);
+                resPtr  = buf.readUInt32LE(0x18);
+                if (if_ver !== PERIDOT_RPCSRV_IF_VER) {
                     // バージョン不整合
                     // リクエスト送信およびレスポンス待ちをすべてエラーで中断する
                     let error = new Error('Unsupported remote version');
@@ -239,7 +246,7 @@ export class RpcClient {
                 let newId = Date.now();
                 this._hostId = Buffer.allocUnsafe(8);
                 this._hostId.writeUInt32LE(newId & 0xffffffff, 0);
-                this._hostId.writeUInt32LE(newId >>> 32, 4);
+                this._hostId.writeUInt32LE((newId >>> 16) >>> 16, 4);
                 return this._avm.write(this._srvInfoPtr + 4, this._hostId);
             })
             .then(() => {
@@ -365,7 +372,7 @@ export class RpcClient {
                     this._updateTimer();
                     if (obj.error != null) {
                         // エラー終了
-                        call.reject(new RemoteError(obj.error));
+                        call.reject(new RemoteError(obj.error.code));
                     } else {
                         // 正常終了
                         call.resolve(obj.result);
