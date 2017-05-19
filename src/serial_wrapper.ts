@@ -2,10 +2,10 @@ import * as SerialPort from 'serialport'; // for v4.x
 //import { SerialPort } from "serialport"; // for v2.x
 import { hexDump } from './common';
 
-const DEBUG = 0;
-const DELAY_AFTER_CLOSE_MS = 0;
-const MAX_RETRIES_FOR_OPEN = 5;
-const DELAY_FOR_OPEN_RETRY = 100;
+const DEBUG: number = 0;
+const DELAY_AFTER_CLOSE_MS: number = 0;
+const MAX_RETRIES_FOR_OPEN: number = 5;
+const DELAY_FOR_OPEN_RETRY: number = 100;
 
 /**
  * ポート情報

@@ -1,4 +1,5 @@
 import { Canarium, assert, cond, testdatacol, writeElf, SWI } from './test-common';
+import { waitPromise } from '../src/common';
 
 describe('RpcClient', function(){
     let testdata = testdatacol.classic_ps;
@@ -28,7 +29,7 @@ describe('RpcClient', function(){
         });
         it('fails with timeout error', function(){
             this.slow(1000);
-            return assert.isRejected(rpcClient.doCall('test', {}, 100, 500), 'RPC timeout');
+            return assert.isRejected(rpcClient.doCall('test', {}, 500, 100), 'RPC timeout');
         });
     });
     describe('resetConnection() w/o server', function(){
@@ -36,11 +37,14 @@ describe('RpcClient', function(){
             assert.isFunction(rpcClient.resetConnection);
         });
         it('succeeds and pending request with reset error', function(){
+            this.slow(300);
             return Promise.all([
                 assert.isRejected(
-                    rpcClient.doCall('test', {}, 5000), 'has been reset'
+                    rpcClient.doCall('test', {}, null, 5000), 'has been reset'
                 ),
-                assert.isFulfilled(rpcClient.resetConnection())
+                assert.isFulfilled(
+                    waitPromise(100).then(() => rpcClient.resetConnection())
+                )
             ]);
         })
     });
@@ -59,7 +63,7 @@ describe('RpcClient', function(){
         it('fails with ENOSYS error when non-existent method used', function(){
             this.slow(500);
             return assert.isFulfilled(
-                rpcClient.doCall('xxx', {}, 100)
+                rpcClient.doCall('xxx', {}, null, 100)
                 .then(() => {
                     assert.fail();
                 }, (error) => {
@@ -71,7 +75,7 @@ describe('RpcClient', function(){
             let dummyData = {a: 1, b: [2, 3, 4], c: {d: 567}};
             this.slow(500);
             return assert.isFulfilled(
-                rpcClient.doCall('echo', dummyData, 100)
+                rpcClient.doCall('echo', dummyData, null, 100)
                 .then((result) => {
                     assert.deepEqual(result, dummyData);
                 })

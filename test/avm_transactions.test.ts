@@ -11,6 +11,18 @@ describe('AvmTransactions', function(){
             this.timeout(5000);
             return canarium.open(cond.classic_ps)
             .then(() => {
+                return assert.isRejected(
+                    canarium.config(null, Buffer.alloc(0)),
+                    'FPGA configuration failed'
+                );
+            })
+            .then(() => {
+                return canarium.close();
+            })
+            .then(() => {
+                return canarium.open(cond.classic_ps);
+            })
+            .then(() => {
                 assert.isFalse(canarium.configured);
             });
         }

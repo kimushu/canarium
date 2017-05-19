@@ -5,12 +5,12 @@ import { AvsPackets } from './avs_packets';
 /**
  * ホスト通信用ペリフェラル(SWI)のベースアドレスの既定値
  */
-const SWI_BASE_ADDR_DEFAULT = 0x10000000;
+const SWI_BASE_ADDR_DEFAULT: number = 0x10000000;
 
 /**
  * 1回のトランザクションで読み書きできる最大バイト数
  */
-const AVM_TRANS_MAX_BYTES = 32768;
+const AVM_TRANS_MAX_BYTES: number = 32768;
 
 /**
  * Avalon-MMトランザクション層のオプション

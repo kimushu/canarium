@@ -373,4 +373,18 @@ describe('Canarium', function(){
             );
         });
     });
+    sandbox('openRemoteFile() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(canarium.openRemoteFile);
+        });
+        it('returns undefined when called with callback', function(done){
+            assert.isUndefined(canarium.openRemoteFile('test', 0, 0, null, null, (success: boolean) => {
+                assert.isFalse(success);
+                done();
+            }));
+        });
+        it('returns Promise(rejection) when port is not opened', function(){
+            return assert.isRejected(canarium.openRemoteFile('test', 0, 0));
+        });
+    });
 });
