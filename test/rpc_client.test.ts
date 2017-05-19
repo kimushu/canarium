@@ -56,7 +56,9 @@ describe('RpcClient', function(){
             return assert.isFulfilled(writeElf(canarium, testdata.apps.rpcsrv));
         });
         it('start Nios II', function(){
-            return assert.isFulfilled(canarium.avm.iowr(RESET_BASE, 0, 0));
+            this.slow(300);
+            return assert.isFulfilled(canarium.avm.iowr(RESET_BASE, 0, 0))
+            .then(() => waitPromise(100));
         });
     });
     describe('doCall() w/ server', function(){
