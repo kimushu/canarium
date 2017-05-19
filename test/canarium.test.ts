@@ -12,8 +12,24 @@ import { RpcClient } from '../src/rpc_client';
 import { waitPromise } from '../src/common';
 
 describe('Canarium', function(){
-    describe('version', function(){
-        let canarium = new Canarium();
+    let canarium: Canarium;
+
+    function sandbox(name, tests: (this: Mocha.ISuiteCallbackContext) => any) {
+        describe(name, function(){
+            before(function(){
+                canarium = new Canarium();
+            });
+            tests.call(this);
+            after(function(){
+                if (canarium.connected) {
+                    return canarium.close();
+                }
+                canarium = null;
+            });
+        });
+    }
+
+    sandbox('version', function(){
         it('is a string', function(){
             assert.isString(canarium.version);
         });
@@ -22,15 +38,13 @@ describe('Canarium', function(){
         });
     });
 
-    describe('boardInfo', function(){
-        let canarium = new Canarium();
+    sandbox('boardInfo', function(){
         it('is a property', function(){
             assert.property(canarium, 'boardInfo');
         });
     });
 
-    describe('serialBitrate', function(){
-        let canarium = new Canarium();
+    sandbox('serialBitrate', function(){
         it('is a number', function(){
             assert.isNumber(canarium.serialBitrate);
         });
@@ -41,8 +55,7 @@ describe('Canarium', function(){
         })
     });
 
-    describe('connected w/o connection', function(){
-        let canarium = new Canarium();
+    sandbox('connected w/o connection', function(){
         it('is a boolean', function(){
             assert.isBoolean(canarium.connected);
         });
@@ -51,8 +64,7 @@ describe('Canarium', function(){
         });
     })
 
-    describe('connected w/ connection', function(){
-        let canarium = new Canarium();
+    sandbox('connected w/ connection', function(){
         before(function(){
             cond.boards[0] || this.skip();
         });
@@ -82,8 +94,7 @@ describe('Canarium', function(){
         });
     })
 
-    describe('configured', function(){
-        let canarium = new Canarium();
+    sandbox('configured', function(){
         it('is a boolean', function(){
             assert.isBoolean(canarium.configured);
         });
@@ -92,43 +103,37 @@ describe('Canarium', function(){
         });
     });
 
-    describe('base', function(){
-        let canarium = new Canarium();
+    sandbox('base', function(){
         it('is an instance of BaseComm', function(){
             assert.instanceOf(canarium.base, BaseComm);
         });
     });
 
-    describe('i2c', function(){
-        let canarium = new Canarium();
+    sandbox('i2c', function(){
         it('is an instance of I2CComm', function(){
             assert.instanceOf(canarium.i2c, I2CComm);
         });
     });
 
-    describe('avs', function(){
-        let canarium = new Canarium();
+    sandbox('avs', function(){
         it('is an instance of AvsPackets', function(){
             assert.instanceOf(canarium.avs, AvsPackets);
         });
     });
 
-    describe('avm', function(){
-        let canarium = new Canarium();
+    sandbox('avm', function(){
         it('is an instance of AvmTransactions', function(){
             assert.instanceOf(canarium.avm, AvmTransactions);
         });
     });
 
-    describe('rpcClient', function(){
-        let canarium = new Canarium();
+    sandbox('rpcClient', function(){
         it('is an instance of RpcClient', function(){
             assert.instanceOf(canarium.rpcClient, RpcClient);
         });
     });
 
-    describe('swiBase', function(){
-        let canarium = new Canarium();
+    sandbox('swiBase', function(){
         it('is a number', function(){
             assert.isNumber(canarium.swiBase);
         });
@@ -139,8 +144,7 @@ describe('Canarium', function(){
         });
     });
 
-    describe('onClosed', function(){
-        let canarium = new Canarium();
+    sandbox('onClosed', function(){
         it('is a property', function(){
             assert.property(canarium, 'onClosed');
         });
@@ -151,7 +155,7 @@ describe('Canarium', function(){
         });
     });
 
-    describe('static enumerate()', function(){
+    sandbox('static enumerate()', function(){
         it('is a function', function(){
             assert.isFunction(Canarium.enumerate);
         });
@@ -163,8 +167,7 @@ describe('Canarium', function(){
         });
     });
 
-    describe('open() w/o connection', function(){
-        let canarium = new Canarium();
+    sandbox('open() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(canarium.open);
         });
@@ -184,8 +187,7 @@ describe('Canarium', function(){
             return assert.isRejected(canarium.open('xxx'));
         });
     });
-    describe('open() w/ connection', function(){
-        let canarium = new Canarium();
+    sandbox('open() w/ connection', function(){
         before(function(){
             cond.boards[0] || this.skip();
         });
@@ -227,8 +229,7 @@ describe('Canarium', function(){
             );
         });
     });
-    describe('close() w/o connection', function(){
-        let canarium = new Canarium();
+    sandbox('close() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(canarium.close);
         });
@@ -242,8 +243,7 @@ describe('Canarium', function(){
             return assert.isRejected(canarium.close());
         });
     });
-    describe('close() w/ connection', function(){
-        let canarium = new Canarium();
+    sandbox('close() w/ connection', function(){
         before(function(){
             cond.boards[0] || this.skip();
         });
@@ -258,8 +258,7 @@ describe('Canarium', function(){
             );
         });
     });
-    describe('config() w/o connection', function(){
-        let canarium = new Canarium();
+    sandbox('config() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(canarium.config);
         });
@@ -273,8 +272,7 @@ describe('Canarium', function(){
             return assert.isRejected(canarium.close());
         });
     });
-    describe('config() w/ connection to PERIDOT Classic (PS mode)', function(){
-        let canarium = new Canarium();
+    sandbox('config() w/ connection to PERIDOT Classic (PS mode)', function(){
         before(function(){
             cond.classic_ps || this.skip();
             this.slow(1000);
@@ -324,8 +322,7 @@ describe('Canarium', function(){
             );
         });
     });
-    describe('reconfig() w/o connection', function(){
-        let canarium = new Canarium();
+    sandbox('reconfig() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(canarium.reconfig);
         });
@@ -339,10 +336,9 @@ describe('Canarium', function(){
             return assert.isRejected(canarium.reconfig());
         });
     });
-    //describe("reconfig() w/ connection", function(){
+    //describe_sandbox("reconfig() w/ connection", function(){
     //});
-    describe('reset() w/o connection', function(){
-        let canarium = new Canarium();
+    sandbox('reset() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(canarium.reset);
         });
@@ -356,9 +352,8 @@ describe('Canarium', function(){
             return assert.isRejected(canarium.reset());
         });
     });
-    describe('reset() w/ connection to PERIDOT Classic (PS mode)', function(){
+    sandbox('reset() w/ connection to PERIDOT Classic (PS mode)', function(){
         const { SWI_BASE } = testdatacol.classic_ps.info;
-        let canarium = new Canarium();
         before(function(){
             cond.classic_ps || this.skip();
         });
@@ -388,4 +383,3 @@ describe('Canarium', function(){
         });
     });
 });
-//-*/
