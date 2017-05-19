@@ -94,7 +94,7 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><a href="rpcclient.html#verbosity" class="tsd-kind-icon">verbosity</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="rpcclient.html#verbosity" class="tsd-kind-icon">verbosity</a></li>
 							</ul>
 						</section>
 						<section class="tsd-index-section ">
@@ -119,7 +119,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/kimushu/canarium/blob/360fe7c/src/rpc_client.ts#L61">src/rpc_client.ts:61</a></li>
+									<li>Defined in <a href="https://github.com/kimushu/canarium/blob/63e916e/src/rpc_client.ts#L62">rpc_client.ts:62</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -145,13 +145,13 @@
 			</section>
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-static">
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
 					<a name="verbosity" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagStatic">Static</span> verbosity</h3>
+					<h3>verbosity</h3>
 					<div class="tsd-signature tsd-kind-icon">verbosity<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> =&nbsp;0</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/360fe7c/src/rpc_client.ts#L21">src/rpc_client.ts:21</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/63e916e/src/rpc_client.ts#L22">rpc_client.ts:22</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -167,13 +167,13 @@
 					<a name="docall" class="tsd-anchor"></a>
 					<h3>do<wbr>Call</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">do<wbr>Call<span class="tsd-signature-symbol">(</span>method<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, params<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, interval<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span></li>
+						<li class="tsd-signature tsd-kind-icon">do<wbr>Call<span class="tsd-signature-symbol">(</span>method<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, params<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span>, interval<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, timeout<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/kimushu/canarium/blob/360fe7c/src/rpc_client.ts#L79">src/rpc_client.ts:79</a></li>
+									<li>Defined in <a href="https://github.com/kimushu/canarium/blob/63e916e/src/rpc_client.ts#L81">rpc_client.ts:81</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -197,9 +197,15 @@
 									</div>
 								</li>
 								<li>
-									<h5><span class="tsd-flag ts-flagOptional">Optional</span> interval: <span class="tsd-signature-type">number</span></h5>
+									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> interval: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> =&nbsp;MAX_POLLING_INTERVAL_MS</span></h5>
 									<div class="tsd-comment tsd-typography">
 										<p>ポーリング周期(ms)</p>
+									</div>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> timeout: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> =&nbsp;DEFAULT_TIMEOUT_MS</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>タイムアウト時間(ms)</p>
 									</div>
 								</li>
 							</ul>
@@ -217,7 +223,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/kimushu/canarium/blob/360fe7c/src/rpc_client.ts#L93">src/rpc_client.ts:93</a></li>
+									<li>Defined in <a href="https://github.com/kimushu/canarium/blob/63e916e/src/rpc_client.ts#L95">rpc_client.ts:95</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -249,7 +255,7 @@
 							<li class=" tsd-kind-constructor tsd-parent-kind-class">
 								<a href="rpcclient.html#constructor" class="tsd-kind-icon">constructor</a>
 							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-class tsd-is-static">
+							<li class=" tsd-kind-property tsd-parent-kind-class">
 								<a href="rpcclient.html#verbosity" class="tsd-kind-icon">verbosity</a>
 							</li>
 							<li class=" tsd-kind-method tsd-parent-kind-class">
