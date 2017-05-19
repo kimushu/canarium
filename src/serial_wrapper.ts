@@ -95,14 +95,14 @@ export class SerialWrapper {
      * @param _path     接続先ポートのパス
      * @param _options  接続時のオプション
      */
-    constructor(private _path: string, private _options: ConnectOption = {}) {
-        if (this._options.baudRate != null) {
+    constructor(private _path: string, private _options: ConnectOption) {
+        if (this._options.baudRate == null) {
             this._options.baudRate = 115200;
         }
-        if (this._options.dataBits != null) {
+        if (this._options.dataBits == null) {
             this._options.dataBits = 8;
         }
-        if (this._options.stopBits != null) {
+        if (this._options.stopBits == null) {
             this._options.stopBits = 1;
         }
     }
