@@ -11,27 +11,27 @@ import * as modRemoteError from './remote_error';
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
  */
-const EEPROM_SLAVE_ADDR = 0b1010000;
+const EEPROM_SLAVE_ADDR: number = 0b1010000;
 
 /**
  * EEPROMの最大バーストリード長(バイト数)
  */
-const SPLIT_EEPROM_BURST = 6;
+const SPLIT_EEPROM_BURST: number = 6;
 
 /**
  * コンフィグレーション開始のタイムアウト時間(ms)
  */
-const CONFIG_TIMEOUT_MS = 3000;
+const CONFIG_TIMEOUT_MS: number = 3000;
 
 /**
  * コンフィグレーションのタイムアウト時間(ms)
  */
-const RECONFIG_TIMEOUT_MS = 3000;
+const RECONFIG_TIMEOUT_MS: number = 3000;
 
 /**
  * Avalon-MM 通信レイヤのチャネル番号
  */
-const AVM_CHANNEL = 0;
+const AVM_CHANNEL: number = 0;
 
 /**
  * 標準PERIDOTのボードID
@@ -448,7 +448,7 @@ export class Canarium {
 
     /**
      * ボードのFPGA再コンフィグレーション
-     * @since 0.9.20
+     * @since 1.0.0
      */
     reconfig(): Promise<void>;
 
@@ -630,31 +630,37 @@ export class Canarium {
      * @param mode     ファイル作成時のパーミッション
      * @param interval RPCポーリング周期
      */
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number): Promise<Canarium.RemoteFile>;
+    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, timeout?: number, interval?: number): Promise<Canarium.RemoteFile>;
 
     /**
      * ボード上のファイルを開く
      * @param path     パス
      * @param flags    フラグ(数字指定またはECMAオブジェクト指定)
      * @param mode     ファイル作成時のパーミッション
-     * @param interval RPCポーリング周期
+     * @param timeout  タイムアウト時間[ms]
+     * @param interval RPCポーリング周期[ms]
      * @param callback コールバック関数
      */
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): void;
+    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, timeout?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): void;
 
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): any {
+    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, timeout?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): any {
         if (typeof(mode) === 'function') {
             callback = mode;
             interval = null;
+            timeout = null;
             mode = null;
+        } else if (typeof(timeout) === 'function') {
+            callback = timeout;
+            interval = null;
+            timeout = null;
         } else if (typeof(interval) === 'function') {
             callback = interval;
             interval = null;
         }
         if (callback != null) {
-            return invokeCallback(callback, this.openRemoteFile(path, flags, mode, interval));
+            return invokeCallback(callback, this.openRemoteFile(path, flags, mode, timeout, interval));
         }
-        return modRemoteFile.RemoteFile.open(this._rpcClient, path, flags, mode, interval);
+        return modRemoteFile.RemoteFile.open(this._rpcClient, path, flags, mode, timeout, interval);
     }
 
     /**

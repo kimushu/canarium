@@ -5,7 +5,8 @@ import { printLog } from './common';
 /**
  * RPCポーリング周期のデフォルト値
  */
-const REMOTEFILE_DEFAULT_INTERVAL = 200;
+const REMOTEFILE_DEFAULT_INTERVAL: number = 200;
+const REMOTEFILE_DEFAULT_TIMEOUT: number = 200;
 
 /**
  * ファイルオープン用フラグ
@@ -64,7 +65,7 @@ export class RemoteFile {
     /**
      * デバッグ出力の細かさ(0で出力無し)
      */
-    static verbosity: number = 0;
+    verbosity: number = 0;
 
     static get O_RDONLY()   { return 0; }
     static get O_WRONLY()   { return 1; }
@@ -80,9 +81,10 @@ export class RemoteFile {
      * @param path      パス
      * @param flags     フラグ(数字指定またはECMAオブジェクト指定)
      * @param mode      ファイル作成時のパーミッション
-     * @param interval  RPCポーリング周期
+     * @param timeout   タイムアウト時間[ms]
+     * @param interval  RPCポーリング周期[ms]
      */
-    static open(rpcClient: RpcClient, path: string, flags: number|FileOpenFlags, mode: number = 511, interval = REMOTEFILE_DEFAULT_INTERVAL): Promise<RemoteFile> {
+    static open(rpcClient: RpcClient, path: string, flags: number|FileOpenFlags, mode: number = 511, timeout = REMOTEFILE_DEFAULT_TIMEOUT, interval = REMOTEFILE_DEFAULT_INTERVAL): Promise<RemoteFile> {
         if (Object.prototype.toString.call(path) !== '[object String]') {
             throw new TypeError('path must be a string');
         }
@@ -114,20 +116,25 @@ export class RemoteFile {
             }
             flags = n;
         }
-        return rpcClient.doCall('fs.open', {path, flags, mode}, interval)
+        return rpcClient.doCall('fs.open', {path, flags, mode}, timeout, interval)
         .then((result) => {
-            return new this(rpcClient, result.fd);
+            return new this(rpcClient, result.fd, interval);
         });
     }
 
     /**
      * ファイルを閉じる(closeのリモート呼び出し)
+     * @param timeout       タイムアウト時間[ms]
+     * @param interval      RPCポーリング周期[ms]
      */
-    close(): Promise<void> {
+    close(timeout?: number, interval?: number): Promise<void> {
         if (this._fd == null) {
             throw new Error('File not opened');
         }
-        return this._rpcClient.doCall('fs.close', {fd: this._fd})
+        return this._rpcClient.doCall(
+            'fs.close', {fd: this._fd},
+            timeout, interval != null ? interval : this._interval
+        )
         .then(() => {
             this._fd = null;
         });
@@ -138,8 +145,10 @@ export class RemoteFile {
      *
      * @param length        読み込むバイト数
      * @param autoContinue  読み込んだバイト数がlengthに達するまで繰り返すか否か
+     * @param timeout       タイムアウト時間[ms]
+     * @param interval      RPCポーリング周期[ms]
      */
-    read(length: number, autoContinue: boolean = false): Promise<Buffer> {
+    read(length: number, autoContinue: boolean = false, timeout?: number, interval?: number): Promise<Buffer> {
         if (typeof(length) !== 'number') {
             throw new TypeError('length must be a number');
         }
@@ -152,7 +161,7 @@ export class RemoteFile {
             return this._rpcClient.doCall('fs.read', {
                 fd: this._fd,
                 length: length - total_read
-            })
+            }, timeout, interval != null ? interval : this._interval)
             .then((result) => {
                 let read_length = result.length;
                 if (read_length > 0) {
@@ -184,8 +193,10 @@ export class RemoteFile {
      * 
      * @param data          書き込むデータ
      * @param autoContinue  書き込んだバイト数がlengthに達するまで繰り返すか否か
+     * @param timeout       タイムアウト時間[ms]
+     * @param interval      RPCポーリング周期[ms]
      */
-    write(data: Buffer, autoContinue: boolean = false): Promise<number> {
+    write(data: Buffer, autoContinue: boolean = false, timeout?: number, interval?: number): Promise<number> {
         data = Buffer.from(data);
         let total_written = 0;
         let loop = (): Promise<void> => {
@@ -195,7 +206,7 @@ export class RemoteFile {
             return this._rpcClient.doCall('fs.write', {
                 fd: this._fd,
                 data: data.slice(total_written)
-            })
+            }, timeout, interval != null ? interval : this._interval)
             .then((result) => {
                 total_written += result.length;
             }, (error) => {
@@ -219,8 +230,10 @@ export class RemoteFile {
      * ファイルポインタの移動
      * @param offset    移動量
      * @param whence    移動の基点を示す値(SEEK_SET=0,SEEK_CUR=1,SEEK_END=2)またはECMAオブジェクト
+     * @param timeout   タイムアウト時間[ms]
+     * @param interval  RPCポーリング周期[ms]
      */
-    lseek(offset: number, whence: number|FileSeekWhence): Promise<number> {
+    lseek(offset: number, whence: number|FileSeekWhence, timeout?: number, interval?: number): Promise<number> {
         if (typeof(offset) !== 'number') {
             throw new TypeError('offset must be a number');
         }
@@ -240,7 +253,7 @@ export class RemoteFile {
             fd: this._fd,
             offset: offset,
             whence: whence
-        })
+        }, timeout, interval != null ? interval : this._interval)
         .then((result) => {
             return result.offset;
         });
@@ -259,8 +272,9 @@ export class RemoteFile {
      *
      * @param _rpcClient    RPCクライアントクラスのインスタンス
      * @param _fd           ファイルディスクリプタ
+     * @param _interval     RPCポーリング周期[ms]
      */
-    private constructor(private _rpcClient: RpcClient, private _fd: number) {
+    private constructor(private _rpcClient: RpcClient, private _fd: number, private _interval: number) {
     }
 
 
@@ -272,7 +286,8 @@ export class RemoteFile {
      * @param data  任意のデータ
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
-        if (RemoteFile.verbosity >= lvl) {
+        /* istanbul ignore next */
+        if (this.verbosity >= lvl) {
             printLog('RemoteFile', func, msg, data);
         }
     }

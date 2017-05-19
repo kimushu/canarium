@@ -3,14 +3,14 @@ import { AvmTransactions } from './avm_transactions';
 import { RemoteError } from './remote_error';
 import { printLog } from './common';
 
-const bson = new BSON();
-const SWI_REG_MSG = 6;
-const SWI_REG_SWI = 7;
-const PERIDOT_RPCSRV_IF_VER = 0x0101;
-const JSONRPC_VERSION = '2.0';
-const MIN_POLLING_INTERVAL_MS = 50;
-const MAX_POLLING_INTERVAL_MS = 1000;
-const DEFAULT_TIMEOUT_MS = 10000;
+const bson: BSON = new BSON();
+const SWI_REG_MSG: number = 6;
+const SWI_REG_SWI: number = 7;
+const PERIDOT_RPCSRV_IF_VER: number = 0x0101;
+const JSONRPC_VERSION: string = '2.0';
+const MIN_POLLING_INTERVAL_MS: number = 50;
+const MAX_POLLING_INTERVAL_MS: number = 1000;
+const DEFAULT_TIMEOUT_MS: number = 10000;
 
 /**
  * PERIDOTボードRPCクライアントクラス
@@ -75,17 +75,26 @@ export class RpcClient {
      * 
      * @param method    メソッド名
      * @param params    パラメータ、またはパラメータを返す関数
-     * @param interval  ポーリング周期(ms)
-     * @param timeout   タイムアウト時間(ms)
+     * @param timeout   タイムアウト時間[ms]
+     * @param interval  ポーリング周期[ms]
      */
-    doCall(method: string, params: any, interval: number = MAX_POLLING_INTERVAL_MS, timeout: number = DEFAULT_TIMEOUT_MS): Promise<any> {
-        return new Promise((resolve, reject) => {
-            let tag = this._getNewTag();
-            if (timeout != null) {
-                global.setTimeout(() => reject(new Error('RPC timeout')), timeout);
-            }
-            this._pendingCalls.push({method, params, interval, tag, resolve, reject});
-            this._updateTimer();
+    doCall(method: string, params: any, timeout: number = DEFAULT_TIMEOUT_MS, interval: number = MAX_POLLING_INTERVAL_MS): Promise<any> {
+        return this._avm.base.assertConnection()
+        .then(() => {
+            return new Promise<any>((resolve, reject) => {
+                let tag = this._getNewTag();
+                if (timeout != null) {
+                    global.setTimeout(() => {
+                        let index = this._pendingCalls.findIndex((call) => call.tag === tag);
+                        if (index >= 0) {
+                            this._pendingCalls.splice(index, 1);
+                        }
+                        reject(new Error('RPC timeout'));
+                    }, timeout);
+                }
+                this._pendingCalls.push({method, params, interval, tag, resolve, reject});
+                this._updateTimer();
+            });
         });
     }
 
@@ -93,13 +102,15 @@ export class RpcClient {
      * 接続のリセット
      */
     resetConnection(): Promise<void> {
-        let error = Error('RPC connection has been reset by client');
-        this._abortPendingCalls(error);
-        this._abortOngoingCalls(error);
-        this._srvInfoPtr = null;
-        this._hostId = null;
-        this._updateTimer();
-        return Promise.resolve();
+        return Promise.resolve()
+        .then(() => {
+            let error = new Error('RPC connection has been reset by client');
+            this._abortPendingCalls(error);
+            this._abortOngoingCalls(error);
+            this._srvInfoPtr = null;
+            this._hostId = null;
+            this._updateTimer();
+        });
     }
 
     /**
