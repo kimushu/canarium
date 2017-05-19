@@ -224,6 +224,9 @@ describe('AvmTransactions', function(){
                 avm.write(SDRAM_BASE, Buffer.alloc(64).fill('0'))
             );
         });
+        it('succeeds for zero-byte write', function(){
+            return assert.isFulfilled(avm.write(SDRAM_BASE, Buffer.alloc(0)));
+        });
         it('succeeds for unaligned address', function(){
             return assert.isFulfilled(
                 avm.write(SDRAM_BASE + 3, Buffer.alloc(6).fill('1'))
@@ -263,6 +266,14 @@ describe('AvmTransactions', function(){
             return assert.isFulfilled(
                 avm.read(SDRAM_BASE, 64)
             );
+        });
+        it('succeeds and returns empty buffer for zero-byte read', function(){
+            return assert.isFulfilled(
+                avm.read(SDRAM_BASE, 0)
+                .then((readdata) => {
+                    assert.equal(readdata.length, 0);
+                })
+            )
         });
         it('succeeds for unaligned access', function(){
             return assert.isFulfilled(

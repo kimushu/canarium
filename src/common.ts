@@ -107,16 +107,17 @@ export function waitPromise<T>(dulation: number, value?: T): Promise<T> {
  * @param action    実行するアクション
  */
 export function loopPromise<T>(start: number, end: number, step: number, action: (value: number) => Promise<T>): Promise<T> {
-    function loop(value){
-        return action(value).then((result) => {
-            value += step;
-            if ((step > 0 && value < end) || (step < 0 && value > end)) {
-                return loop(value);
-            }
+    function loop(value, result){
+        if ((step > 0 && value < end) || (step < 0 && value > end)) {
+            return action(value).then((result) => {
+                value += step;
+                return loop(value, result);
+            });
+        } else {
             return result;
-        })
+        }
     }
-    return loop(start);
+    return loop(start, Promise.resolve());
 }
 
 /**
