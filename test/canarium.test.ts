@@ -1,14 +1,5 @@
-import * as chai from 'chai';
-chai.use(require('chai-as-promised'));
-const {assert} = chai;
-import { cond, testdatacol, SWI } from './test-common';
+import { Canarium, assert, cond, testdatacol, SWI } from './test-common';
 
-import { Canarium } from '../src/canarium';
-import { BaseComm } from '../src/base_comm';
-import { I2CComm } from '../src/i2c_comm';
-import { AvsPackets } from '../src/avs_packets';
-import { AvmTransactions } from '../src/avm_transactions';
-import { RpcClient } from '../src/rpc_client';
 import { waitPromise } from '../src/common';
 
 describe('Canarium', function(){
@@ -105,31 +96,31 @@ describe('Canarium', function(){
 
     sandbox('base', function(){
         it('is an instance of BaseComm', function(){
-            assert.instanceOf(canarium.base, BaseComm);
+            assert.instanceOf(canarium.base, Canarium.BaseComm);
         });
     });
 
     sandbox('i2c', function(){
         it('is an instance of I2CComm', function(){
-            assert.instanceOf(canarium.i2c, I2CComm);
+            assert.instanceOf(canarium.i2c, Canarium.I2CComm);
         });
     });
 
     sandbox('avs', function(){
         it('is an instance of AvsPackets', function(){
-            assert.instanceOf(canarium.avs, AvsPackets);
+            assert.instanceOf(canarium.avs, Canarium.AvsPackets);
         });
     });
 
     sandbox('avm', function(){
         it('is an instance of AvmTransactions', function(){
-            assert.instanceOf(canarium.avm, AvmTransactions);
+            assert.instanceOf(canarium.avm, Canarium.AvmTransactions);
         });
     });
 
     sandbox('rpcClient', function(){
         it('is an instance of RpcClient', function(){
-            assert.instanceOf(canarium.rpcClient, RpcClient);
+            assert.instanceOf(canarium.rpcClient, Canarium.RpcClient);
         });
     });
 

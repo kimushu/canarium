@@ -3,9 +3,10 @@ import * as fs from 'fs-extra';
 import * as chai from 'chai';
 import { exec, ExecOptionsWithStringEncoding } from 'child_process';
 chai.use(require('chai-as-promised'));
-const {assert} = chai;
+const { assert } = chai;
 import * as elfy from 'elfy';
 import { Canarium } from '../src/canarium';
+export { assert, Canarium };
 
 export const TEST_DIR = path.join(__dirname, '..', '..', 'test');
 export const SWI = {

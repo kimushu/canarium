@@ -1,9 +1,4 @@
-import * as chai from 'chai';
-chai.use(require('chai-as-promised'));
-const {assert} = chai;
-import { cond, testdatacol, SWI } from './test-common';
-
-import { Canarium } from '../src/canarium';
+import { Canarium, assert, cond, testdatacol, SWI } from './test-common';
 
 describe('AvmTransactions', function(){
     let testdata = testdatacol.classic_ps;
