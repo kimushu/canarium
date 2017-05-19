@@ -18,7 +18,7 @@ export class RpcClient {
     /**
      * デバッグ出力の細かさ(0で出力無し)
      */
-    static verbosity: number = 0;
+    verbosity: number = 0;
 
     /**
      * リクエスト送信待ち行列(callの要求順にキューされる)
@@ -75,13 +75,17 @@ export class RpcClient {
      * @param method    メソッド名
      * @param params    パラメータ、またはパラメータを返す関数
      * @param interval  ポーリング周期(ms)
+     * @param timeout   タイムアウト時間(ms)
      */
-    doCall(method: string, params: any, interval?: number): Promise<any> {
+    doCall(method: string, params: any, interval?: number, timeout?: number): Promise<any> {
         if (interval == null) {
             interval = MAX_POLLING_INTERVAL_MS;
         }
         return new Promise((resolve, reject) => {
             let tag = this._getNewTag();
+            if (timeout != null) {
+                global.setTimeout(() => reject(new Error('RPC timeout')), timeout);
+            }
             this._pendingCalls.push({method, params, interval, tag, resolve, reject});
             this._updateTimer();
         });
@@ -159,7 +163,10 @@ export class RpcClient {
             this._pollingBarrier = false;
         }, (error) => {
             this._pollingBarrier = false;
-            console.error('Error during poll:', error);
+            /* istanbul ignore next */
+            if (this.verbosity > 0) {
+                console.error('Error during poll:', error);
+            }
         });
     }
 
@@ -209,7 +216,6 @@ export class RpcClient {
             .then((ptr) => {
                 if (ptr === 0) {
                     let error = new RemoteError(RemoteError.ECANCELED);
-                    this._abortPendingCalls(error);
                     this._abortOngoingCalls(error);
                     throw error;
                 }
@@ -410,7 +416,7 @@ export class RpcClient {
      */
     private _log(lvl: number, func: string, msg: string|(() => string), data?: any) {
         /* istanbul ignore next */
-        if (RpcClient.verbosity >= lvl) {
+        if (this.verbosity >= lvl) {
             printLog('RpcClient', func, msg, data);
         }
     }
