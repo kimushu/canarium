@@ -694,7 +694,7 @@ export class Canarium {
                     }
 
                     // Send EEPROM address
-                    return this.i2c.write(startaddr & 0xff);
+                    return this.i2c.write((startaddr + offset) & 0xff);
                 })
                 .then((ack) => {
                     if (!ack) {

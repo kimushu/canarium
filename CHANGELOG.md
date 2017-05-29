@@ -1,3 +1,7 @@
+Version 1.0.0-beta2
+-------
+- Fix incorrect serialcode
+
 Version 1.0.0-beta1
 -------
 - Dropped Chrome (`chrome.serial`) support. Since this version, **only Node.js runtime (v6.x or v7.x) is supported by Canarium**.
