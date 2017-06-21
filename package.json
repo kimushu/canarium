@@ -1,6 +1,6 @@
 {
   "name": "canarium",
-  "version": "1.0.0-beta1",
+  "version": "1.0.0-beta2",
   "description": "PERIDOT board driver library",
   "main": "out/src/canarium.js",
   "types": "types/src/canarium.d.ts",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "bson": "^1.0.4",
-    "serialport": "^4.0.7"
+    "serialport": "^5.0.0-beta4"
   },
   "keywords": [
     "PERIDOT",
