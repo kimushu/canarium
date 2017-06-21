@@ -287,7 +287,7 @@ describe('Canarium', function(){
         });
         it('succeeds with reasonable serial code', function(){
             canarium.boardInfo || this.skip();
-            assert.match(canarium.boardInfo.serialcode, /^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$/);
+            assert.match(canarium.boardInfo.serialcode, /^[0-9A-Z]{6}-[0-9A-Z]{6}-[0-9A-Z]{6}$/);
         });
     });
     sandbox('config() w/o connection', function(){
