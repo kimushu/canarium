@@ -350,13 +350,16 @@ export class RpcClient {
                     return
                 }
 
-                // データサイズが不正な場合、レスポンスの削除のみを行う
-                if (size > resLen) {
-                    throw new Error('Invalid response length');
-                }
+                return Promise.resolve()
+                .then(() => {
+                    // データサイズが不正な場合、レスポンスの削除のみを行う
+                    if (size > resLen) {
+                        throw new Error('Invalid response length');
+                    }
 
-                // データがあるため、レスポンスを受信する
-                return this._avm.read(resPtr, size)
+                    // データがあるため、レスポンスを受信する
+                    return this._avm.read(resPtr, size)
+                })
                 .then((buffer) => {
                     // 受信したBSONデータをECMAオブジェクトに戻す
                     let obj = bson.deserialize(buffer);
