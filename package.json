@@ -1,6 +1,6 @@
 {
   "name": "canarium",
-  "version": "1.0.0-beta3",
+  "version": "1.0.0-beta4",
   "description": "PERIDOT board driver library",
   "main": "out/src/canarium.js",
   "types": "types/src/canarium.d.ts",
@@ -27,8 +27,10 @@
     "url": "git+https://github.com/kimushu/canarium.git"
   },
   "dependencies": {
-    "bson": "^1.0.4",
-    "serialport": "^5.1.0-beta5"
+    "bson": "^1.0.4"
+  },
+  "peerDependencies": {
+    "serialport": "^5.0.0"
   },
   "keywords": [
     "PERIDOT",
@@ -57,6 +59,7 @@
     "npm-run-all": "^4.0.2",
     "remap-istanbul": "^0.9.5",
     "rimraf": "^2.6.1",
+    "serialport": "^5.0.0",
     "tslint": "^5.2.0",
     "typedoc": "^0.7.0",
     "typescript": "^2.3.2",
