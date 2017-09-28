@@ -27,7 +27,8 @@
     "url": "git+https://github.com/kimushu/canarium.git"
   },
   "dependencies": {
-    "bson": "^1.0.4"
+    "bson": "^1.0.4",
+    "promise.prototype.finally": "^3.0.1"
   },
   "peerDependencies": {
     "serialport": "^5.0.0"
@@ -45,6 +46,7 @@
   "devDependencies": {
     "@types/chai-as-promised": "0.0.30",
     "@types/node": "^7.0.18",
+    "@types/promise.prototype.finally": "^2.0.2",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "coffee-script": "^1.12.4",
