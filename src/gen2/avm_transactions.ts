@@ -1,6 +1,6 @@
-import { invokeCallback } from "./util";
-import { AvsReadableStream, AvsWritableStream } from "./avs_streams";
-require("promise.prototype.finally").shim();
+import { invokeCallback } from './util';
+import { AvsReadableStream, AvsWritableStream } from './avs_streams';
+require('promise.prototype.finally').shim();
 
 /**
  * 1回のトランザクションで読み書きできる最大バイト数
@@ -186,20 +186,20 @@ export class AvmTransactionsGen2 {
                 packet.writeUInt8(code, 0);
                 packet.writeUInt16BE(size, 2);
                 packet.writeUInt32BE(address >>> 0, 4);
-                if (typeof(writeData) === "number") {
+                if (typeof(writeData) === 'number') {
                     packet.writeUInt32LE((writeData >>> 0), 8);
                 } else if (writeData) {
                     writeData.copy(packet, 8);
                 }
-                this._sink.once("error", reject);
-                this._source.once("error", reject);
+                this._sink.once('error', reject);
+                this._source.once('error', reject);
                 this._sink.write(packet, (err) => {
                     if (err) {
                         return reject(err);
                     }
-                    this._sink.removeListener("error", reject);
-                    this._source.once("data", (result: Buffer) => {
-                        this._source.removeListener("error", reject);
+                    this._sink.removeListener('error', reject);
+                    this._source.once('data', (result: Buffer) => {
+                        this._source.removeListener('error', reject);
                         if (writeData == null) {
                             if (size !== result.length) {
                                 return reject(new Error(`Received unexpected length of data (expected=${size}, actual=${result.length})`));

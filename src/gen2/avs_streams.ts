@@ -1,25 +1,22 @@
-import { Writable, Readable } from "stream";
-import { EventEmitter } from "events";
+import { Writable, Readable } from 'stream';
+import { EventEmitter } from 'events';
 
-const AST_SOP = 0x7a;
-const AST_EOP = 0x7b;
-const AST_CH  = 0x7c;
-const AST_ESC = 0x7d;
+const AST_SOP       = 0x7a;
+const AST_EOP       = 0x7b;
+const AST_CHANNEL   = 0x7c;
+const AST_ESCAPE    = 0x7d;
 
-function assertValidChannel(channel: number): void {
-    if (typeof(channel) !== "number") {
-        throw new TypeError("channel must be a number");
-    }
-    if ((channel < 0) || (0xff < channel)) {
-        throw new TypeError("channel number is out of range");
-    }
-}
-
+/**
+ * Encode 0x7? bytes
+ * @param header Header bytes
+ * @param source Body data
+ * @param footer Footer bytes
+ */
 function encode7(header: number[], source: Buffer, footer: number[]): Buffer {
     let growth: number = (header.length + footer.length);
     for (let offset = 0; offset < source.length; ++offset) {
         let byte = source[offset];
-        if ((AST_SOP <= byte) && (byte <= AST_ESC)) {
+        if ((AST_SOP <= byte) && (byte <= AST_ESCAPE)) {
             ++growth;
         }
     }
@@ -39,8 +36,8 @@ function encode7(header: number[], source: Buffer, footer: number[]): Buffer {
                 buffer[doffset++] = footer[foffset];
             }
         }
-        if ((AST_SOP <= byte) && (byte <= AST_ESC)) {
-            buffer[doffset++] = AST_ESC;
+        if ((AST_SOP <= byte) && (byte <= AST_ESCAPE)) {
+            buffer[doffset++] = AST_ESCAPE;
             buffer[doffset++] = byte ^ 0x20;
         } else {
             buffer[doffset++] = byte;
@@ -49,54 +46,86 @@ function encode7(header: number[], source: Buffer, footer: number[]): Buffer {
     return buffer;
 }
 
+/**
+ * Avalon-ST single channel writable stream
+ */
 export class AvsWritableStream extends Writable {
+    /**
+     * Construct writable stream
+     * @param sink          Multiplexer to sink stream
+     * @param _channel      Channel number
+     * @param _packetized   Is packetized
+     */
     constructor(sink: AvsMultiplexer, private _channel: number, private _packetized: boolean) {
         super({
             write(chunk: Buffer|string, encoding: string, callback: (err: Error) => void): void {
                 return sink.write(_channel, _packetized, chunk, encoding, callback);
             }
         });
-        sink.on("close", this.emit.bind(this, "close"));
-        sink.on("error", this.emit.bind(this, "error"));
+        sink.on('close', this.emit.bind(this, 'close'));
+        sink.on('error', this.emit.bind(this, 'error'));
     }
 
+    /**
+     * Channel number
+     */
     get channel(): number {
         return this._channel;
     }
 
+    /**
+     * Is packetized stream
+     */
     get packetized(): boolean {
         return this._packetized;
     }
 }
 
+/**
+ * Avalon-ST single channel readable stream
+ */
 export class AvsReadableStream extends Readable {
+    /**
+     * Construct readable stream
+     * @param source        Demultiplexer to source stream
+     * @param _channel      Channel number
+     * @param _packetized   Is packetized
+     */
     constructor(source: AvsDemultiplexer, private _channel: number, private _packetized: boolean) {
         super();
-        source.on("close", this.emit.bind(this, "close"));
-        source.on("error", this.emit.bind(this, "error"));
+        source.on('close', this.emit.bind(this, 'close'));
+        source.on('error', this.emit.bind(this, 'error'));
     }
 
+    /**
+     * Channel number
+     */
     get channel(): number {
         return this._channel;
     }
 
+    /**
+     * Is packetized stream
+     */
     get packetized(): boolean {
         return this._packetized;
     }
 }
 
+/**
+ * Multiplexer for Avalon-ST byte stream
+ */
 export class AvsMultiplexer extends EventEmitter {
     private _sources: AvsWritableStream[] = [];
     private _lastChannel: number = null;
 
     constructor(private _sink: Writable) {
         super();
-        _sink.on("close", this.emit.bind(this, "close"));
-        _sink.on("error", this.emit.bind(this, "error"));
+        _sink.on('close', this.emit.bind(this, 'close'));
+        _sink.on('error', this.emit.bind(this, 'error'));
     }
 
     createStream(channel: number, packetized: boolean): AvsWritableStream {
-        assertValidChannel(channel);
         let source = this._sources[channel];
         if (source != null) {
             throw new Error(`channel ${channel} already exists`);
@@ -107,7 +136,7 @@ export class AvsMultiplexer extends EventEmitter {
     }
 
     write(channel: number, packetized: boolean, chunk: Buffer|string, encoding: string, callback: (err: Error) => void): void {
-        if (typeof(chunk) === "string") {
+        if (typeof(chunk) === 'string') {
             chunk = Buffer.from(chunk, encoding);
         }
 
@@ -120,7 +149,7 @@ export class AvsMultiplexer extends EventEmitter {
 
         if (this._lastChannel !== channel) {
             this._lastChannel = channel;
-            header.push(AST_CH, channel);
+            header.push(AST_CHANNEL, channel);
         }
         if (packetized) {
             header.push(AST_SOP);
@@ -128,7 +157,7 @@ export class AvsMultiplexer extends EventEmitter {
         }
 
         if (!this._sink.write(encode7(header, chunk, footer))) {
-            this._sink.once("drain", callback);
+            this._sink.once('drain', callback);
         } else {
             process.nextTick(callback);
         }
@@ -142,6 +171,9 @@ interface PacketizedSink {
     lastByte?: boolean;
 }
 
+/**
+ * Demultiplexer for Avalon-ST byte stream
+ */
 export class AvsDemultiplexer extends EventEmitter {
     private _sinks: PacketizedSink[] = [];
     private _escaped: boolean = false;
@@ -150,9 +182,9 @@ export class AvsDemultiplexer extends EventEmitter {
 
     constructor(source: Readable) {
         super();
-        source.on("close", this.emit.bind(this, "close"));
-        source.on("error", this.emit.bind(this, "error"));
-        source.on("data", (chunk: Buffer) => {
+        source.on('close', this.emit.bind(this, 'close'));
+        source.on('error', this.emit.bind(this, 'error'));
+        source.on('data', (chunk: Buffer) => {
             let sink = this._sinks[this._channel];
             let drain = () => {
                 if ((sink != null) && (!sink.packetized) && (sink.buffer.length > 0)) {
@@ -178,10 +210,10 @@ export class AvsDemultiplexer extends EventEmitter {
                         }
                     }
                     continue;
-                case AST_CH:
+                case AST_CHANNEL:
                     this._waitChannel = true;
                     continue;
-                case AST_ESC:
+                case AST_ESCAPE:
                     this._escaped = true;
                     continue;
                 }
@@ -209,7 +241,6 @@ export class AvsDemultiplexer extends EventEmitter {
     }
 
     createStream(channel: number, packetized: boolean): AvsReadableStream {
-        assertValidChannel(channel);
         let sink = this._sinks[channel];
         if (sink != null) {
             throw new Error(`channel ${channel} already exists`);
