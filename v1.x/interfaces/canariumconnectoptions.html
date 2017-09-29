@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>BoardInfo | canarium</title>
+	<title>CanariumConnectOptions | canarium</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -56,10 +56,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="boardinfo.html">BoardInfo</a>
+					<a href="canariumconnectoptions.html">CanariumConnectOptions</a>
 				</li>
 			</ul>
-			<h1>Interface BoardInfo</h1>
+			<h1>Interface CanariumConnectOptions</h1>
 		</div>
 	</div>
 </header>
@@ -69,7 +69,7 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>ボード情報</p>
+						<p>接続オプション</p>
 					</div>
 				</div>
 			</section>
@@ -77,12 +77,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">BoardInfo</span>
-						<ul class="tsd-hierarchy">
-							<li>
-								<a href="boardinfoatopen.html" class="tsd-signature-type">BoardInfoAtOpen</a>
-							</li>
-						</ul>
+						<span class="target">CanariumConnectOptions</span>
 					</li>
 				</ul>
 			</section>
@@ -93,9 +88,7 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfo.html#id" class="tsd-kind-icon">id</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfo.html#serialcode" class="tsd-kind-icon">serialcode</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfo.html#version" class="tsd-kind-icon">version</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="canariumconnectoptions.html#bitrate" class="tsd-kind-icon">bitrate</a></li>
 							</ul>
 						</section>
 					</div>
@@ -104,53 +97,17 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="id" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> id</h3>
-					<div class="tsd-signature tsd-kind-icon">id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">"J72A"</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">"J72N"</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">"J72B"</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">"J72X"</span></div>
+					<a name="bitrate" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> bitrate</h3>
+					<div class="tsd-signature tsd-kind-icon">bitrate<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/b81640c/src/canarium.ts#L67">canarium.ts:67</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/b81640c/src/gen2/canarium.ts#L73">gen2/canarium.ts:73</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>ボードの識別子(以下のうちいずれか)</p>
-							<ul>
-								<li>&#39;J72A&#39; (PERIDOT Standard)</li>
-								<li>&#39;J72N&#39; (PERIDOT NewGen)</li>
-								<li>&#39;J72B&#39; (Virtual - コンフィグレーションレイヤをFPGA側に内蔵)</li>
-								<li>&#39;J72X&#39; (Generic - Avalon-MMブリッジのみ使う汎用型)</li>
-							</ul>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="serialcode" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> serialcode</h3>
-					<div class="tsd-signature tsd-kind-icon">serialcode<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/b81640c/src/canarium.ts#L72">canarium.ts:72</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>シリアル番号(&#39;xxxxxx-yyyyyy-zzzzzz&#39;)</p>
-						</div>
-					</div>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="version" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> version</h3>
-					<div class="tsd-signature tsd-kind-icon">version<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/b81640c/src/canarium.ts#L77">canarium.ts:77</a></li>
-						</ul>
-					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>ボード情報のバージョン</p>
+							<p>接続時のビットレート</p>
 						</div>
 					</div>
 				</section>
@@ -169,16 +126,10 @@
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-interface">
-						<a href="boardinfo.html" class="tsd-kind-icon">Board<wbr>Info</a>
+						<a href="canariumconnectoptions.html" class="tsd-kind-icon">Canarium<wbr>Connect<wbr>Options</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="boardinfo.html#id" class="tsd-kind-icon">id</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="boardinfo.html#serialcode" class="tsd-kind-icon">serialcode</a>
-							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="boardinfo.html#version" class="tsd-kind-icon">version</a>
+								<a href="canariumconnectoptions.html#bitrate" class="tsd-kind-icon">bitrate</a>
 							</li>
 						</ul>
 					</li>
