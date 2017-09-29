@@ -181,7 +181,7 @@ export class RemoteFile {
                     return loop();
                 }
             });
-        }
+        };
         return loop()
         .then(() => {
             return Buffer.concat(buffers, total_read);
@@ -222,7 +222,7 @@ export class RemoteFile {
                     return loop();
                 }
             });
-        }
+        };
         return loop().then(() => total_written);
     }
 

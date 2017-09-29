@@ -727,7 +727,7 @@ export class Canarium {
             .then(() => {
                 this._log(1, '_eepromRead', 'end', array);
                 return array;
-            })
+            });
         }, () => {
             return this.i2c.stop();
         });
@@ -800,3 +800,5 @@ export module Canarium {
     export const RemoteFile = modRemoteFile.RemoteFile;
     export const RemoteError = modRemoteError.RemoteError;
 }
+
+export { CanariumGen2 } from './gen2/canarium';

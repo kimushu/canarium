@@ -3,7 +3,7 @@ import { AvmTransactions } from './avm_transactions';
 import { RemoteError } from './remote_error';
 import { printLog } from './common';
 
-const bson: BSON = new BSON();
+const bson: BSON.BSON = new BSON.BSON();
 const SWI_REG_MSG: number = 6;
 const SWI_REG_SWI: number = 7;
 const PERIDOT_RPCSRV_IF_VER: number = 0x0101;
@@ -320,7 +320,7 @@ export class RpcClient {
                     }
 
                     // BSONデータ書き込み(先頭ワード以外と、先頭ワードに分けて書き込む)
-                    return this._avm.write(reqPtr + 4, bsonData.slice(4))
+                    return this._avm.write(reqPtr + 4, bsonData.slice(4));
                 })
                 .then(() => {
                     return this._avm.write(reqPtr, bsonData.slice(0, 4));
@@ -347,7 +347,7 @@ export class RpcClient {
                     // ただし、サーバー側が前回のリクエストを取り逃した可能性があるため、
                     // ソフトウェア割り込みをかけてから終了する
                     raiseIrq = true;
-                    return
+                    return;
                 }
 
                 return Promise.resolve()
@@ -358,7 +358,7 @@ export class RpcClient {
                     }
 
                     // データがあるため、レスポンスを受信する
-                    return this._avm.read(resPtr, size)
+                    return this._avm.read(resPtr, size);
                 })
                 .then((buffer) => {
                     // 受信したBSONデータをECMAオブジェクトに戻す
