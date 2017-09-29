@@ -15,7 +15,7 @@ const SYSTEM_ID_BASE = 0x10000000;
 /**
  * ボード情報
  */
-export interface BoardInfo {
+export interface BoardInfoGen2 {
     /**
      * TBD
      */
@@ -84,7 +84,7 @@ export class CanariumGen2 extends EventEmitter {
     private _slowPipe: AvsBidirPipe;
     private _fastPipe: AvsBidirPipe;
     private _avm: AvmTransactionsGen2;
-    private _boardInfoCache: BoardInfo;
+    private _boardInfoCache: BoardInfoGen2;
     private _systemIdBase: number = SYSTEM_ID_BASE;
 
     /**
@@ -173,7 +173,7 @@ export class CanariumGen2 extends EventEmitter {
      * 接続できるボードを限定して、ボードに接続する
      * @param boardInfo 接続先ボード情報
      */
-    open(boardInfo: BoardInfo): Promise<void>;
+    open(boardInfo: BoardInfoGen2): Promise<void>;
 
     /**
      * ボードに接続する
@@ -182,12 +182,11 @@ export class CanariumGen2 extends EventEmitter {
     open(callback: (err: Error) => void): void;
 
     /**
-     * ボードに接続する
      * 接続できるボードを限定して、ボードに接続する
      * @param boardInfo 接続先ボード情報
      * @param callback コールバック関数
      */
-    open(boardInfo: BoardInfo, callback: (err: Error) => void): void;
+    open(boardInfo: BoardInfoGen2, callback: (err: Error) => void): void;
 
     open(boardInfo?: any, callback?: (err: Error) => void): Promise<void>|void {
         if (typeof(boardInfo) === 'function') {
@@ -282,15 +281,15 @@ export class CanariumGen2 extends EventEmitter {
     /**
      * ボード情報を取得する
      */
-    getInfo(): Promise<BoardInfo>;
+    getInfo(): Promise<BoardInfoGen2>;
 
     /**
      * ボード情報を取得する
      * @param callback コールバック関数
      */
-    getInfo(callback: (err: Error, result: BoardInfo) => void): void;
+    getInfo(callback: (err: Error, result: BoardInfoGen2) => void): void;
 
-    getInfo(callback?: (err: Error, result: BoardInfo) => void): Promise<BoardInfo>|void {
+    getInfo(callback?: (err: Error, result: BoardInfoGen2) => void): Promise<BoardInfoGen2>|void {
         if (callback != null) {
             return invokeCallback(callback, this.getInfo());
         }
