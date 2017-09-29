@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>BaseCommOptions | canarium</title>
+	<title>BoardInfoGen2 | canarium</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -56,10 +56,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="basecommoptions.html">BaseCommOptions</a>
+					<a href="boardinfogen2.html">BoardInfoGen2</a>
 				</li>
 			</ul>
-			<h1>Interface BaseCommOptions</h1>
+			<h1>Interface BoardInfoGen2</h1>
 		</div>
 	</div>
 </header>
@@ -69,7 +69,7 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>ボード下位層通信のオプション</p>
+						<p>ボード情報</p>
 					</div>
 				</div>
 			</section>
@@ -77,12 +77,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">BaseCommOptions</span>
-						<ul class="tsd-hierarchy">
-							<li>
-								<a href="avmtransactionsoptions.html" class="tsd-signature-type">AvmTransactionsOptions</a>
-							</li>
-						</ul>
+						<span class="target">BoardInfoGen2</span>
 					</li>
 				</ul>
 			</section>
@@ -93,8 +88,10 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="basecommoptions.html#fastacknowledge" class="tsd-kind-icon">fast<wbr>Acknowledge</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="basecommoptions.html#forceconfigured" class="tsd-kind-icon">force<wbr>Configured</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfogen2.html#id" class="tsd-kind-icon">id</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfogen2.html#serialcode" class="tsd-kind-icon">serial<wbr>Code</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfogen2.html#systemid" class="tsd-kind-icon">system<wbr>Id</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="boardinfogen2.html#timestamp" class="tsd-kind-icon">timestamp</a></li>
 							</ul>
 						</section>
 					</div>
@@ -103,32 +100,62 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="fastacknowledge" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> fast<wbr>Acknowledge</h3>
-					<div class="tsd-signature tsd-kind-icon">fast<wbr>Acknowledge<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+					<a name="id" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> id</h3>
+					<div class="tsd-signature tsd-kind-icon">id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/base_comm.ts#L36">base_comm.ts:36</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/canarium.ts#L22">gen2/canarium.ts:22</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>即時応答ビットを立てるかどうか</p>
+							<p>TBD</p>
 						</div>
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="forceconfigured" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> force<wbr>Configured</h3>
-					<div class="tsd-signature tsd-kind-icon">force<wbr>Configured<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+					<a name="serialcode" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> serial<wbr>Code</h3>
+					<div class="tsd-signature tsd-kind-icon">serial<wbr>Code<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/base_comm.ts#L39">base_comm.ts:39</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/canarium.ts#L27">gen2/canarium.ts:27</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>コンフィグレーション済みとして扱うかどうか</p>
+							<p>シリアル番号(&#39;xxxxxx-yyyyyy-zzzzzz&#39;)</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="systemid" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> system<wbr>Id</h3>
+					<div class="tsd-signature tsd-kind-icon">system<wbr>Id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/canarium.ts#L32">gen2/canarium.ts:32</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>System ID</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="timestamp" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> timestamp</h3>
+					<div class="tsd-signature tsd-kind-icon">timestamp<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/canarium.ts#L37">gen2/canarium.ts:37</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Timestamp</p>
 						</div>
 					</div>
 				</section>
@@ -147,13 +174,19 @@
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-interface">
-						<a href="basecommoptions.html" class="tsd-kind-icon">Base<wbr>Comm<wbr>Options</a>
+						<a href="boardinfogen2.html" class="tsd-kind-icon">Board<wbr>Info<wbr>Gen2</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="basecommoptions.html#fastacknowledge" class="tsd-kind-icon">fast<wbr>Acknowledge</a>
+								<a href="boardinfogen2.html#id" class="tsd-kind-icon">id</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="basecommoptions.html#forceconfigured" class="tsd-kind-icon">force<wbr>Configured</a>
+								<a href="boardinfogen2.html#serialcode" class="tsd-kind-icon">serial<wbr>Code</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="boardinfogen2.html#systemid" class="tsd-kind-icon">system<wbr>Id</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="boardinfogen2.html#timestamp" class="tsd-kind-icon">timestamp</a>
 							</li>
 						</ul>
 					</li>

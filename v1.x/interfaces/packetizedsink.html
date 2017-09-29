@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>BaseCommOptions | canarium</title>
+	<title>PacketizedSink | canarium</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -56,33 +56,21 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="basecommoptions.html">BaseCommOptions</a>
+					<a href="packetizedsink.html">PacketizedSink</a>
 				</li>
 			</ul>
-			<h1>Interface BaseCommOptions</h1>
+			<h1>Interface PacketizedSink</h1>
 		</div>
 	</div>
 </header>
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
-			<section class="tsd-panel tsd-comment">
-				<div class="tsd-comment tsd-typography">
-					<div class="lead">
-						<p>ボード下位層通信のオプション</p>
-					</div>
-				</div>
-			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">BaseCommOptions</span>
-						<ul class="tsd-hierarchy">
-							<li>
-								<a href="avmtransactionsoptions.html" class="tsd-signature-type">AvmTransactionsOptions</a>
-							</li>
-						</ul>
+						<span class="target">PacketizedSink</span>
 					</li>
 				</ul>
 			</section>
@@ -90,47 +78,59 @@
 				<h2>Index</h2>
 				<section class="tsd-panel tsd-index-panel">
 					<div class="tsd-index-content">
-						<section class="tsd-index-section ">
+						<section class="tsd-index-section tsd-is-not-exported">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="basecommoptions.html#fastacknowledge" class="tsd-kind-icon">fast<wbr>Acknowledge</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="basecommoptions.html#forceconfigured" class="tsd-kind-icon">force<wbr>Configured</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported"><a href="packetizedsink.html#buffer" class="tsd-kind-icon">buffer</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported"><a href="packetizedsink.html#lastbyte" class="tsd-kind-icon">last<wbr>Byte</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported"><a href="packetizedsink.html#packetized" class="tsd-kind-icon">packetized</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported"><a href="packetizedsink.html#stream" class="tsd-kind-icon">stream</a></li>
 							</ul>
 						</section>
 					</div>
 				</section>
 			</section>
-			<section class="tsd-panel-group tsd-member-group ">
+			<section class="tsd-panel-group tsd-member-group tsd-is-not-exported">
 				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="fastacknowledge" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> fast<wbr>Acknowledge</h3>
-					<div class="tsd-signature tsd-kind-icon">fast<wbr>Acknowledge<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+					<a name="buffer" class="tsd-anchor"></a>
+					<h3>buffer</h3>
+					<div class="tsd-signature tsd-kind-icon">buffer<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">[]</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/base_comm.ts#L36">base_comm.ts:36</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/avs_streams.ts#L170">gen2/avs_streams.ts:170</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>即時応答ビットを立てるかどうか</p>
-						</div>
-					</div>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="forceconfigured" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> force<wbr>Configured</h3>
-					<div class="tsd-signature tsd-kind-icon">force<wbr>Configured<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+					<a name="lastbyte" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> last<wbr>Byte</h3>
+					<div class="tsd-signature tsd-kind-icon">last<wbr>Byte<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/base_comm.ts#L39">base_comm.ts:39</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/avs_streams.ts#L171">gen2/avs_streams.ts:171</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>コンフィグレーション済みとして扱うかどうか</p>
-						</div>
-					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+					<a name="packetized" class="tsd-anchor"></a>
+					<h3>packetized</h3>
+					<div class="tsd-signature tsd-kind-icon">packetized<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/avs_streams.ts#L169">gen2/avs_streams.ts:169</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+					<a name="stream" class="tsd-anchor"></a>
+					<h3>stream</h3>
+					<div class="tsd-signature tsd-kind-icon">stream<span class="tsd-signature-symbol">:</span> <a href="../classes/avsreadablestream.html" class="tsd-signature-type">AvsReadableStream</a></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/avs_streams.ts#L168">gen2/avs_streams.ts:168</a></li>
+						</ul>
+					</aside>
 				</section>
 			</section>
 		</div>
@@ -146,14 +146,20 @@
 				<ul class="before-current">
 				</ul>
 				<ul class="current">
-					<li class="current tsd-kind-interface">
-						<a href="basecommoptions.html" class="tsd-kind-icon">Base<wbr>Comm<wbr>Options</a>
+					<li class="current tsd-kind-interface tsd-is-not-exported">
+						<a href="packetizedsink.html" class="tsd-kind-icon">Packetized<wbr>Sink</a>
 						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="basecommoptions.html#fastacknowledge" class="tsd-kind-icon">fast<wbr>Acknowledge</a>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+								<a href="packetizedsink.html#buffer" class="tsd-kind-icon">buffer</a>
 							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="basecommoptions.html#forceconfigured" class="tsd-kind-icon">force<wbr>Configured</a>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+								<a href="packetizedsink.html#lastbyte" class="tsd-kind-icon">last<wbr>Byte</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+								<a href="packetizedsink.html#packetized" class="tsd-kind-icon">packetized</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+								<a href="packetizedsink.html#stream" class="tsd-kind-icon">stream</a>
 							</li>
 						</ul>
 					</li>

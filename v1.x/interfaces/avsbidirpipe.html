@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>BaseCommOptions | canarium</title>
+	<title>AvsBidirPipe | canarium</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -56,10 +56,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="basecommoptions.html">BaseCommOptions</a>
+					<a href="avsbidirpipe.html">AvsBidirPipe</a>
 				</li>
 			</ul>
-			<h1>Interface BaseCommOptions</h1>
+			<h1>Interface AvsBidirPipe</h1>
 		</div>
 	</div>
 </header>
@@ -69,7 +69,7 @@
 			<section class="tsd-panel tsd-comment">
 				<div class="tsd-comment tsd-typography">
 					<div class="lead">
-						<p>ボード下位層通信のオプション</p>
+						<p>双方向パイプ構造体</p>
 					</div>
 				</div>
 			</section>
@@ -77,12 +77,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">BaseCommOptions</span>
-						<ul class="tsd-hierarchy">
-							<li>
-								<a href="avmtransactionsoptions.html" class="tsd-signature-type">AvmTransactionsOptions</a>
-							</li>
-						</ul>
+						<span class="target">AvsBidirPipe</span>
 					</li>
 				</ul>
 			</section>
@@ -90,47 +85,37 @@
 				<h2>Index</h2>
 				<section class="tsd-panel tsd-index-panel">
 					<div class="tsd-index-content">
-						<section class="tsd-index-section ">
+						<section class="tsd-index-section tsd-is-not-exported">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="basecommoptions.html#fastacknowledge" class="tsd-kind-icon">fast<wbr>Acknowledge</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="basecommoptions.html#forceconfigured" class="tsd-kind-icon">force<wbr>Configured</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported"><a href="avsbidirpipe.html#inbound" class="tsd-kind-icon">inbound</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported"><a href="avsbidirpipe.html#outbound" class="tsd-kind-icon">outbound</a></li>
 							</ul>
 						</section>
 					</div>
 				</section>
 			</section>
-			<section class="tsd-panel-group tsd-member-group ">
+			<section class="tsd-panel-group tsd-member-group tsd-is-not-exported">
 				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="fastacknowledge" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> fast<wbr>Acknowledge</h3>
-					<div class="tsd-signature tsd-kind-icon">fast<wbr>Acknowledge<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+					<a name="inbound" class="tsd-anchor"></a>
+					<h3>inbound</h3>
+					<div class="tsd-signature tsd-kind-icon">inbound<span class="tsd-signature-symbol">:</span> <a href="../classes/avsdemultiplexer.html" class="tsd-signature-type">AvsDemultiplexer</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/base_comm.ts#L36">base_comm.ts:36</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/canarium.ts#L74">gen2/canarium.ts:74</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>即時応答ビットを立てるかどうか</p>
-						</div>
-					</div>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="forceconfigured" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> force<wbr>Configured</h3>
-					<div class="tsd-signature tsd-kind-icon">force<wbr>Configured<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+					<a name="outbound" class="tsd-anchor"></a>
+					<h3>outbound</h3>
+					<div class="tsd-signature tsd-kind-icon">outbound<span class="tsd-signature-symbol">:</span> <a href="../classes/avsmultiplexer.html" class="tsd-signature-type">AvsMultiplexer</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/base_comm.ts#L39">base_comm.ts:39</a></li>
+							<li>Defined in <a href="https://github.com/kimushu/canarium/blob/0f7f708/src/gen2/canarium.ts#L73">gen2/canarium.ts:73</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>コンフィグレーション済みとして扱うかどうか</p>
-						</div>
-					</div>
 				</section>
 			</section>
 		</div>
@@ -146,14 +131,14 @@
 				<ul class="before-current">
 				</ul>
 				<ul class="current">
-					<li class="current tsd-kind-interface">
-						<a href="basecommoptions.html" class="tsd-kind-icon">Base<wbr>Comm<wbr>Options</a>
+					<li class="current tsd-kind-interface tsd-is-not-exported">
+						<a href="avsbidirpipe.html" class="tsd-kind-icon">Avs<wbr>Bidir<wbr>Pipe</a>
 						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="basecommoptions.html#fastacknowledge" class="tsd-kind-icon">fast<wbr>Acknowledge</a>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+								<a href="avsbidirpipe.html#inbound" class="tsd-kind-icon">inbound</a>
 							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="basecommoptions.html#forceconfigured" class="tsd-kind-icon">force<wbr>Configured</a>
+							<li class=" tsd-kind-property tsd-parent-kind-interface tsd-is-not-exported">
+								<a href="avsbidirpipe.html#outbound" class="tsd-kind-icon">outbound</a>
 							</li>
 						</ul>
 					</li>

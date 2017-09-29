@@ -66,6 +66,11 @@
 			<div class="tsd-panel tsd-typography">
 				<h1 id="canarium-peridot-board-driver">Canarium - PERIDOT board driver</h1>
 				<p>Canarium is <a href="https://github.com/osafune/peridot">PERIDOT boards</a> driver for Node.js applications.</p>
+				<h2 id="links">Links</h2>
+				<ul>
+					<li><a href="https://github.com/kimushu/canarium">GitHub</a></li>
+					<li><a href="https://www.npmjs.com/package/canarium">npmjs</a></li>
+				</ul>
 				<h2 id="documents">Documents</h2>
 				<ul>
 					<li>For <code>0.9.x</code> releases, see <a href="http://kimushu.github.io/canarium/v0.9">v0.9 documents</a></li>
@@ -94,8 +99,19 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
     <span class="hljs-keyword">return</span> canarium.close();
 });
 </code></pre>
+				<h2 id="how-to-install">How to install</h2>
+				<ul>
+					<li>For Node.js environment (Version 1.0.x) <em>[BETA]</em><ul>
+							<li><code>npm install canarium@beta</code></li>
+						</ul>
+					</li>
+					<li>For Chrome environment (Version 0.9.x)<ul>
+							<li><code>npm install canarium</code></li>
+						</ul>
+					</li>
+				</ul>
 				<h2 id="history">History</h2>
-				<p>See CHANGELOG.md</p>
+				<p>See <a href="https://github.com/kimushu/canarium/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
 				<h2 id="license">License</h2>
 				<p>This package is distributed under MIT license.</p>
 			</div>
@@ -114,13 +130,31 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
 						<a href="classes/avmtransactions.html" class="tsd-kind-icon">Avm<wbr>Transactions</a>
 					</li>
 					<li class=" tsd-kind-class">
+						<a href="classes/avmtransactionsgen2.html" class="tsd-kind-icon">Avm<wbr>Transactions<wbr>Gen2</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/avsdemultiplexer.html" class="tsd-kind-icon">Avs<wbr>Demultiplexer</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/avsmultiplexer.html" class="tsd-kind-icon">Avs<wbr>Multiplexer</a>
+					</li>
+					<li class=" tsd-kind-class">
 						<a href="classes/avspackets.html" class="tsd-kind-icon">Avs<wbr>Packets</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/avsreadablestream.html" class="tsd-kind-icon">Avs<wbr>Readable<wbr>Stream</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/avswritablestream.html" class="tsd-kind-icon">Avs<wbr>Writable<wbr>Stream</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/basecomm.html" class="tsd-kind-icon">Base<wbr>Comm</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/canarium.html" class="tsd-kind-icon">Canarium</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/canariumgen2.html" class="tsd-kind-icon">Canarium<wbr>Gen2</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/i2ccomm.html" class="tsd-kind-icon">I2CComm</a>
@@ -143,6 +177,9 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/avmtransactionsoptions.html" class="tsd-kind-icon">Avm<wbr>Transactions<wbr>Options</a>
 					</li>
+					<li class=" tsd-kind-interface tsd-is-not-exported">
+						<a href="interfaces/avsbidirpipe.html" class="tsd-kind-icon">Avs<wbr>Bidir<wbr>Pipe</a>
+					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/basecommoptions.html" class="tsd-kind-icon">Base<wbr>Comm<wbr>Options</a>
 					</li>
@@ -156,6 +193,18 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
 						<a href="interfaces/boardinfoatopen.html" class="tsd-kind-icon">Board<wbr>Info<wbr>AtOpen</a>
 					</li>
 					<li class=" tsd-kind-interface">
+						<a href="interfaces/boardinfogen2.html" class="tsd-kind-icon">Board<wbr>Info<wbr>Gen2</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/canariumlistoptions.html" class="tsd-kind-icon">Canarium<wbr>List<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/canariumport.html" class="tsd-kind-icon">Canarium<wbr>Port</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/canariumstreamoptions.html" class="tsd-kind-icon">Canarium<wbr>Stream<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
 						<a href="interfaces/connectoption.html" class="tsd-kind-icon">Connect<wbr>Option</a>
 					</li>
 					<li class=" tsd-kind-interface">
@@ -164,14 +213,47 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/fileseekwhence.html" class="tsd-kind-icon">File<wbr>Seek<wbr>Whence</a>
 					</li>
+					<li class=" tsd-kind-interface tsd-is-not-exported">
+						<a href="interfaces/packetizedsink.html" class="tsd-kind-icon">Packetized<wbr>Sink</a>
+					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/portinfo.html" class="tsd-kind-icon">Port<wbr>Info</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-is-not-exported">
+						<a href="interfaces/request.html" class="tsd-kind-icon">Request</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-is-not-exported">
+						<a href="interfaces/requestpool.html" class="tsd-kind-icon">Request<wbr>Pool</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#ast_channel" class="tsd-kind-icon">AST_<wbr>CHANNEL</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#ast_eop" class="tsd-kind-icon">AST_<wbr>EOP</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#ast_escape" class="tsd-kind-icon">AST_<wbr>ESCAPE</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#ast_sop" class="tsd-kind-icon">AST_<wbr>SOP</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
 						<a href="globals.html#avm_channel" class="tsd-kind-icon">AVM_<wbr>CHANNEL</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
 						<a href="globals.html#avm_trans_max_bytes" class="tsd-kind-icon">AVM_<wbr>TRANS_<wbr>MAX_<wbr>BYTES</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#avs_ch_fast_max" class="tsd-kind-icon">AVS_<wbr>CH_<wbr>FAST_<wbr>MAX</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#avs_ch_fast_min" class="tsd-kind-icon">AVS_<wbr>CH_<wbr>FAST_<wbr>MIN</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#avs_ch_slow_max" class="tsd-kind-icon">AVS_<wbr>CH_<wbr>SLOW_<wbr>MAX</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#avs_ch_slow_min" class="tsd-kind-icon">AVS_<wbr>CH_<wbr>SLOW_<wbr>MIN</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
 						<a href="globals.html#boardid_generic" class="tsd-kind-icon">BOARDID_<wbr>GENERIC</a>
@@ -231,6 +313,9 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
 						<a href="globals.html#remotefile_default_interval" class="tsd-kind-icon">REMOTEFILE_<wbr>DEFAULT_<wbr>INTERVAL</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#remotefile_default_timeout" class="tsd-kind-icon">REMOTEFILE_<wbr>DEFAULT_<wbr>TIMEOUT</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
 						<a href="globals.html#serial_tx_max_length" class="tsd-kind-icon">SERIAL_<wbr>TX_<wbr>MAX_<wbr>LENGTH</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
@@ -249,7 +334,13 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
 						<a href="globals.html#swi_reg_swi" class="tsd-kind-icon">SWI_<wbr>REG_<wbr>SWI</a>
 					</li>
 					<li class=" tsd-kind-variable tsd-is-not-exported">
+						<a href="globals.html#system_id_base" class="tsd-kind-icon">SYSTEM_<wbr>ID_<wbr>BASE</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-is-not-exported">
 						<a href="globals.html#bson" class="tsd-kind-icon">bson</a>
+					</li>
+					<li class=" tsd-kind-function tsd-is-not-exported">
+						<a href="globals.html#encode7" class="tsd-kind-icon">encode7</a>
 					</li>
 					<li class=" tsd-kind-function">
 						<a href="globals.html#hexdump" class="tsd-kind-icon">hex<wbr>Dump</a>
