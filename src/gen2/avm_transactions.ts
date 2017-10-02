@@ -154,18 +154,18 @@ export class AvmTransactionsGen2 {
      * パケット送受信テスト (No transactionパケット)
      * @param address   アドレス
      */
-    test(address: number): Promise<void>;
+    testNoTransactionPacket(address: number): Promise<void>;
 
     /**
      * パケット送受信テスト (No transactionパケット)
      * @param address   アドレス
      * @param callback  コールバック関数
      */
-    test(address: number, callback: (err: Error) => void): void;
+    testNoTransactionPacket(address: number, callback: (err: Error) => void): void;
 
-    test(address: number, callback?: (err: Error) => void): Promise<void>|void {
+    testNoTransactionPacket(address: number, callback?: (err: Error) => void): Promise<void>|void {
         if (callback != null) {
-            return invokeCallback(callback, this.test(address));
+            return invokeCallback(callback, this.testNoTransactionPacket(address));
         }
         return this._doTransaction(0x7f, address, 0, Buffer.alloc(0))
         .then(() => {});
@@ -207,8 +207,8 @@ export class AvmTransactionsGen2 {
                             return resolve(result);
                         }
                         let reply = result.readUInt8(0);
-                        if (reply !== (code ^ 0x20)) {
-                            return reject(new Error(`Received unexpected code (expected=${code ^ 0x20}, actual=${reply})`));
+                        if (reply !== (code ^ 0x80)) {
+                            return reject(new Error(`Received unexpected code (expected=${code ^ 0x80}, actual=${reply})`));
                         }
                         let sizeDone = result.readUInt16BE(2);
                         if (sizeDone !== size) {
