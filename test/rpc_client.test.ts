@@ -46,7 +46,7 @@ describe('RpcClient', function(){
                     waitPromise(100).then(() => rpcClient.resetConnection())
                 )
             ]);
-        })
+        });
     });
     describe('prepare for tests w/ server', function(){
         it('reset Nios II', function(){

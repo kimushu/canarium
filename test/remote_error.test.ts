@@ -26,7 +26,7 @@ describe('RemoteError', function(){
     it('is an instance of Error', function(){
         let e = new RemoteError(null);
         assert.instanceOf(e, Error);
-    })
+    });
     DEFINES.forEach((def) => {
         it(`has ${def} property with number value`, function(){
             assert.isNumber(RemoteError[def]);

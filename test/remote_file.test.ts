@@ -3,7 +3,7 @@ import { waitPromise } from '../src/common';
 
 function rejectedWithRemoteError(promise: Promise<any>, code: number): Promise<any> {
     return promise.then((result) => {
-        assert.fail()
+        assert.fail();
     }, (error: Canarium.RemoteError) => {
         assert.instanceOf(error, Canarium.RemoteError);
         assert.equal(error.code, code);

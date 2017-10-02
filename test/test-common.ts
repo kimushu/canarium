@@ -58,7 +58,7 @@ export interface TestData {
     bsp_pkgs?: string[];
     apps: {[n: string]: Buffer};
     info?: any;
-};
+}
 export interface TestDataCollection {
     [n: string]: TestData;
 }
@@ -133,7 +133,7 @@ describe('(Test data generation)', function(){
             quartus_installed = true;
         }
     }
-    it(`Check Quartus installation (QUARTUS_ROOTDIR="${QUARTUS_ROOTDIR}")`, quartus_installed && function(){})
+    it(`Check Quartus installation (QUARTUS_ROOTDIR="${QUARTUS_ROOTDIR}")`, quartus_installed && function(){});
 
     const TEST_DIR = path.normalize(path.join(__dirname, '..', '..', 'test'));
     const SRC_DIR = path.join(TEST_DIR, 'app-src');
@@ -151,7 +151,7 @@ describe('(Test data generation)', function(){
                 }
                 done(error);
             });
-        })
+        });
     }
     Object.keys(testdatacol).forEach((key) => {
         const d = testdatacol[key];

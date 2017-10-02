@@ -246,20 +246,35 @@ export class Canarium {
      * ボードに接続する
      * 
      * @param path      接続先パス(enumerateが返すpath)
-     * @param boardInfo 接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
      */
-    open(path: string, boardInfo?: BoardInfoAtOpen): Promise<void>;
+    open(path: string): Promise<void>;
 
     /**
      * ボードに接続する
      * 
      * @param path      接続先パス(enumerateが返すpath)
      * @param boardInfo 接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+     */
+    open(path: string, boardInfo?: BoardInfoAtOpen): Promise<void>;
+    
+    /**
+     * ボードに接続する
+     * 
+     * @param path      接続先パス(enumerateが返すpath)
      * @param callback  コールバック関数
      */
-    open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): void;
+    open(path: string, callback: (success: boolean, result: void|Error) => void): void;
+    
+        /**
+     * ボードに接続する
+     * 
+     * @param path      接続先パス(enumerateが返すpath)
+     * @param boardInfo 接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+     * @param callback  コールバック関数
+     */
+    open(path: string, boardInfo: BoardInfoAtOpen, callback: (success: boolean, result: void|Error) => void): void;
 
-    open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): any {
+    open(path: string, boardInfo?: any, callback?: (success: boolean, result: void|Error) => void): any {
         if (typeof(boardInfo) === 'function') {
             callback = boardInfo;
             boardInfo = null;

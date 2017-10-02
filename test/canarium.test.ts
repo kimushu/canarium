@@ -43,7 +43,7 @@ describe('Canarium', function(){
             let value = canarium.serialBitrate * 2;
             canarium.serialBitrate = value;
             assert.equal(canarium.serialBitrate, value);
-        })
+        });
     });
 
     sandbox('connected w/o connection', function(){
@@ -53,7 +53,7 @@ describe('Canarium', function(){
         it('is false before connection', function(){
             assert.isFalse(canarium.connected);
         });
-    })
+    });
 
     sandbox('connected w/ connection', function(){
         before(function(){
@@ -68,7 +68,7 @@ describe('Canarium', function(){
                     assert.isTrue(canarium.connected);
                     return canarium.close();                    
                 })
-            )
+            );
         });
         it('is false after disconnection', function(){
             this.slow(1000);
@@ -81,9 +81,9 @@ describe('Canarium', function(){
                 .then(() => {
                     assert.isFalse(canarium.connected);
                 })
-            )
+            );
         });
-    })
+    });
 
     sandbox('configured', function(){
         it('is a boolean', function(){
@@ -270,7 +270,7 @@ describe('Canarium', function(){
             this.timeout(2000);
             return canarium.open(cond.classic[0])
             .then(() => {
-                return canarium.getinfo()
+                return canarium.getinfo();
             });
         });
         after(function(){
