@@ -6,6 +6,8 @@ const AST_EOP       = 0x7b;
 const AST_CHANNEL   = 0x7c;
 const AST_ESCAPE    = 0x7d;
 
+const DEBUG = true;
+
 /**
  * Encode 0x7? bytes
  * @param header Header bytes
@@ -92,7 +94,9 @@ export class AvsReadableStream extends Readable {
      * @param _packetized   Is packetized
      */
     constructor(source: AvsDemultiplexer, private _channel: number, private _packetized: boolean) {
-        super();
+        super({read: (size: number) => {
+            // Nothing to do
+        }});
         source.on('close', this.emit.bind(this, 'close'));
         source.on('error', this.emit.bind(this, 'error'));
     }
@@ -156,7 +160,11 @@ export class AvsMultiplexer extends EventEmitter {
             footer.push(AST_EOP);
         }
 
-        if (!this._sink.write(encode7(header, chunk, footer))) {
+        let rawData = encode7(header, chunk, footer);
+        if (DEBUG) {
+            console.log('PC -> FPGA:', rawData);
+        }
+        if (!this._sink.write(rawData)) {
             this._sink.once('drain', callback);
         } else {
             process.nextTick(callback);
@@ -185,6 +193,9 @@ export class AvsDemultiplexer extends EventEmitter {
         source.on('close', this.emit.bind(this, 'close'));
         source.on('error', this.emit.bind(this, 'error'));
         source.on('data', (chunk: Buffer) => {
+            if (DEBUG) {
+                console.log('FPGA -> PC:', chunk);
+            }
             let sink = this._sinks[this._channel];
             let drain = () => {
                 if ((sink != null) && (!sink.packetized) && (sink.buffer.length > 0)) {
