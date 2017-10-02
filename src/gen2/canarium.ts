@@ -1,69 +1,125 @@
 import { EventEmitter } from 'events';
-import { AvsWritableStream, AvsReadableStream, AvsMultiplexer, AvsDemultiplexer } from './avs_streams';
+import {
+    AvsWritableStream as AvsWritableStreamImpl,
+    AvsReadableStream as AvsReadableStreamImpl,
+    AvsMultiplexer, AvsDemultiplexer
+} from './avs_streams';
 import { AvmTransactionsGen2 } from './avm_transactions';
-import * as SerialPort from 'serialport';
 import { invokeCallback } from './util';
-import { RpcClient } from './rpc_client';
+import {
+    RpcClient as RpcClientImpl,
+    RpcError as RpcErrorImpl
+} from './rpc_client';
+import * as SerialPort from 'serialport';
 
-const AVS_CH_SLOW_MIN = 0;
-const AVS_CH_SLOW_MAX = 7;
-const AVS_CH_FAST_MIN = 8;
-const AVS_CH_FAST_MAX = 255;
-
+const GEN2_BOARD_ID = 'J72C';
+const AVS_CH_AVM_TRANSACTION = 0x00;
+const DEFAULT_SERIAL_BITRATE = 115200;
 const SYSTEM_ID_BASE = 0x10000000;
+const AVM_TEST_ADDRESS = 0x00003d00;
+const AVM_TEST_TIMEOUT = 500;
+
+/*
+ * SYSTEM_ID_BASEをベースとするレジスタの配置
+ * +0x0 : System ID
+ * +0x4 : Timestamp
+ * +0x8 : UID Low (*1,*2)
+ * +0xc : UID High (*1,*2)
+ *
+ * (*1) UIDの返却値が準備中の場合、以下のいずれかの方法でそれを通知できる
+ *      1) waitrequestを使ってAvalon MM Masterを待たせる
+ *      2) 全ビット0の値を返し、CanariumGen2にリトライを要求する
+ * 
+ * (*2) UIDをCanariumに読ませたくない場合は、全ビット1の値を返すこと。
+ */
 
 /**
- * ボード情報
+ * 型情報のエクスポート
  */
-export interface BoardInfoGen2 {
+export namespace CanariumGen2 {
     /**
-     * TBD
+     * ボード情報
      */
-    id?: string;
+    export interface BoardInfo {
+        /**
+         * ボードID (Gen2対応ボードでは'J72C'固定)
+         */
+        id?: string;
+
+        /**
+         * シリアル番号('xxxxxx-yyyyyy-zzzzzz')
+         */
+        serialCode?: string;
+
+        /**
+         * System ID
+         */
+        systemId?: number;
+
+        /**
+         * Timestamp
+         */
+        timestamp?: number;
+    }
 
     /**
-     * シリアル番号('xxxxxx-yyyyyy-zzzzzz')
+     * 接続先ポートの情報
      */
-    serialCode?: string;
+    export interface PortInfo {
+        path: string;
+        manufacturer?: string;
+        serialNumber?: string;
+        pnpId?: string;
+        locationId?: string;
+        productId?: number;
+        vendorId?: number;
+    }
 
     /**
-     * System ID
+     * 接続オプション
      */
-    systemId?: number;
+    export interface ConnectOptions {
+        /**
+         * 接続時のビットレート (デフォルトは 115200 bps)
+         */
+        bitrate?: number;
+    }
 
     /**
-     * Timestamp
+     * 列挙オプション
      */
-    timestamp?: number;
-}
+    export interface ListOptions {
+    }
 
-/**
- * 接続先ポートの情報
- */
-export interface CanariumPort {
-    path: string;
-    manufacturer?: string;
-    serialNumber?: string;
-    pnpId?: string;
-    locationId?: string;
-    productId?: number;
-    vendorId?: number;
-}
-
-/**
- * 列挙オプション
- */
-export interface CanariumListOptions {
-}
-
-/**
- * ストリーム作成オプション
- */
-export interface CanariumStreamOptions {
     /**
-     * パケット化するか否か(trueの場合、SOP&EOPで識別されたパケットを単位として送受信する)
+     * ストリーム作成オプション
      */
-    packetized?: boolean;
+    export interface StreamOptions {
+        /**
+         * パケット化するか否か(trueの場合、SOP&EOPで識別されたパケットを単位として送受信する)
+         */
+        packetized?: boolean;
+    }
+
+    /**
+     * RPCクライアントクラス
+     */
+    export type RpcClient = RpcClientImpl;
+
+    /**
+     * RPC関連エラークラス
+     */
+    export type RpcError = RpcErrorImpl;
+
+    /**
+     * Avalon-STストリーム出力クラス
+     */
+    export type AvsWritableStream = AvsWritableStreamImpl;
+
+    /**
+     * Avalon-STストリーム入力クラス
+     */
+    export type AvsReadableStream = AvsReadableStreamImpl;
 }
 
 /**
@@ -75,47 +131,63 @@ interface AvsBidirPipe {
 }
 
 /**
+ * 各種ID情報からシリアルコードへの変換
+ */
+function generateSerialCode(uidLow: number, uidHigh: number): string {
+    let code = `0000000${uidHigh.toString(16)}`.substr(-8) + `0000000${uidLow.toString(16)}`.substr(-8);
+    return `93${code.substr(0, 4)}-${code.substr(4, 6)}-${code.substr(10, 6)}`;
+}
+
+/**
  * PERIDOTボードドライバ(第2世代通信仕様)
  */
 export class CanariumGen2 extends EventEmitter {
+    private _options: CanariumGen2.ConnectOptions;
     private _opening: boolean = false;
     private _opened: boolean = false;
     private _serial: SerialPort;
-    private _slowPipe: AvsBidirPipe;
-    private _fastPipe: AvsBidirPipe;
+    private _defaultPipe: AvsBidirPipe;
     private _avm: AvmTransactionsGen2;
-    private _boardInfoCache: BoardInfoGen2;
+    private _boardInfoCache: CanariumGen2.BoardInfo;
     private _systemIdBase: number = SYSTEM_ID_BASE;
 
     /**
      * Canarium(Gen2)のインスタンスを生成する
      * @param _path 接続先のパス
+     * @param options 接続オプション
      */
-    constructor(private _path: string) {
+    constructor(private _path: string, options?: CanariumGen2.ConnectOptions) {
         super();
+        this._options = Object.assign({
+            bitrate: DEFAULT_SERIAL_BITRATE,
+        }, options);
         this._setupPipes();
+        this._avm = new AvmTransactionsGen2(
+            this.createWriteStream(AVS_CH_AVM_TRANSACTION, true),
+            this.createReadStream(AVS_CH_AVM_TRANSACTION, true)
+        );
     }
 
     /**
      * 接続先を列挙する (PERIDOTでないデバイスも列挙されうることに注意)
      * @param options 列挙のオプション
      */
-    static list(options?: CanariumListOptions): Promise<CanariumPort[]>;
+    static list(options?: CanariumGen2.ListOptions): Promise<CanariumGen2.PortInfo[]>;
 
     /**
      * 接続先を列挙する (PERIDOTでないデバイスも列挙されうることに注意)
      * @param callback コールバック関数
      */
-    static list(callback: (err: Error, ports?: CanariumPort[]) => void): void;
+    static list(callback: (err: Error, ports?: CanariumGen2.PortInfo[]) => void): void;
 
     /**
      * 接続先を列挙する (PERIDOTでないデバイスも列挙されうることに注意)
      * @param options 列挙のオプション
      * @param callback コールバック関数
      */
-    static list(options: CanariumListOptions, callback: (err: Error, ports?: CanariumPort[]) => void): void;
+    static list(options: CanariumGen2.ListOptions, callback: (err: Error, ports?: CanariumGen2.PortInfo[]) => void): void;
 
-    static list(options?: CanariumListOptions, callback?: (err: Error, ports?: CanariumPort[]) => void): Promise<CanariumPort[]>|void {
+    static list(options?: CanariumGen2.ListOptions, callback?: (err: Error, ports?: CanariumGen2.PortInfo[]) => void): Promise<CanariumGen2.PortInfo[]>|void {
         if (typeof(options) === 'function') {
             callback = options;
             options = null;
@@ -123,7 +195,7 @@ export class CanariumGen2 extends EventEmitter {
         if (callback != null) {
             return invokeCallback(callback, this.list(options));
         }
-        return new Promise<CanariumPort[]>((resolve, reject) => {
+        return new Promise<CanariumGen2.PortInfo[]>((resolve, reject) => {
             SerialPort.list((err, ports) => {
                 if (err) {
                     return reject(err);
@@ -173,7 +245,7 @@ export class CanariumGen2 extends EventEmitter {
      * 接続できるボードを限定して、ボードに接続する
      * @param boardInfo 接続先ボード情報
      */
-    open(boardInfo: BoardInfoGen2): Promise<void>;
+    open(boardInfo: CanariumGen2.BoardInfo): Promise<void>;
 
     /**
      * ボードに接続する
@@ -186,7 +258,7 @@ export class CanariumGen2 extends EventEmitter {
      * @param boardInfo 接続先ボード情報
      * @param callback コールバック関数
      */
-    open(boardInfo: BoardInfoGen2, callback: (err: Error) => void): void;
+    open(boardInfo: CanariumGen2.BoardInfo, callback: (err: Error) => void): void;
 
     open(boardInfo?: any, callback?: (err: Error) => void): Promise<void>|void {
         if (typeof(boardInfo) === 'function') {
@@ -210,11 +282,20 @@ export class CanariumGen2 extends EventEmitter {
                             this._opening = false;
                             return reject(err);
                         }
-                        return resolve();
+                        this._serial.flush((err) => {
+                            if (err) {
+                                this._opening = false;
+                                return reject(err);
+                            }
+                            return resolve();
+                        });
                     });
                 });
             }
             return Promise.reject(new Error('interface not found'));
+        })
+        .then(() => {
+            return this._connectionTest();
         })
         .then(() => {
             if (boardInfo == null) {
@@ -281,15 +362,15 @@ export class CanariumGen2 extends EventEmitter {
     /**
      * ボード情報を取得する
      */
-    getInfo(): Promise<BoardInfoGen2>;
+    getInfo(): Promise<CanariumGen2.BoardInfo>;
 
     /**
      * ボード情報を取得する
      * @param callback コールバック関数
      */
-    getInfo(callback: (err: Error, result: BoardInfoGen2) => void): void;
+    getInfo(callback: (err: Error, result: CanariumGen2.BoardInfo) => void): void;
 
-    getInfo(callback?: (err: Error, result: BoardInfoGen2) => void): Promise<BoardInfoGen2>|void {
+    getInfo(callback?: (err: Error, result: CanariumGen2.BoardInfo) => void): Promise<CanariumGen2.BoardInfo>|void {
         if (callback != null) {
             return invokeCallback(callback, this.getInfo());
         }
@@ -302,13 +383,14 @@ export class CanariumGen2 extends EventEmitter {
         return this.avm.read(this._systemIdBase, 16)
         .then((result) => {
             this._boardInfoCache = {
+                id: GEN2_BOARD_ID,
+                serialCode: generateSerialCode(
+                    result.readUInt32LE(8),
+                    result.readUInt32LE(12)
+                ),
                 systemId: result.readUInt32LE(0),
                 timestamp: result.readUInt32LE(4),
             };
-            let uidLo = `0000000${result.readUInt32LE(8).toString(16)}`.substr(-8);
-            let uidHi = `0000000${result.readUInt32LE(12).toString(16)}`.substr(-8);
-            this._boardInfoCache.id = 'J72?';
-            this._boardInfoCache.serialCode = `93${uidHi.substr(0, 4)}-${uidHi.substr(4)}${uidLo.substr(0, 2)}-${uidLo.substr(2)}`;
             return this._boardInfoCache;
         });
     }
@@ -318,23 +400,23 @@ export class CanariumGen2 extends EventEmitter {
      * @param channel チャネル番号
      * @param packetized パケット化するか否か(trueの場合、1回で書き込まれたデータは1パケットとして送信される)
      */
-    createWriteStream(channel: number, packetized?: boolean): AvsWritableStream;
+    createWriteStream(channel: number, packetized?: boolean): CanariumGen2.AvsWritableStream;
 
     /**
      * 書き込みストリームを作成する
      * @param channel チャネル番号
      * @param options ストリームの振る舞いを指定するオプション
      */
-    createWriteStream(channel: number, options: CanariumStreamOptions): AvsWritableStream;
+    createWriteStream(channel: number, options: CanariumGen2.StreamOptions): CanariumGen2.AvsWritableStream;
 
-    createWriteStream(channel: number, options?: boolean|CanariumStreamOptions): AvsWritableStream {
+    createWriteStream(channel: number, options?: boolean|CanariumGen2.StreamOptions): CanariumGen2.AvsWritableStream {
         if (typeof(options) === 'boolean') {
             return this.createWriteStream(channel, {packetized: options});
         }
         if (options == null) {
             options = {};
         }
-        let pipe = this._classifyPipe(channel);
+        let pipe = this._classifyPipe(channel, options);
         return pipe.outbound.createStream(channel, !!options.packetized);
     }
 
@@ -343,79 +425,88 @@ export class CanariumGen2 extends EventEmitter {
      * @param channel チャネル番号
      * @param packetized パケット化するか否か(trueの場合、SOP&EOPで識別されたパケットを単位として受信する)
      */
-    createReadStream(channel: number, packetized?: boolean): AvsReadableStream;
+    createReadStream(channel: number, packetized?: boolean): CanariumGen2.AvsReadableStream;
 
     /**
      * 読み込みストリームを作成する
      * @param channel チャネル番号
      * @param options ストリームの振る舞いを指定するオプション
      */
-    createReadStream(channel: number, options: CanariumStreamOptions): AvsReadableStream;
+    createReadStream(channel: number, options: CanariumGen2.StreamOptions): CanariumGen2.AvsReadableStream;
 
-    createReadStream(channel: number, options?: boolean|CanariumStreamOptions): AvsReadableStream {
+    createReadStream(channel: number, options?: boolean|CanariumGen2.StreamOptions): CanariumGen2.AvsReadableStream {
         if (typeof(options) === 'boolean') {
             return this.createReadStream(channel, {packetized: options});
         }
         if (options == null) {
             options = {};
         }
-        let pipe = this._classifyPipe(channel);
+        let pipe = this._classifyPipe(channel, options);
         return pipe.inbound.createStream(channel, !!options.packetized);
     }
 
     /**
-     * RPCクライアントの作成
+     * RPCクライアントを作成する
      * @param channel チャネル番号
      */
-    createRpcClient(channel: number): RpcClient {
-        let pipe = this._classifyPipe(channel);
-        return new RpcClient(
+    createRpcClient(channel: number, options?: CanariumGen2.StreamOptions): CanariumGen2.RpcClient {
+        let pipe = this._classifyPipe(channel, options);
+        return new RpcClientImpl(
             pipe.outbound.createStream(channel, true),
             pipe.inbound.createStream(channel, true)
         );
     }
 
     /**
-     * パイプの初期化
+     * パイプを初期化する
      */
     private _setupPipes(): void {
-        if (true /* VCP */) {
-            this._serial = new SerialPort(this._path, {autoOpen: false});
-            this._serial.on('close', () => {
-                this._opened = false;
-                if (!this._opening) {
-                    this.emit('close');
-                } else {
-                    this._opening = false;
-                }
-            });
-            this._serial.on('error', this.emit.bind(this, 'error'));
-            this._slowPipe = {
-                inbound: new AvsDemultiplexer(<any>this._serial),
-                outbound: new AvsMultiplexer(<any>this._serial),
-            };
-        }
-        // FIXME: D3XX support
+        this._serial = new SerialPort(this._path, {
+            baudRate: this._options.bitrate,
+            autoOpen: false
+        });
+        this._serial.on('close', () => {
+            this._opened = false;
+            if (!this._opening) {
+                this.emit('close');
+            } else {
+                this._opening = false;
+            }
+        });
+        this._serial.on('error', this.emit.bind(this, 'error'));
+        this._defaultPipe = {
+            inbound: new AvsDemultiplexer(<any>this._serial),
+            outbound: new AvsMultiplexer(<any>this._serial),
+        };
     }
 
     /**
-     * チャネル番号からパイプを識別
+     * 使用するパイプを特定する
      * @param channel チャネル番号
+     * @param options ストリームオプション
      */
-    private _classifyPipe(channel: number): AvsBidirPipe {
+    private _classifyPipe(channel: number, options: CanariumGen2.StreamOptions): AvsBidirPipe {
         if (typeof(channel) !== 'number') {
             throw new Error('channel must be a number');
         }
-        let pipe: AvsBidirPipe;
-        if ((AVS_CH_SLOW_MIN <= channel) && (channel <= AVS_CH_SLOW_MAX)) {
-            pipe = this._slowPipe;
-        } else if ((AVS_CH_FAST_MIN <= channel) && (channel <= AVS_CH_FAST_MAX)) {
-            pipe = this._fastPipe;
+        if (options == null) {
+            options = {};
         }
-        if (pipe != null) {
-            return pipe;
+        if (this._defaultPipe != null) {
+            return this._defaultPipe;
         }
         throw new Error(`channel (${channel}) is not supported`);
     }
 
+    /**
+     * 通信テストを行う
+     */
+    private _connectionTest(): Promise<void> {
+        return Promise.race([
+            this.avm.testNoTransactionPacket(AVM_TEST_ADDRESS),
+            new Promise<never>((resolve, reject) => {
+                setTimeout(reject, AVM_TEST_TIMEOUT);
+            })
+        ]);
+    }
 }
