@@ -48,6 +48,7 @@
     "@types/chai-as-promised": "0.0.30",
     "@types/node": "^7.0.18",
     "@types/promise.prototype.finally": "^2.0.2",
+    "@types/semver": "^5.4.0",
     "@types/serialport": "^4.0.10",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
