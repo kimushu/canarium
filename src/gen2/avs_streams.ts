@@ -1,12 +1,26 @@
 import { Writable, Readable } from 'stream';
 import { EventEmitter } from 'events';
+import CanariumGen2Module = require('./canarium');
 
 const AST_SOP       = 0x7a;
 const AST_EOP       = 0x7b;
 const AST_CHANNEL   = 0x7c;
 const AST_ESCAPE    = 0x7d;
 
-const DEBUG = true;
+const DEBUG = false;
+
+/**
+ * Options for multiplexer
+ */
+export interface MultiplexerOptions {
+    channelSendInterval?: number;
+}
+
+/**
+ * Options for demultiplexer
+ */
+export interface DemultiplexerOptions {
+}
 
 /**
  * Encode 0x7? bytes
@@ -122,11 +136,16 @@ export class AvsReadableStream extends Readable {
 export class AvsMultiplexer extends EventEmitter {
     private _sources: AvsWritableStream[] = [];
     private _lastChannel: number = null;
+    private _channelSentTime: number = 0;
+    private _channelSendInterval: number = undefined;
 
-    constructor(private _sink: Writable) {
+    constructor(private _sink: Writable, options: MultiplexerOptions) {
         super();
         _sink.on('close', this.emit.bind(this, 'close'));
         _sink.on('error', this.emit.bind(this, 'error'));
+        if (options.channelSendInterval > 0) {
+            this._channelSendInterval = options.channelSendInterval;
+        }
     }
 
     createStream(channel: number, packetized: boolean): AvsWritableStream {
@@ -151,8 +170,11 @@ export class AvsMultiplexer extends EventEmitter {
         let header: number[] = [];
         let footer: number[] = [];
 
-        if (this._lastChannel !== channel) {
+        let now = Date.now();
+        if (((now - this._channelSentTime) >= this._channelSendInterval) ||
+            (this._lastChannel !== channel)) {
             this._lastChannel = channel;
+            this._channelSentTime = now;
             header.push(AST_CHANNEL, channel);
         }
         if (packetized) {
@@ -162,7 +184,9 @@ export class AvsMultiplexer extends EventEmitter {
 
         let rawData = encode7(header, chunk, footer);
         if (DEBUG) {
-            console.log('PC -> FPGA:', rawData);
+            for (let offset = 0; offset < rawData.length; offset += 32) {
+                console.log('PC -> FPGA:', rawData.slice(offset, offset + 32));
+            }
         }
         if (!this._sink.write(rawData)) {
             this._sink.once('drain', callback);
@@ -188,13 +212,15 @@ export class AvsDemultiplexer extends EventEmitter {
     private _waitChannel: boolean = false;
     private _channel: number = null;
 
-    constructor(source: Readable) {
+    constructor(source: Readable, options: DemultiplexerOptions) {
         super();
         source.on('close', this.emit.bind(this, 'close'));
         source.on('error', this.emit.bind(this, 'error'));
         source.on('data', (chunk: Buffer) => {
             if (DEBUG) {
-                console.log('FPGA -> PC:', chunk);
+                for (let offset = 0; offset < chunk.length; offset += 32) {
+                    console.log('FPGA -> PC:', chunk.slice(offset, offset + 32));
+                }
             }
             let sink = this._sinks[this._channel];
             let drain = () => {

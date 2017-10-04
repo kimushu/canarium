@@ -13,11 +13,13 @@ import {
 import * as SerialPort from 'serialport';
 import { join as joinPath } from 'path';
 
+const DEFAULT_SERIAL_BITRATE = 115200;
+const DEFAULT_CH_SEND_INTERVAL = 5000;
+
 const GEN2_BOARD_ID = 'J72C';
 const AVS_CH_AVM_TRANSACTION = 0x00;
-const DEFAULT_SERIAL_BITRATE = 115200;
 const SYSTEM_ID_BASE = 0x10000000;
-const AVM_TEST_ADDRESS = 0x00003d00;
+const AVM_TEST_ADDRESS = 0x3d5a3d00;
 const AVM_TEST_TIMEOUT = 500;
 const SERIAL_CLOSE_DELAY_MS = 200;
 
@@ -80,11 +82,17 @@ export namespace CanariumGen2 {
     /**
      * 接続オプション
      */
-    export interface ConnectOptions {
+    export interface OpenOptions {
         /**
-         * 接続時のビットレート (デフォルトは 115200 bps)
+         * 接続時のビットレート (デフォルトは 115200bps)
          */
         bitrate?: number;
+
+        /**
+         * チャネル番号の再送信間隔 [ミリ秒] (デフォルトは 5000ms)
+         * 0を指定すると再送信をしない。
+         */
+        channelSendInterval?: number;
     }
 
     /**
@@ -144,8 +152,8 @@ function generateSerialCode(uidLow: number, uidHigh: number): string {
  * PERIDOTボードドライバ(第2世代通信仕様)
  */
 export class CanariumGen2 extends EventEmitter {
-    private _options: CanariumGen2.ConnectOptions;
     private static _version: string;
+    private _options: CanariumGen2.OpenOptions;
     private _opening: boolean = false;
     private _opened: boolean = false;
     private _serial: SerialPort;
@@ -159,10 +167,11 @@ export class CanariumGen2 extends EventEmitter {
      * @param _path 接続先のパス
      * @param options 接続オプション
      */
-    constructor(private _path: string, options?: CanariumGen2.ConnectOptions) {
+    constructor(private _path: string, options?: CanariumGen2.OpenOptions) {
         super();
         this._options = Object.assign({
             bitrate: DEFAULT_SERIAL_BITRATE,
+            channelSendInterval: DEFAULT_CH_SEND_INTERVAL,
         }, options);
         this._setupPipes();
         this._avm = new AvmTransactionsGen2(
@@ -489,8 +498,8 @@ export class CanariumGen2 extends EventEmitter {
         });
         this._serial.on('error', this.emit.bind(this, 'error'));
         this._defaultPipe = {
-            inbound: new AvsDemultiplexer(<any>this._serial),
-            outbound: new AvsMultiplexer(<any>this._serial),
+            inbound: new AvsDemultiplexer(<any>this._serial, this._options),
+            outbound: new AvsMultiplexer(<any>this._serial, this._options),
         };
     }
 
