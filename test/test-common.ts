@@ -16,6 +16,10 @@ export const SWI = {
 
 elfy.constants.machine['113'] = 'nios2';
 
+export function showInfo(...args: any[]): void {
+    console.log('      (INFO)', ...args);
+}
+
 export function writeElf(canarium: Canarium, data: Buffer): Promise<void> {
     return Promise.resolve()
     .then(() => {
@@ -40,10 +44,12 @@ export function writeElf(canarium: Canarium, data: Buffer): Promise<void> {
 }
 
 export const cond = {
-    classic_ps: <string>null,
-    classic_as: <string>null,
-    classic:    <string[]>[],
-    boards:     <string[]>[],
+    classic_ps:     <string>null,
+    classic_as:     <string>null,
+    classic:        <string[]>[],
+    piccolo_user:   <string>null,
+    piccolo:        <string[]>[],
+    boards:         <string[]>[],
 };
 
 export interface TestData {
@@ -81,7 +87,7 @@ export const testdatacol: TestDataCollection = {
             SWI_BASE:   0x10000000,
             RESET_BASE: 0x10000020,
         }
-    }
+    },
 };
 
 (()=>{
@@ -103,6 +109,14 @@ export const testdatacol: TestDataCollection = {
             cond.classic.push(item.path);
             cond.boards.push(item.path);
         }
+        if (process.argv.indexOf('--with-piccolo-user') >= 0) {
+            let item = list.shift();
+            assert.equal(item.vendorId, 0x0403);
+            assert.equal(item.productId, 0x6015);
+            cond.piccolo_user = item.path;
+            cond.piccolo.push(item.path);
+            cond.boards.push(item.path);
+        }
         assert.equal(list.length, 0);
         run();
     })
@@ -119,6 +133,9 @@ describe('(Test conditions)', function(){
     });
     it('PERIDOT Classic (AS mode)', function(){
         cond.classic_as || this.skip();
+    });
+    it('PERIDOT Piccolo on Vanilla Bench (USER mode)', function(){
+        cond.piccolo_user || this.skip();
     });
 });
 

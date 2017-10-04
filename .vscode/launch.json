@@ -10,7 +10,8 @@
             "name": "Run mocha",
             "program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
             "stopOnEntry": false,
-            "args": ["--no-timeouts", "out/test/*.test.js"],
+            "args": ["--no-timeouts", "out/test/gen2/*.test.js"],
+            //"args": ["--no-timeouts", "out/test/*.test.js"],
             "sourceMaps": true,
             "outDir": "${workspaceRoot}/out",
             "preLaunchTask": "tsc"
