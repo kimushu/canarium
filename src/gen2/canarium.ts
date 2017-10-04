@@ -11,6 +11,7 @@ import {
     RpcError as RpcErrorImpl
 } from './rpc_client';
 import * as SerialPort from 'serialport';
+import { join as joinPath } from 'path';
 
 const GEN2_BOARD_ID = 'J72C';
 const AVS_CH_AVM_TRANSACTION = 0x00;
@@ -143,6 +144,7 @@ function generateSerialCode(uidLow: number, uidHigh: number): string {
  */
 export class CanariumGen2 extends EventEmitter {
     private _options: CanariumGen2.ConnectOptions;
+    private static _version: string;
     private _opening: boolean = false;
     private _opened: boolean = false;
     private _serial: SerialPort;
@@ -213,6 +215,17 @@ export class CanariumGen2 extends EventEmitter {
                 }));
             });
         });
+    }
+
+    /**
+     * バージョン (canariumパッケージのバージョン)
+     */
+    static get version(): string {
+        if (this._version == null) {
+            let info = require(joinPath(__dirname, '..', '..', '..', 'package.json'));
+            this._version = info.version;
+        }
+        return this._version;
     }
 
     /**
