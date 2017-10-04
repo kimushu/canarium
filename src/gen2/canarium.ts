@@ -19,6 +19,7 @@ const DEFAULT_SERIAL_BITRATE = 115200;
 const SYSTEM_ID_BASE = 0x10000000;
 const AVM_TEST_ADDRESS = 0x00003d00;
 const AVM_TEST_TIMEOUT = 500;
+const SERIAL_CLOSE_DELAY_MS = 200;
 
 /*
  * SYSTEM_ID_BASEをベースとするレジスタの配置
@@ -365,7 +366,7 @@ export class CanariumGen2 extends EventEmitter {
                     if (err) {
                         return reject(err);
                     }
-                    return resolve();
+                    setTimeout(resolve, SERIAL_CLOSE_DELAY_MS);
                 });
             });
         }
