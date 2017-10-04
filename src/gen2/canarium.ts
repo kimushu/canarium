@@ -145,7 +145,7 @@ interface AvsBidirPipe {
  */
 function generateSerialCode(uidLow: number, uidHigh: number): string {
     let code = `0000000${uidHigh.toString(16)}`.substr(-8) + `0000000${uidLow.toString(16)}`.substr(-8);
-    return `93${code.substr(0, 4)}-${code.substr(4, 6)}-${code.substr(10, 6)}`;
+    return `93${code.substr(0, 4)}-${code.substr(4, 6)}-${code.substr(10, 6)}`.toUpperCase();
 }
 
 /**
