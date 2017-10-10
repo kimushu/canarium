@@ -18,6 +18,101 @@ const JSONRPC_ERR_INVALID_PARAMS    = -32602;
 const JSONRPC_ERR_INTERNAL_ERROR    = -32603;
 
 /**
+ * メッセージと説明文字列のマップ
+ */
+const ERROR_MESSAGES = {
+    1:  'EPERM (Not owner)',
+    2:  'ENOENT (No such file or directory)',
+    3:  'ESRCH (No such process)',
+    4:  'EINTR (Interrupted system call)',
+    5:  'EIO (I/O error)',
+    6:  'ENXIO (No such device or address)',
+    7:  'E2BIG (Arg list too long)',
+    8:  'ENOEXEC (Exec format error)',
+    9:  'EBADF (Bad file number)',
+    10: 'ECHILD (No children)',
+    11: 'EAGAIN (No more processes)',
+    12: 'ENOMEM (Not enough space)',
+    13: 'EACCES (Permission denied)',
+    14: 'EFAULT (Bad address)',
+    16: 'EBUSY (Device or resource busy)',
+    17: 'EEXIST (File exists)',
+    18: 'EXDEV (Cross-device link)',
+    19: 'ENODEV (No such device)',
+    20: 'ENOTDIR (Not a directory)',
+    21: 'EISDIR (Is a directory)',
+    22: 'EINVAL (Invalid argument)',
+    23: 'ENFILE (Too many open files in system)',
+    24: 'EMFILE (File descriptor value too large)',
+    25: 'ENOTTY (Not a character device)',
+    26: 'ETXTBSY (Text file busy)',
+    27: 'EFBIG (File too large)',
+    28: 'ENOSPC (No space left on device)',
+    29: 'ESPIPE (Illegal seek)',
+    30: 'EROFS (Read-only file system)',
+    31: 'EMLINK (Too many links)',
+    32: 'EPIPE (Broken pipe)',
+    33: 'EDOM (Math arg out of domain of func)',
+    34: 'ERANGE (Math result not representable)',
+    35: 'ENOMSG (No message of desired type)',
+    36: 'EIDRM (Identifier removed)',
+    45: 'EDEADLK (Deadlock)',
+    46: 'ENOLCK (No lock)',
+    60: 'ENOSTR (Not a stream)',
+    61: 'ENODATA (No data (for no delay io))',
+    62: 'ETIME (Stream ioctl timeout)',
+    63: 'ENOSR (No stream resources)',
+    67: 'ENOLINK (Virtual circuit is gone)',
+    71: 'EPROTO (Protocol error)',
+    74: 'EMULTIHOP (Multihop attempted)',
+    77: 'EBADMSG (Bad message)',
+    79: 'EFTYPE (Inappropriate file type or format)',
+    88: 'ENOSYS (Function not implemented)',
+    90: 'ENOTEMPTY (Directory not empty)',
+    91: 'ENAMETOOLONG (File or path name too long)',
+    92: 'ELOOP (Too many symbolic links)',
+    95: 'EOPNOTSUPP (Operation not supported on socket)',
+    96: 'EPFNOSUPPORT (Protocol family not supported)',
+    104:'ECONNRESET (Connection reset by peer)',
+    105:'ENOBUFS (No buffer space available)',
+    106:'EAFNOSUPPORT (Address family not supported by protocol family)',
+    107:'EPROTOTYPE (Protocol wrong type for socket)',
+    108:'ENOTSOCK (Socket operation on non-socket)',
+    109:'ENOPROTOOPT (Protocol not available)',
+    111:'ECONNREFUSED (Connection refused)',
+    112:'EADDRINUSE (Address already in use)',
+    113:'ECONNABORTED (Software caused connection abort)',
+    114:'ENETUNREACH (Network is unreachable)',
+    115:'ENETDOWN (Network interface is not configured)',
+    116:'ETIMEDOUT (Connection timed out)',
+    117:'EHOSTDOWN (Host is down)',
+    118:'EHOSTUNREACH (Host is unreachable)',
+    119:'EINPROGRESS (Connection already in progress)',
+    120:'EALREADY (Socket already connected)',
+    121:'EDESTADDRREQ (Destination address required)',
+    122:'EMSGSIZE (Message too long)',
+    123:'EPROTONOSUPPORT (Unknown protocol)',
+    125:'EADDRNOTAVAIL (Address not available)',
+    126:'ENETRESET (Connection aborted by network)',
+    127:'EISCONN (Socket is already connected)',
+    128:'ENOTCONN (Socket is not connected)',
+    129:'ETOOMANYREFS',
+    132:'EDQUOT',
+    133:'ESTALE',
+    134:'ENOTSUP (Not supported)',
+    138:'EILSEQ (Illegal byte sequence)',
+    139:'EOVERFLOW (Value too large for defined data type)',
+    140:'ECANCELED (Operation canceled)',
+    141:'ENOTRECOVERABLE (State not recoverable)',
+    142:'EOWNERDEAD (Previous owner died)',
+};
+ERROR_MESSAGES[JSONRPC_ERR_PARSE_ERROR] = 'Parse error';
+ERROR_MESSAGES[JSONRPC_ERR_INVALID_REQUEST] = 'Invalid request';
+ERROR_MESSAGES[JSONRPC_ERR_METHOD_NOT_FOUND] = 'Method not found';
+ERROR_MESSAGES[JSONRPC_ERR_INVALID_PARAMS] = 'Invalid parameters';
+ERROR_MESSAGES[JSONRPC_ERR_INTERNAL_ERROR] = 'Internal error';
+
+/**
  * リクエスト構造体
  * (idに紐付けてPromiseのコールバック関数を保持する)
  */
@@ -46,27 +141,12 @@ export class RpcError extends Error {
      */
     constructor(message?: string, code?: number) {
         if (message == null) {
-            switch (code) {
-            case JSONRPC_ERR_PARSE_ERROR:
-                message = 'Parse error';
-                break;
-            case JSONRPC_ERR_INVALID_REQUEST:
-                message = 'Invalid request';
-                break;
-            case JSONRPC_ERR_METHOD_NOT_FOUND:
-                message = 'Method not found';
-                break;
-            case JSONRPC_ERR_INVALID_PARAMS:
-                message = 'Invalid parameters';
-                break;
-            case JSONRPC_ERR_INTERNAL_ERROR:
-                message = 'Internal error';
-                break;
-            }
+            message = ERROR_MESSAGES[code];
         }
         super(message);
         Object.setPrototypeOf(this, new.target.prototype);
         this.name = new.target.name;
+        this.code = code;
     }
 
     get PARSE_ERROR()        { return JSONRPC_ERR_PARSE_ERROR; }
