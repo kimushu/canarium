@@ -181,7 +181,9 @@ export class RpcClient extends EventEmitter {
      * @param response 応答データ
      */
     private _receiveHandler(response: Buffer): void {
-        let { jsonrpc, result, error, id } = this._bson.deserialize(response);
+        let { jsonrpc, result, error, id } = this._bson.deserialize(response, {
+            promoteBuffers: true
+        });
         if ((jsonrpc !== JSONRPC_VERSION) || (!(id instanceof BSON.Timestamp))) {
             return;
         }
