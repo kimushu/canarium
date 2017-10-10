@@ -40,7 +40,7 @@ const SERIAL_CLOSE_DELAY_MS = 200;
 /**
  * 型情報のエクスポート
  */
-export namespace CanariumGen2 {
+export module CanariumGen2 {
     /**
      * ボード情報
      */
@@ -528,7 +528,7 @@ export class CanariumGen2 extends EventEmitter {
         return Promise.race([
             this.avm.testNoTransactionPacket(AVM_TEST_ADDRESS),
             new Promise<never>((resolve, reject) => {
-                setTimeout(reject, AVM_TEST_TIMEOUT);
+                setTimeout(reject, AVM_TEST_TIMEOUT, new Error('Connection timed out'));
             })
         ]);
     }

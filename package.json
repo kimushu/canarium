@@ -1,6 +1,6 @@
 {
   "name": "canarium",
-  "version": "1.0.0-beta4",
+  "version": "1.0.0-beta5",
   "description": "PERIDOT board driver library",
   "main": "out/src/canarium.js",
   "types": "types/src/canarium.d.ts",
@@ -18,8 +18,8 @@
     "docs": "typedoc --options typedoc.json"
   },
   "files": [
-    "out/src/*.js",
-    "types/src/*.d.ts",
+    "out/src/**/*.js",
+    "types/src/**/*.d.ts",
     "README.md"
   ],
   "repository": {
