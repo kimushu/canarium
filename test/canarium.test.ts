@@ -118,23 +118,6 @@ describe('Canarium', function(){
         });
     });
 
-    sandbox('rpcClient', function(){
-        it('is an instance of RpcClient', function(){
-            assert.instanceOf(canarium.rpcClient, Canarium.RpcClient);
-        });
-    });
-
-    sandbox('swiBase', function(){
-        it('is a number', function(){
-            assert.isNumber(canarium.swiBase);
-        });
-        it('is writable', function(){
-            let value = canarium.swiBase + 16;
-            canarium.swiBase = value;
-            assert.equal(canarium.swiBase, value);
-        });
-    });
-
     sandbox('onClosed', function(){
         it('is a property', function(){
             assert.property(canarium, 'onClosed');
@@ -412,20 +395,6 @@ describe('Canarium', function(){
                     assert.equal(value, 0);
                 })
             );
-        });
-    });
-    sandbox('openRemoteFile() w/o connection', function(){
-        it('is a function', function(){
-            assert.isFunction(canarium.openRemoteFile);
-        });
-        it('returns undefined when called with callback', function(done){
-            assert.isUndefined(canarium.openRemoteFile('test', 0, 0, null, null, (success: boolean) => {
-                assert.isFalse(success);
-                done();
-            }));
-        });
-        it('returns Promise(rejection) when port is not opened', function(){
-            return assert.isRejected(canarium.openRemoteFile('test', 0, 0));
         });
     });
 });

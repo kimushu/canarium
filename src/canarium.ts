@@ -4,9 +4,6 @@ import * as modBaseComm from './base_comm';
 import * as modI2CComm from './i2c_comm';
 import * as modAvsPackets from './avs_packets';
 import * as modAvmTransactions from './avm_transactions';
-import * as modRpcClient from './rpc_client';
-import * as modRemoteFile from './remote_file';
-import * as modRemoteError from './remote_error';
 import * as modCanariumGen2 from './gen2/canarium';
 
 /**
@@ -96,11 +93,6 @@ export module Canarium {
     export type AvsPackets = modAvsPackets.AvsPackets;
     export type AvmTransactions = modAvmTransactions.AvmTransactions;
     export type AvmTransactionsOptions = modAvmTransactions.AvmTransactionsOptions;
-    export type RpcClient = modRpcClient.RpcClient;
-    export type RemoteFile = modRemoteFile.RemoteFile;
-    export type FileOpenFlags = modRemoteFile.FileOpenFlags;
-    export type FileSeekWhence = modRemoteFile.FileSeekWhence;
-    export type RemoteError = modRemoteError.RemoteError;
 }
 
 /**
@@ -183,22 +175,6 @@ export class Canarium {
      * Avalon-MMトランザクション層通信クラスのインスタンス
      */
     private _avm: Canarium.AvmTransactions = new modAvmTransactions.AvmTransactions(this._avs, AVM_CHANNEL);
-
-    /**
-     * RPCクライアントクラスのインスタンス
-     */
-    get rpcClient() { return this._rpcClient; }
-
-    /**
-     * RPCクライアントクラスのインスタンス
-     */
-    private _rpcClient: Canarium.RpcClient = new modRpcClient.RpcClient(this._avm);
-
-    /**
-     * ホスト通信用ペリフェラル(SWI)のベースアドレス
-     */
-    get swiBase() { return this._avm.swiBase; }
-    set swiBase(value) { this._avm.swiBase = value; }
 
     /**
      * クローズされた時に呼び出されるコールバック関数
@@ -640,46 +616,6 @@ export class Canarium {
     }
 
     /**
-     * ボード上のファイルを開く
-     * @param path     パス
-     * @param flags    フラグ(数字指定またはECMAオブジェクト指定)
-     * @param mode     ファイル作成時のパーミッション
-     * @param interval RPCポーリング周期
-     */
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, timeout?: number, interval?: number): Promise<Canarium.RemoteFile>;
-
-    /**
-     * ボード上のファイルを開く
-     * @param path     パス
-     * @param flags    フラグ(数字指定またはECMAオブジェクト指定)
-     * @param mode     ファイル作成時のパーミッション
-     * @param timeout  タイムアウト時間[ms]
-     * @param interval RPCポーリング周期[ms]
-     * @param callback コールバック関数
-     */
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, timeout?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): void;
-
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, timeout?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): any {
-        if (typeof(mode) === 'function') {
-            callback = mode;
-            interval = null;
-            timeout = null;
-            mode = null;
-        } else if (typeof(timeout) === 'function') {
-            callback = timeout;
-            interval = null;
-            timeout = null;
-        } else if (typeof(interval) === 'function') {
-            callback = interval;
-            interval = null;
-        }
-        if (callback != null) {
-            return invokeCallback(callback, this.openRemoteFile(path, flags, mode, timeout, interval));
-        }
-        return modRemoteFile.RemoteFile.open(this._rpcClient, path, flags, mode, timeout, interval);
-    }
-
-    /**
      * EEPROMの読み出し
      * @param startaddr 読み出し開始アドレス
      * @param readbytes 読み出しバイト数
@@ -812,9 +748,6 @@ export module Canarium {
     export const I2CComm = modI2CComm.I2CComm;
     export const AvsPackets = modAvsPackets.AvsPackets;
     export const AvmTransactions = modAvmTransactions.AvmTransactions;
-    export const RpcClient = modRpcClient.RpcClient;
-    export const RemoteFile = modRemoteFile.RemoteFile;
-    export const RemoteError = modRemoteError.RemoteError;
 }
 
 /*
