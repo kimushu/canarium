@@ -1,19 +1,16 @@
-Version 1.0.0-beta2
+Version 1.1.0
 -------
-- Fix incorrect serialcode
-
-Version 1.0.0-beta1
--------
-- Dropped Chrome (`chrome.serial`) support. Since this version, **only Node.js runtime (v6.x or v7.x) is supported by Canarium**.
+- Add `CanariumGen2` class for new communication I/F
+- Add `CanariumGen1` as an alias of `Canarium`
+- Dropped Chrome (`chrome.serial`) support. Since this version, **only Node.js runtime (v6.x or higher) is supported by Canarium**.
 - Changed all binary data types from `ArrayBuffer` to `Buffer`
 - Added [PERIDOT New Generations](https://github.com/osafune/peridot_newgen) support
-- Added `reconfig()` method for NewGen
-- Added `RpcClient` class and `rpcClient` property
-- Added `RemoteFile` class
-- Added `RemoteError` class
-- Added `openRemoteFile()` method
 - Replaced all sources to TypeScript
 - Added type declaration for TypeScript IDE
+
+Version 1.0.0
+-------
+- This version is skipped
 
 Version 0.9.18
 -------
