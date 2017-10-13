@@ -10,11 +10,14 @@ import {
     RpcClient as RpcClientImpl,
     RpcError as RpcErrorImpl
 } from './rpc_client';
-import * as SerialPort from 'serialport';
+import SerialPort = require('serialport');
 import { join as joinPath } from 'path';
 
-const DEFAULT_SERIAL_BITRATE = 115200;
-const DEFAULT_CH_SEND_INTERVAL = 5000;
+const DEFAULT_OPEN_OPTIONS: CanariumGen2.OpenOptions = {
+    bitrate: 115200,
+    channelSendInterval: 5000,
+    disableTimeouts: false,
+};
 
 const GEN2_BOARD_ID = 'J72C';
 const AVS_CH_AVM_TRANSACTION = 0x00;
@@ -93,6 +96,12 @@ export module CanariumGen2 {
          * 0を指定すると再送信をしない。
          */
         channelSendInterval?: number;
+
+        /**
+         * 各種タイムアウトを無効にし、無限待ちとする (デフォルトは false)
+         * 主にデバッグ用途で利用。
+         */
+        disableTimeouts?: boolean;
     }
 
     /**
@@ -152,7 +161,9 @@ function generateSerialCode(uidLow: number, uidHigh: number): string {
  * PERIDOTボードドライバ(第2世代通信仕様)
  */
 export class CanariumGen2 extends EventEmitter {
+    private static _binding: typeof SerialPort;
     private static _version: string;
+    private _binding: typeof SerialPort;
     private _options: CanariumGen2.OpenOptions;
     private _opening: boolean = false;
     private _opened: boolean = false;
@@ -169,10 +180,8 @@ export class CanariumGen2 extends EventEmitter {
      */
     constructor(private _path: string, options?: CanariumGen2.OpenOptions) {
         super();
-        this._options = Object.assign({
-            bitrate: DEFAULT_SERIAL_BITRATE,
-            channelSendInterval: DEFAULT_CH_SEND_INTERVAL,
-        }, options);
+        this._binding = new.target._binding;
+        this._options = Object.assign({}, DEFAULT_OPEN_OPTIONS, options);
         this._setupPipes();
         this._avm = new AvmTransactionsGen2(
             this.createWriteStream(AVS_CH_AVM_TRANSACTION, true),
@@ -187,12 +196,26 @@ export class CanariumGen2 extends EventEmitter {
         return this.close()
         .catch(() => {})    // close中のエラーは無視する
         .then(() => {
+            this._binding = null;
             this._options = null;
             this._serial = null;
             this._defaultPipe = null;
             this._avm = null;
             this._boardInfoCache = null;
         });
+    }
+
+    /**
+     * SerialPortクラスへのbinding
+     */
+    static get Binding() {
+        if (this._binding == null) {
+            this._binding = require('serialport');
+        }
+        return this._binding;
+    }
+    static set Binding(binding: typeof SerialPort) {
+        this._binding = binding;
     }
 
     /**
@@ -223,7 +246,7 @@ export class CanariumGen2 extends EventEmitter {
             return invokeCallback(callback, this.list(options));
         }
         return new Promise<CanariumGen2.PortInfo[]>((resolve, reject) => {
-            SerialPort.list((err, ports) => {
+            CanariumGen2.Binding.list((err, ports) => {
                 if (err) {
                     return reject(err);
                 }
@@ -499,7 +522,7 @@ export class CanariumGen2 extends EventEmitter {
      * パイプを初期化する
      */
     private _setupPipes(): void {
-        this._serial = new SerialPort(this._path, {
+        this._serial = new this._binding(this._path, {
             baudRate: this._options.bitrate,
             autoOpen: false
         });
@@ -543,7 +566,9 @@ export class CanariumGen2 extends EventEmitter {
         return Promise.race([
             this.avm.testNoTransactionPacket(AVM_TEST_ADDRESS),
             new Promise<never>((resolve, reject) => {
-                setTimeout(reject, AVM_TEST_TIMEOUT, new Error('Connection timed out'));
+                if (!this._options.disableTimeouts) {
+                    setTimeout(reject, AVM_TEST_TIMEOUT, new Error('Connection timed out'));
+                }
             })
         ]);
     }
