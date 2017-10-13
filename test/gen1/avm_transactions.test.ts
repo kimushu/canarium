@@ -1,4 +1,4 @@
-import { Canarium, assert, cond, testdatacol, SWI } from '../test-common';
+import { Canarium, assert, cond, testdatacol, SWI } from './test-common';
 
 describe('AvmTransactions', function(){
     let testdata = testdatacol.classic_ps;

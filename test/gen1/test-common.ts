@@ -5,20 +5,16 @@ import { exec, ExecOptionsWithStringEncoding } from 'child_process';
 chai.use(require('chai-as-promised'));
 const { assert } = chai;
 import * as elfy from 'elfy';
-import { Canarium, CanariumGen2 } from '../src/index';
-export { assert, Canarium, CanariumGen2 };
+import { Canarium } from '../../src/index';
+export { assert, Canarium };
 
-export const TEST_DIR = path.join(__dirname, '..', '..', 'test');
+export const TEST_DIR = path.join(__dirname, '..', '..', '..', 'test');
 export const SWI = {
     REG_CLASSID: 0,
     REG_MESSAGE: 6,
 };
 
 elfy.constants.machine['113'] = 'nios2';
-
-export function showInfo(...args: any[]): void {
-    console.log('      (INFO)', ...args);
-}
 
 export function writeElf(canarium: Canarium, data: Buffer): Promise<void> {
     return Promise.resolve()
@@ -47,8 +43,6 @@ export const cond = {
     classic_ps:     <string>null,
     classic_as:     <string>null,
     classic:        <string[]>[],
-    piccolo_user:   <string>null,
-    piccolo:        <string[]>[],
     boards:         <string[]>[],
 };
 
@@ -109,14 +103,6 @@ export const testdatacol: TestDataCollection = {
             cond.classic.push(item.path);
             cond.boards.push(item.path);
         }
-        if (process.argv.indexOf('--with-piccolo-user') >= 0) {
-            let item = list.shift();
-            assert.equal(item.vendorId, 0x0403);
-            assert.equal(item.productId, 0x6015);
-            cond.piccolo_user = item.path;
-            cond.piccolo.push(item.path);
-            cond.boards.push(item.path);
-        }
         assert.equal(list.length, 0);
         run();
     })
@@ -134,9 +120,6 @@ describe('(Test conditions)', function(){
     it('PERIDOT Classic (AS mode)', function(){
         cond.classic_as || this.skip();
     });
-    it('PERIDOT Piccolo on Vanilla Bench (USER mode)', function(){
-        cond.piccolo_user || this.skip();
-    });
 });
 
 describe('(Test data generation)', function(){
@@ -152,7 +135,6 @@ describe('(Test data generation)', function(){
     }
     it(`Check Quartus installation (QUARTUS_ROOTDIR="${QUARTUS_ROOTDIR}")`, quartus_installed && function(){});
 
-    const TEST_DIR = path.normalize(path.join(__dirname, '..', '..', 'test'));
     const SRC_DIR = path.join(TEST_DIR, 'app-src');
     const ELF_NAME = 'test.elf';
     const REGENERATE = (process.env.REGENERATE != null);
