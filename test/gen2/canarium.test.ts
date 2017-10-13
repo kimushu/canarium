@@ -86,11 +86,19 @@ describe('Canarium', function(){
         });
     });
 
+    const TEST_DATA_OPEN = [
+        {e:[0x7c,0x00]},
+        {e:[0x7a,0x7f,0x00,0x00,0x00]},
+        {e:3},{e:[0x7b]},{e: 1},
+        {i:[0x7c,0x00,0x7a,0xff,0x00,0x00,0x7b,0x00]},
+    ];
+
     withInstance('open() with valid path', function(){
         it('is a function', function(){
             assert.isFunction(canarium.open);
         });
         it('succeeds and set \'opened\' to true', function(){
+            SerialPortStub.writeTestDataSet(TEST_DATA_OPEN);
             return assert.isFulfilled(
                 canarium.open()
                 .then(() => {
@@ -99,16 +107,30 @@ describe('Canarium', function(){
             );
         });
         it('changes opened value to true', function(){
+            SerialPortStub.writeTestDataSet(TEST_DATA_OPEN);
             return assert.isFulfilled(canarium.open().then(() => {
                 assert.isTrue(canarium.opened);
             }));
         });
         it('fails when already opened', function(){
-            return assert.isRejected(canarium.open(), 'already opened');
+            SerialPortStub.writeTestDataSet(TEST_DATA_OPEN);
+            return assert.isRejected(
+                canarium.open().then(() => canarium.open()),
+                'already opened'
+            );
         });
     });
-/*
-    sandbox('close()', function(){
+
+    withInstance('open() with invalid path', function(){
+        it('fails and keep \'opened\' false', function(){
+            return assert.isRejected(canarium.open())
+            .then(() => {
+                assert.isFalse(canarium.opened);
+            });
+        });
+    }, SerialPortStub.INVALID_PATH);
+
+    withInstance('close()', function(){
         it('is a function', function(){
             assert.isFunction(canarium.close);
         });
@@ -116,7 +138,7 @@ describe('Canarium', function(){
             return assert.isRejected(canarium.close(), 'not opened');
         });
         it('succeeds when opened', function(){
-            this.slow(1000);
+            SerialPortStub.writeTestDataSet(TEST_DATA_OPEN);
             return assert.isFulfilled(
                 canarium.open()
                 .then(() => canarium.close())
@@ -124,31 +146,40 @@ describe('Canarium', function(){
         });
     });
 
-    sandbox('getInfo()', function(){
+    // systemId: 0xdeadbeef, timestamp: 0x12345678
+    // uidLow: 0xbaadcafe, uidHigh: 0xdefec8ed
+    const TEST_DATA_GETINFO = [
+        {e:[0x7a,0x14,0x00,0x00,0x10,0x10,0x00,0x00,0x7b,0x00]},
+        {i:[0x7a,0xef,0xbe,0xad,0xde,0x78,0x56,0x34,0x12]},
+        {i:[0xfe,0xca,0xad,0xba,0xed,0xc8,0xfe,0x7b,0xde]},
+    ];
+
+    withInstance('getInfo()', function(){
         it('is a function', function(){
             assert.isFunction(canarium.getInfo);
         });
         it('fails when not opened', function(){
             return assert.isRejected(canarium.getInfo(), 'not opened');
         });
-        it('succeeds when opened', function(){
+        it('succeeds and returns correct data', function(){
+            SerialPortStub.writeTestDataSet([
+                ...TEST_DATA_OPEN,
+                ...TEST_DATA_GETINFO,
+            ]);
             return assert.isFulfilled(
                 canarium.open()
                 .then(() => canarium.getInfo())
                 .then((info) => {
-                    showInfo(`{id: '${info.id}', serialCode: '${info.serialCode
-                    }', systemId: 0x${info.systemId.toString(16)
-                    }, timestamp: 0x${info.timestamp.toString(16)} }`);
                     assert.equal(info.id, 'J72C');
-                    assert.match(info.serialCode, /^93[0-9A-F]{4}-[0-9A-F]{6}-[0-9A-F]{6}$/);
-                    assert.isNumber(info.systemId);
-                    assert.isNumber(info.timestamp);
+                    assert.equal(info.systemId, 0xdeadbeef);
+                    assert.equal(info.timestamp, 0x12345678);
+                    assert.equal(info.serialCode, '93DEFE-C8EDBA-ADCAFE');
                 })
             );
         });
     });
 
-    sandbox('createWriteStream', function(){
+    withInstance('createWriteStream()', function(){
         it('is a function', function(){
             assert.isFunction(canarium.createWriteStream);
         });
@@ -160,7 +191,7 @@ describe('Canarium', function(){
         });
     });
 
-    sandbox('createReadStream', function(){
+    withInstance('createReadStream()', function(){
         it('is a function', function(){
             assert.isFunction(canarium.createReadStream);
         });
@@ -171,5 +202,4 @@ describe('Canarium', function(){
             assert.instanceOf(canarium.createReadStream(1), AvsReadableStream);
         });
     });
-    */
 });
