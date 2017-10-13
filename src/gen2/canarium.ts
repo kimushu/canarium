@@ -181,6 +181,21 @@ export class CanariumGen2 extends EventEmitter {
     }
 
     /**
+     * オブジェクトの廃棄
+     */
+    dispose(): Promise<void> {
+        return this.close()
+        .catch(() => {})    // close中のエラーは無視する
+        .then(() => {
+            this._options = null;
+            this._serial = null;
+            this._defaultPipe = null;
+            this._avm = null;
+            this._boardInfoCache = null;
+        });
+    }
+
+    /**
      * 接続先を列挙する (PERIDOTでないデバイスも列挙されうることに注意)
      * @param options 列挙のオプション
      */
