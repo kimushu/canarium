@@ -1,23 +1,33 @@
-import { CanariumGen2, assert, showInfo } from '../test-common';
+//import { CanariumGen2, assert, showInfo } from '../test-common';
+import { CanariumGen2 } from '../../src/gen2/canarium';
 import { AvmTransactionsGen2 } from '../../src/gen2/avm_transactions';
 import { AvsWritableStream, AvsReadableStream } from '../../src/gen2/avs_streams';
+import { SerialPortStub } from './serialport-stub';
 import * as semver from 'semver';
+
+import * as chai from 'chai';
+chai.use(require('chai-as-promised'));
+const { assert } = chai;
+
+CanariumGen2.Binding = <any>SerialPortStub;
+
+process.nextTick(run);
+
 
 describe('Canarium', function(){
     let canarium: CanariumGen2;
-    let portPath: string;
 
-    function sandbox(name, tests: (this: Mocha.ISuiteCallbackContext) => any) {
-        describe(name, function(){
-            before(function(){
-                canarium = new CanariumGen2(portPath);
+    function withInstance(description: string, tests: (this: Mocha.ISuiteCallbackContext) => any, path: string = SerialPortStub.VALID_PATH) {
+        describe(description, function(){
+            beforeEach(function(){
+                canarium = new CanariumGen2(path);
+            });
+            afterEach(function(){
+                let instance = canarium;
+                canarium = undefined;
+                return instance.dispose();
             });
             tests.call(this);
-            after(function(){
-                return canarium.close()
-                .catch(() => {})
-                .then(() => canarium = null);
-            });
         });
     }
 
@@ -25,18 +35,17 @@ describe('Canarium', function(){
         it('is a function', function(){
             assert.isFunction(CanariumGen2.list);
         });
-        it('returns one or more port(s)', function(){
+        it('returns ports with correct information', function(){
             return assert.isFulfilled(
                 CanariumGen2.list()
                 .then((ports) => {
-                    assert.isAtLeast(ports.length, 1);
-                    ports.forEach((port, index) => {
-                        showInfo(`[${index}] { path: '${port.path
-                        }', vendorId: 0x${port.vendorId.toString(16)
-                        }, productId: 0x${port.productId.toString(16)}, ... }`);
-                        assert.isString(port.path);
-                    });
-                    portPath = ports[0].path;
+                    assert.equal(ports.length, 2);
+                    assert.equal(ports[0].path, SerialPortStub.VALID_PATH);
+                    assert.equal(ports[0].productId, 0x1234);
+                    assert.equal(ports[0].vendorId, 0x5678);
+                    assert.equal(ports[1].path, SerialPortStub.INVALID_PATH);
+                    assert.equal(ports[1].productId, 0x4321);
+                    assert.equal(ports[1].vendorId, 0x8765);
                 })
             );
         });
@@ -47,48 +56,58 @@ describe('Canarium', function(){
             let { version } = CanariumGen2;
             assert.isString(version);
             assert(semver.valid(version));
-            showInfo(version);
         });
     });
 
-    sandbox('path', function(){
+    withInstance('path', function(){
         it('is a string property and equal to port path', function(){
             let { path } = canarium;
             assert.isString(path);
-            assert.equal(path, portPath);
+            assert.equal(path, 'COM99');
+        });
+        it('is a read-only property', function(){
+            assert.throws(() => (<any>canarium).path = 'foo');
         });
     });
 
-    sandbox('opened', function(){
-        it('is boolean property', function(){
+    withInstance('opened', function(){
+        it('is a boolean property', function(){
             assert.isBoolean(canarium.opened);
         });
         it('is false when not opened', function(){
             assert.isFalse(canarium.opened);
         });
+        // other tests are included in open()
     });
 
-    sandbox('avm', function(){
+    withInstance('avm', function(){
         it('is an instance of AvmTransactionsGen2', function(){
             assert.instanceOf(canarium.avm, AvmTransactionsGen2);
         });
     });
 
-    sandbox('open()', function(){
+    withInstance('open() with valid path', function(){
         it('is a function', function(){
             assert.isFunction(canarium.open);
         });
-        it('succeeds (no argument)', function(){
-            return assert.isFulfilled(canarium.open());
+        it('succeeds and set \'opened\' to true', function(){
+            return assert.isFulfilled(
+                canarium.open()
+                .then(() => {
+                    assert.isTrue(canarium.opened);
+                })
+            );
         });
         it('changes opened value to true', function(){
-            assert.isTrue(canarium.opened);
+            return assert.isFulfilled(canarium.open().then(() => {
+                assert.isTrue(canarium.opened);
+            }));
         });
         it('fails when already opened', function(){
             return assert.isRejected(canarium.open(), 'already opened');
         });
     });
-
+/*
     sandbox('close()', function(){
         it('is a function', function(){
             assert.isFunction(canarium.close);
@@ -152,4 +171,5 @@ describe('Canarium', function(){
             assert.instanceOf(canarium.createReadStream(1), AvsReadableStream);
         });
     });
+    */
 });
