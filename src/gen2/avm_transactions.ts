@@ -193,29 +193,31 @@ export class AvmTransactionsGen2 {
                 }
                 this._sink.once('error', reject);
                 this._source.once('error', reject);
+                let recv = (result: Buffer) => {
+                    this._source.removeListener('error', reject);
+                    if (writeData == null) {
+                        if (size !== result.length) {
+                            return reject(new Error(`Received unexpected length of data (expected=${size}, actual=${result.length})`));
+                        }
+                        return resolve(result);
+                    }
+                    let reply = result.readUInt8(0);
+                    if (reply !== (code ^ 0x80)) {
+                        return reject(new Error(`Received unexpected code (expected=${code ^ 0x80}, actual=${reply})`));
+                    }
+                    let sizeDone = result.readUInt16BE(2);
+                    if (sizeDone !== size) {
+                        return reject(new Error(`Received unexpected size (expected=${size}, actual=${sizeDone}`));
+                    }
+                    return resolve(result);
+                };
+                this._source.once('data', recv);
                 this._sink.write(packet, (err) => {
                     if (err) {
+                        this._source.removeListener('data', recv);
                         return reject(err);
                     }
                     this._sink.removeListener('error', reject);
-                    this._source.once('data', (result: Buffer) => {
-                        this._source.removeListener('error', reject);
-                        if (writeData == null) {
-                            if (size !== result.length) {
-                                return reject(new Error(`Received unexpected length of data (expected=${size}, actual=${result.length})`));
-                            }
-                            return resolve(result);
-                        }
-                        let reply = result.readUInt8(0);
-                        if (reply !== (code ^ 0x80)) {
-                            return reject(new Error(`Received unexpected code (expected=${code ^ 0x80}, actual=${reply})`));
-                        }
-                        let sizeDone = result.readUInt16BE(2);
-                        if (sizeDone !== size) {
-                            return reject(new Error(`Received unexpected size (expected=${size}, actual=${sizeDone}`));
-                        }
-                        return resolve(result);
-                    });
                 });
             });
         });
