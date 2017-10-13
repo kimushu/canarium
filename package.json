@@ -1,9 +1,9 @@
 {
   "name": "canarium",
-  "version": "1.0.0-beta5",
+  "version": "1.1.0-beta1",
   "description": "PERIDOT board driver library",
-  "main": "out/src/canarium.js",
-  "types": "types/src/canarium.d.ts",
+  "main": "out/src/index.js",
+  "types": "types/src/index.d.ts",
   "scripts": {
     "clean": "rimraf out types",
     "precompile": "cd test && typings i",
@@ -11,7 +11,7 @@
     "pretest": "npm run compile",
     "test": "node node_modules/mocha/bin/_mocha -- out/test/*.test.js",
     "lint": "tslint -p ./",
-    "prepublish": "npm-run-all clean compile lint",
+    "prepublishOnly": "npm-run-all clean compile lint",
     "pretest:coverage": "npm run pretest",
     "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js",
     "posttest:coverage": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html",
@@ -31,7 +31,7 @@
     "promise.prototype.finally": "^3.0.1"
   },
   "peerDependencies": {
-    "serialport": "^5.0.0"
+    "serialport": "^6.0.0"
   },
   "keywords": [
     "PERIDOT",

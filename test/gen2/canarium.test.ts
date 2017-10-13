@@ -1,7 +1,7 @@
 import { CanariumGen2, assert, showInfo } from '../test-common';
 import { AvmTransactionsGen2 } from '../../src/gen2/avm_transactions';
-import * as semver from 'semver';
 import { AvsWritableStream, AvsReadableStream } from '../../src/gen2/avs_streams';
+import * as semver from 'semver';
 
 describe('Canarium', function(){
     let canarium: CanariumGen2;

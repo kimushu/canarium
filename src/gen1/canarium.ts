@@ -4,7 +4,6 @@ import * as modBaseComm from './base_comm';
 import * as modI2CComm from './i2c_comm';
 import * as modAvsPackets from './avs_packets';
 import * as modAvmTransactions from './avm_transactions';
-import * as modCanariumGen2 from './gen2/canarium';
 
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
@@ -748,27 +747,4 @@ export module Canarium {
     export const I2CComm = modI2CComm.I2CComm;
     export const AvsPackets = modAvsPackets.AvsPackets;
     export const AvmTransactions = modAvmTransactions.AvmTransactions;
-}
-
-/*
- * CanariumGen1を旧インターフェースのCanariumの別名として定義
- */
-export const CanariumGen1 = Canarium;
-export type CanariumGen1 = Canarium;
-
-/*
- * CanariumGen2のコンストラクタおよび、関連クラスの型情報エクスポート
- */
-export const CanariumGen2 = modCanariumGen2.CanariumGen2;
-export type CanariumGen2 = modCanariumGen2.CanariumGen2;
-export module CanariumGen2 {
-    export type BoardInfo = modCanariumGen2.CanariumGen2.BoardInfo;
-    export type PortInfo = modCanariumGen2.CanariumGen2.PortInfo;
-    export type OpenOptions = modCanariumGen2.CanariumGen2.OpenOptions;
-    export type ListOptions = modCanariumGen2.CanariumGen2.ListOptions;
-    export type StreamOptions = modCanariumGen2.CanariumGen2.StreamOptions;
-    export type RpcClient = modCanariumGen2.CanariumGen2.RpcClient;
-    export type RpcError = modCanariumGen2.CanariumGen2.RpcError;
-    export type AvsWritableStream = modCanariumGen2.CanariumGen2.AvsWritableStream;
-    export type AvsReadableStream = modCanariumGen2.CanariumGen2.AvsReadableStream;
 }

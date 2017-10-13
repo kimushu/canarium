@@ -1,6 +1,4 @@
-import { Canarium, assert, cond, testdatacol, SWI } from './test-common';
-
-import { waitPromise } from '../src/common';
+import { Canarium, assert, cond, testdatacol, SWI } from '../test-common';
 
 describe('Canarium', function(){
     let canarium: Canarium;

@@ -5,7 +5,7 @@ import { exec, ExecOptionsWithStringEncoding } from 'child_process';
 chai.use(require('chai-as-promised'));
 const { assert } = chai;
 import * as elfy from 'elfy';
-import { Canarium, CanariumGen2 } from '../src/canarium';
+import { Canarium, CanariumGen2 } from '../src/index';
 export { assert, Canarium, CanariumGen2 };
 
 export const TEST_DIR = path.join(__dirname, '..', '..', 'test');
