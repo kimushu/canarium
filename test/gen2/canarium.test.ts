@@ -146,12 +146,13 @@ describe('Canarium', function(){
         });
     });
 
-    // systemId: 0xdeadbeef, timestamp: 0x12345678
-    // uidLow: 0xbaadcafe, uidHigh: 0xdefec8ed
+    // systemId: 0x7abcde7d, timestamp: 0x12345678
+    // uidLow: 0x7cadcafe, uidHigh: 0xdefec87b
     const TEST_DATA_GETINFO = [
         {e:[0x7a,0x14,0x00,0x00,0x10,0x10,0x00,0x00,0x7b,0x00]},
-        {i:[0x7a,0xef,0xbe,0xad,0xde,0x78,0x56,0x34,0x12]},
-        {i:[0xfe,0xca,0xad,0xba,0xed,0xc8,0xfe,0x7b,0xde]},
+        {i:[0x7a,0x7d,0x5d,0xde,0xbc,0x7d,0x5a,0x78,0x56,0x34,0x12]},
+        {i:[0x7c,0x7d,0x5c,0x00,0x7c,0x00]},    // interleaved junk data
+        {i:[0xfe,0xca,0xad,0x7d,0x5c,0xed,0xc8,0xfe,0x7b,0x7d,0x5b]},
     ];
 
     withInstance('getInfo()', function(){
@@ -171,9 +172,9 @@ describe('Canarium', function(){
                 .then(() => canarium.getInfo())
                 .then((info) => {
                     assert.equal(info.id, 'J72C');
-                    assert.equal(info.systemId, 0xdeadbeef);
+                    assert.equal(info.systemId, 0x7abcde7d);
                     assert.equal(info.timestamp, 0x12345678);
-                    assert.equal(info.serialCode, '93DEFE-C8EDBA-ADCAFE');
+                    assert.equal(info.serialCode, '937BFE-C8ED7C-ADCAFE');
                 })
             );
         });
