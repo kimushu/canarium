@@ -103,7 +103,7 @@ export class Canarium {
      */
     get version() {
         if (this._version == null) {
-            this._version = require(path.join(__dirname, '..', '..', 'package.json')).version;
+            this._version = require(path.join(__dirname, '..', '..', '..', 'package.json')).version;
         }
         return this._version;
     }
