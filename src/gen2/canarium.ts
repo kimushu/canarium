@@ -1,15 +1,8 @@
 import { EventEmitter } from 'events';
-import {
-    AvsWritableStream as AvsWritableStreamImpl,
-    AvsReadableStream as AvsReadableStreamImpl,
-    AvsMultiplexer, AvsDemultiplexer
-} from './avs_streams';
+import * as modAvsStreams from './avs_streams';
 import { AvmTransactionsGen2 } from './avm_transactions';
 import { invokeCallback } from './util';
-import {
-    RpcClient as RpcClientImpl,
-    RpcError as RpcErrorImpl
-} from './rpc_client';
+import * as modRpcClient from './rpc_client';
 import SerialPort = require('serialport');
 import { join as joinPath } from 'path';
 
@@ -40,7 +33,7 @@ const SERIAL_CLOSE_DELAY_MS = 200;
  * (*2) UIDをCanariumに読ませたくない場合は、全ビット1の値を返すこと。
  */
 
-/**
+/*
  * 型情報のエクスポート
  */
 export module CanariumGen2 {
@@ -123,30 +116,30 @@ export module CanariumGen2 {
     /**
      * RPCクライアントクラス
      */
-    export type RpcClient = RpcClientImpl;
+    export type RpcClient = modRpcClient.RpcClient;
 
     /**
      * RPC関連エラークラス
      */
-    export type RpcError = RpcErrorImpl;
+    export type RpcError = modRpcClient.RpcError;
 
     /**
      * Avalon-STストリーム出力クラス
      */
-    export type AvsWritableStream = AvsWritableStreamImpl;
+    export type AvsWritableStream = modAvsStreams.AvsWritableStream;
 
     /**
      * Avalon-STストリーム入力クラス
      */
-    export type AvsReadableStream = AvsReadableStreamImpl;
+    export type AvsReadableStream = modAvsStreams.AvsReadableStream;
 }
 
 /**
  * 双方向パイプ構造体
  */
 interface AvsBidirPipe {
-    outbound: AvsMultiplexer;
-    inbound: AvsDemultiplexer;
+    outbound: modAvsStreams.AvsMultiplexer;
+    inbound: modAvsStreams.AvsDemultiplexer;
 }
 
 /**
@@ -512,7 +505,7 @@ export class CanariumGen2 extends EventEmitter {
      */
     createRpcClient(channel: number, options?: CanariumGen2.StreamOptions): CanariumGen2.RpcClient {
         let pipe = this._classifyPipe(channel, options);
-        return new RpcClientImpl(
+        return new modRpcClient.RpcClient(
             pipe.outbound.createStream(channel, true),
             pipe.inbound.createStream(channel, true)
         );
@@ -536,8 +529,8 @@ export class CanariumGen2 extends EventEmitter {
         });
         this._serial.on('error', this.emit.bind(this, 'error'));
         this._defaultPipe = {
-            inbound: new AvsDemultiplexer(<any>this._serial, this._options),
-            outbound: new AvsMultiplexer(<any>this._serial, this._options),
+            inbound: new modAvsStreams.AvsDemultiplexer(<any>this._serial, this._options),
+            outbound: new modAvsStreams.AvsMultiplexer(<any>this._serial, this._options),
         };
     }
 
