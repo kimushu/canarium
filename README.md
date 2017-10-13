@@ -1,19 +1,18 @@
 Canarium - PERIDOT board driver
 ========
 
-Canarium is [PERIDOT boards](https://github.com/osafune/peridot) driver for Node.js applications.
+Canariumは、Node.jsアプリケーション用の[PERIDOTボード](https://github.com/osafune/peridot)ドライバです。
 
-Links
+ドキュメント
 -------
-- [GitHub](https://github.com/kimushu/canarium)
-- [npmjs](https://www.npmjs.com/package/canarium)
+<table>
+<tr><th>ボード種別</th><th>通信仕様</th><th>クラス名とドキュメントへのリンク</th></tr>
+<tr><td>PERIDOT Classic</td><td rowspan="2">Gen1</td><td rowspan="2"><a href="http://kimushu.github.io/canarium/gen1">Canarium</a> または <a href="http://kimushu.github.io/canarium/gen1">CanariumGen1</a></td></tr>
+<tr><td>PERIDOT Piccolo (BOOT側)</td></tr>
+<tr><td>PERIDOT Piccolo (USER側)<br>※Rubic対応ファームの場合</td><td>Gen2</td><td><a href="http://kimushu.github.io/canarium/gen2/classes/canariumgen2.html">CanariumGen2</a></td></tr>
+</table>
 
-Documents
--------
-- For `0.9.x` releases, see [v0.9 documents](http://kimushu.github.io/canarium/v0.9)
-- For `1.0.x` or newer releases, see [v1.x documents](http://kimushu.github.io/canarium/v1.x)
-
-Example
+使用例 (Gen1)
 -------
 ```js
 const { Canarium } = require('canarium');
@@ -36,6 +35,21 @@ canarium.open('COM3')
 
     // Disconnect
     return canarium.close();
+});
+```
+
+使用例 (Gen2)
+-------
+```js
+const { CanariumGen2 } = require('canarium');
+
+let canarium = new CanariumGen2('COM3');
+// Connect to PERIDOT with Gen2 I/F on COM3 port
+canarium.open()
+.then(() => {
+    // Create writable stream on Channel 8
+    let txStream = canarium.createWriteStream(8);
+    txStream.write(...);
 });
 ```
 
