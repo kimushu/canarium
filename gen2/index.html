@@ -63,15 +63,51 @@
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
 				<h1 id="canarium-peridot-board-driver">Canarium - PERIDOT board driver</h1>
-				<p>Canariumは、Node.jsアプリケーション用の<a href="https://github.com/osafune/peridot">PERIDOTボード</a>ドライバです。</p>
-				<h2 id="-">ドキュメント</h2>
+				<p>CanariumはChrome/Node.jsアプリケーション用の<a href="https://github.com/osafune/peridot">PERIDOTボード</a>ドライバです。</p>
+				<h2 id="-">通信仕様</h2>
 				<table>
-					<tr><th>ボード種別</th><th>通信仕様</th><th>クラス名とドキュメントへのリンク</th></tr>
-					<tr><td>PERIDOT Classic</td><td rowspan="2">Gen1</td><td rowspan="2"><a href="http://kimushu.github.io/canarium/gen1">Canarium</a> または <a href="http://kimushu.github.io/canarium/gen1">CanariumGen1</a></td></tr>
-					<tr><td>PERIDOT Piccolo (BOOT側)</td></tr>
-					<tr><td>PERIDOT Piccolo (USER側)<br>※Rubic対応ファームの場合</td><td>Gen2</td><td><a href="http://kimushu.github.io/canarium/gen2/classes/canariumgen2.html">CanariumGen2</a></td></tr>
+					<thead>
+						<tr>
+							<th style="text-align:center">通信仕様世代</th>
+							<th style="text-align:left">対応ボードのシリーズ</th>
+							<th style="text-align:center">コンフィグ*1</th>
+							<th style="text-align:center">Avalon-MM<br>マスタ*2</th>
+							<th style="text-align:center">ストリーム<br>入出力*3</th>
+							<th style="text-align:center">Canarium<br>バージョン</th>
+							<th style="text-align:center">プラットフォーム</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td style="text-align:center"><strong>Gen1</strong></td>
+							<td style="text-align:left"><a href="https://github.com/osafune/peridot">PERIDOT Classic</a> および<br><a href="https://github.com/osafune/peridot_newgen">PERIDOT New Generations</a></td>
+							<td style="text-align:center">対応</td>
+							<td style="text-align:center">対応</td>
+							<td style="text-align:center">非対応</td>
+							<td style="text-align:center">^0.9<br>&gt;=1.0</td>
+							<td style="text-align:center">Chrome (^0.9.x)<br>Node.js (&gt;=1.0)</td>
+						</tr>
+						<tr>
+							<td style="text-align:center"><strong>Gen2</strong></td>
+							<td style="text-align:left"><a href="https://github.com/osafune/peridot_newgen">PERIDOT New Generations</a></td>
+							<td style="text-align:center">非対応</td>
+							<td style="text-align:center">対応</td>
+							<td style="text-align:center">対応</td>
+							<td style="text-align:center">&gt;=1.0</td>
+							<td style="text-align:center">Node.js</td>
+						</tr>
+					</tbody>
 				</table>
-				<h2 id="-gen1-">使用例 (Gen1)</h2>
+				<p><em>1) RBF(やRPD)を転送して、FPGAのコンフィグレーションをリアルタイムで行う機能。
+				</em>2) CanariumからQsys上のペリフェラル(Avalon-MM Slave)にアクセスする機能。<br>*3) Avalon-STやNiosII上の疑似ストリームファイルにデータを入出力する機能。</p>
+				<h2 id="api-">APIリファレンス</h2>
+				<table>
+					<tr><th>対応ボード種別</th><th>通信仕様</th><th>クラス名とAPIリファレンスへのリンク</th></tr>
+					<tr><td>PERIDOT Classic</td><td rowspan="2" align="center">Gen1</td><td rowspan="2"><a href="http://kimushu.github.io/canarium/gen1">Canarium</a> または<br><a href="http://kimushu.github.io/canarium/gen1">CanariumGen1</a> (<code>Canarium</code> の別名として定義)</td></tr>
+					<tr><td>PERIDOT Piccolo (BOOT側)</td></tr>
+					<tr><td>PERIDOT Piccolo (USER側)<br>※Rubic対応ファームの場合</td><td align="center">Gen2</td><td><a href="http://kimushu.github.io/canarium/gen2/classes/canariumgen2.html">CanariumGen2</a></td></tr>
+				</table>
+				<h2 id="-examples-gen1-">使用例 / Examples (Gen1)</h2>
 				<pre><code class="lang-js"><span class="hljs-keyword">const</span> { Canarium } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'canarium'</span>);
 <span class="hljs-keyword">const</span> fs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>);
 
@@ -94,33 +130,32 @@ canarium.open(<span class="hljs-string">'COM3'</span>)
     <span class="hljs-keyword">return</span> canarium.close();
 });
 </code></pre>
-				<h2 id="-gen2-">使用例 (Gen2)</h2>
+				<h2 id="-examples-gen2-">使用例 / Examples (Gen2)</h2>
 				<pre><code class="lang-js"><span class="hljs-keyword">const</span> { CanariumGen2 } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'canarium'</span>);
 
-<span class="hljs-keyword">let</span> canarium = <span class="hljs-keyword">new</span> CanariumGen2(<span class="hljs-string">'COM3'</span>);
 <span class="hljs-comment">// Connect to PERIDOT with Gen2 I/F on COM3 port</span>
+<span class="hljs-keyword">let</span> canarium = <span class="hljs-keyword">new</span> CanariumGen2(<span class="hljs-string">'COM3'</span>);
 canarium.open()
 .then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
     <span class="hljs-comment">// Create writable stream on Channel 8</span>
     <span class="hljs-keyword">let</span> txStream = canarium.createWriteStream(<span class="hljs-number">8</span>);
     txStream.write(...);
+.then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    <span class="hljs-comment">// ...</span>
+})
+.then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    <span class="hljs-comment">// Disconnect from board</span>
+    canarium.close();
 });
 </code></pre>
-				<h2 id="how-to-install">How to install</h2>
+				<h2 id="-how-to-install">インストール方法 / How to install</h2>
 				<ul>
-					<li>For Node.js environment (Version 1.0.x) <em>[BETA]</em><ul>
-							<li><code>npm install canarium@beta</code></li>
-						</ul>
-					</li>
-					<li>For Chrome environment (Version 0.9.x)<ul>
-							<li><code>npm install canarium</code></li>
-						</ul>
-					</li>
+					<li><code>npm install canarium</code></li>
 				</ul>
-				<h2 id="history">History</h2>
+				<h2 id="-history">変更履歴 / History</h2>
 				<p>See <a href="https://github.com/kimushu/canarium/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
-				<h2 id="license">License</h2>
-				<p>This package is distributed under MIT license.</p>
+				<h2 id="-license">ライセンス / License</h2>
+				<p>This package is distributed under <strong>MIT license</strong>.</p>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
