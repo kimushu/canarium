@@ -11,6 +11,18 @@ describe('AvmTransactions', function(){
             this.timeout(5000);
             return canarium.open(cond.classic_ps)
             .then(() => {
+                return assert.isRejected(
+                    canarium.config(null, Buffer.alloc(0)),
+                    'FPGA configuration failed'
+                );
+            })
+            .then(() => {
+                return canarium.close();
+            })
+            .then(() => {
+                return canarium.open(cond.classic_ps);
+            })
+            .then(() => {
                 assert.isFalse(canarium.configured);
             });
         }
@@ -40,7 +52,7 @@ describe('AvmTransactions', function(){
     describe('option() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(avm.option);
-        })
+        });
     });
     describe('iord() w/o connection', function(){
         it('is a function', function(){
@@ -230,7 +242,7 @@ describe('AvmTransactions', function(){
                         avm.iord(SDRAM_BASE, 0),
                         avm.iord(SDRAM_BASE, 1),
                         avm.iord(SDRAM_BASE, 2),
-                    ])
+                    ]);
                 })
                 .then((values) => {
                     assert.equal(values[0], 0x31303030);
@@ -268,7 +280,7 @@ describe('AvmTransactions', function(){
                 .then((readdata) => {
                     assert.equal(readdata.length, 0);
                 })
-            )
+            );
         });
         it('succeeds for unaligned access', function(){
             return assert.isFulfilled(
@@ -276,7 +288,7 @@ describe('AvmTransactions', function(){
                 .then((readdata) => {
                     assert.equal(readdata.compare(largeData.slice(3, 3 + 6)), 0);
                 })
-            )
+            );
         });
         it('succeeds for large data (> 32kbytes)', function(){
             this.slow(500);
@@ -285,7 +297,7 @@ describe('AvmTransactions', function(){
                 .then((readdata) => {
                     assert.equal(readdata.compare(largeData), 0);
                 })
-            )
+            );
         });
     });
 });

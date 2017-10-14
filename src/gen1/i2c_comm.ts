@@ -90,7 +90,7 @@ export class I2CComm {
         .then(() => {
             // Setup
             // (コマンド：SDA=L, SCL=L, 即時応答ON)
-            return this._base.transCommand(0x0b)
+            return this._base.transCommand(0x0b);
         })
         .then(() => {
             // SCL -> HiZ(H)
@@ -223,7 +223,7 @@ export class I2CComm {
         if (I2CComm.verbosity >= lvl) {
             printLog('I2CComm', func, msg, data);
         }
-    };
+    }
 
     /**
      * 1ビットリード
@@ -294,7 +294,7 @@ export class I2CComm {
             // SDA -> HiZ(H)
             // (コマンド：SDA=Z, SCL=L, 即時応答ON)
             this._log(3, '_writeBit', 'SCL->L');
-            return this._base.transCommand(0x2b)
+            return this._base.transCommand(0x2b);
         })
         .then(() => {
         });

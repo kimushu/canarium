@@ -51,7 +51,7 @@ export class AvsPackets {
         let header = dst.slice(0, len);
         for (let i = 0; i < src.length - 1; ++i) {
             len = pushWithEscape(dst, len, src[i]);
-        };
+        }
         dst[len++] = 0x7b;
         len = pushWithEscape(dst, len, src[src.length - 1]);
         txdata = dst.slice(0, len);

@@ -5,10 +5,10 @@ import { exec, ExecOptionsWithStringEncoding } from 'child_process';
 chai.use(require('chai-as-promised'));
 const { assert } = chai;
 import * as elfy from 'elfy';
-import { Canarium } from '../src/canarium';
+import { Canarium } from '../../src/index';
 export { assert, Canarium };
 
-export const TEST_DIR = path.join(__dirname, '..', '..', 'test');
+export const TEST_DIR = path.join(__dirname, '..', '..', '..', 'test');
 export const SWI = {
     REG_CLASSID: 0,
     REG_MESSAGE: 6,
@@ -40,10 +40,10 @@ export function writeElf(canarium: Canarium, data: Buffer): Promise<void> {
 }
 
 export const cond = {
-    classic_ps: <string>null,
-    classic_as: <string>null,
-    classic:    <string[]>[],
-    boards:     <string[]>[],
+    classic_ps:     <string>null,
+    classic_as:     <string>null,
+    classic:        <string[]>[],
+    boards:         <string[]>[],
 };
 
 export interface TestData {
@@ -58,7 +58,7 @@ export interface TestData {
     bsp_pkgs?: string[];
     apps: {[n: string]: Buffer};
     info?: any;
-};
+}
 export interface TestDataCollection {
     [n: string]: TestData;
 }
@@ -81,7 +81,7 @@ export const testdatacol: TestDataCollection = {
             SWI_BASE:   0x10000000,
             RESET_BASE: 0x10000020,
         }
-    }
+    },
 };
 
 (()=>{
@@ -133,9 +133,8 @@ describe('(Test data generation)', function(){
             quartus_installed = true;
         }
     }
-    it(`Check Quartus installation (QUARTUS_ROOTDIR="${QUARTUS_ROOTDIR}")`, quartus_installed && function(){})
+    it(`Check Quartus installation (QUARTUS_ROOTDIR="${QUARTUS_ROOTDIR}")`, quartus_installed && function(){});
 
-    const TEST_DIR = path.normalize(path.join(__dirname, '..', '..', 'test'));
     const SRC_DIR = path.join(TEST_DIR, 'app-src');
     const ELF_NAME = 'test.elf';
     const REGENERATE = (process.env.REGENERATE != null);
@@ -151,7 +150,7 @@ describe('(Test data generation)', function(){
                 }
                 done(error);
             });
-        })
+        });
     }
     Object.keys(testdatacol).forEach((key) => {
         const d = testdatacol[key];

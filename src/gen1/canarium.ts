@@ -4,34 +4,31 @@ import * as modBaseComm from './base_comm';
 import * as modI2CComm from './i2c_comm';
 import * as modAvsPackets from './avs_packets';
 import * as modAvmTransactions from './avm_transactions';
-import * as modRpcClient from './rpc_client';
-import * as modRemoteFile from './remote_file';
-import * as modRemoteError from './remote_error';
 
 /**
  * EEPROMのスレーブアドレス(7-bit表記)
  */
-const EEPROM_SLAVE_ADDR = 0b1010000;
+const EEPROM_SLAVE_ADDR: number = 0b1010000;
 
 /**
  * EEPROMの最大バーストリード長(バイト数)
  */
-const SPLIT_EEPROM_BURST = 6;
+const SPLIT_EEPROM_BURST: number = 6;
 
 /**
  * コンフィグレーション開始のタイムアウト時間(ms)
  */
-const CONFIG_TIMEOUT_MS = 3000;
+const CONFIG_TIMEOUT_MS: number = 3000;
 
 /**
  * コンフィグレーションのタイムアウト時間(ms)
  */
-const RECONFIG_TIMEOUT_MS = 3000;
+const RECONFIG_TIMEOUT_MS: number = 3000;
 
 /**
  * Avalon-MM 通信レイヤのチャネル番号
  */
-const AVM_CHANNEL = 0;
+const AVM_CHANNEL: number = 0;
 
 /**
  * 標準PERIDOTのボードID
@@ -95,11 +92,6 @@ export module Canarium {
     export type AvsPackets = modAvsPackets.AvsPackets;
     export type AvmTransactions = modAvmTransactions.AvmTransactions;
     export type AvmTransactionsOptions = modAvmTransactions.AvmTransactionsOptions;
-    export type RpcClient = modRpcClient.RpcClient;
-    export type RemoteFile = modRemoteFile.RemoteFile;
-    export type FileOpenFlags = modRemoteFile.FileOpenFlags;
-    export type FileSeekWhence = modRemoteFile.FileSeekWhence;
-    export type RemoteError = modRemoteError.RemoteError;
 }
 
 /**
@@ -111,7 +103,7 @@ export class Canarium {
      */
     get version() {
         if (this._version == null) {
-            this._version = require(path.join(__dirname, '..', '..', 'package.json')).version;
+            this._version = require(path.join(__dirname, '..', '..', '..', 'package.json')).version;
         }
         return this._version;
     }
@@ -184,22 +176,6 @@ export class Canarium {
     private _avm: Canarium.AvmTransactions = new modAvmTransactions.AvmTransactions(this._avs, AVM_CHANNEL);
 
     /**
-     * RPCクライアントクラスのインスタンス
-     */
-    get rpcClient() { return this._rpcClient; }
-
-    /**
-     * RPCクライアントクラスのインスタンス
-     */
-    private _rpcClient: Canarium.RpcClient = new modRpcClient.RpcClient(this._avm);
-
-    /**
-     * ホスト通信用ペリフェラル(SWI)のベースアドレス
-     */
-    get swiBase() { return this._avm.swiBase; }
-    set swiBase(value) { this._avm.swiBase = value; }
-
-    /**
      * クローズされた時に呼び出されるコールバック関数
      * (明示的にclose()した場合と、ボードが強制切断された場合の両方で呼び出される)
      */
@@ -246,20 +222,35 @@ export class Canarium {
      * ボードに接続する
      * 
      * @param path      接続先パス(enumerateが返すpath)
-     * @param boardInfo 接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
      */
-    open(path: string, boardInfo?: BoardInfoAtOpen): Promise<void>;
+    open(path: string): Promise<void>;
 
     /**
      * ボードに接続する
      * 
      * @param path      接続先パス(enumerateが返すpath)
      * @param boardInfo 接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+     */
+    open(path: string, boardInfo?: BoardInfoAtOpen): Promise<void>;
+    
+    /**
+     * ボードに接続する
+     * 
+     * @param path      接続先パス(enumerateが返すpath)
      * @param callback  コールバック関数
      */
-    open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): void;
+    open(path: string, callback: (success: boolean, result: void|Error) => void): void;
+    
+        /**
+     * ボードに接続する
+     * 
+     * @param path      接続先パス(enumerateが返すpath)
+     * @param boardInfo 接続先ボードのIDやrbfデータなど(省略時はIDチェックやコンフィグレーションをしない)
+     * @param callback  コールバック関数
+     */
+    open(path: string, boardInfo: BoardInfoAtOpen, callback: (success: boolean, result: void|Error) => void): void;
 
-    open(path: string, boardInfo?: BoardInfoAtOpen, callback?: (success: boolean, result: void|Error) => void): any {
+    open(path: string, boardInfo?: any, callback?: (success: boolean, result: void|Error) => void): any {
         if (typeof(boardInfo) === 'function') {
             callback = boardInfo;
             boardInfo = null;
@@ -448,7 +439,7 @@ export class Canarium {
 
     /**
      * ボードのFPGA再コンフィグレーション
-     * @since 0.9.20
+     * @since 1.0.0
      */
     reconfig(): Promise<void>;
 
@@ -624,40 +615,6 @@ export class Canarium {
     }
 
     /**
-     * ボード上のファイルを開く
-     * @param path     パス
-     * @param flags    フラグ(数字指定またはECMAオブジェクト指定)
-     * @param mode     ファイル作成時のパーミッション
-     * @param interval RPCポーリング周期
-     */
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number): Promise<Canarium.RemoteFile>;
-
-    /**
-     * ボード上のファイルを開く
-     * @param path     パス
-     * @param flags    フラグ(数字指定またはECMAオブジェクト指定)
-     * @param mode     ファイル作成時のパーミッション
-     * @param interval RPCポーリング周期
-     * @param callback コールバック関数
-     */
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): void;
-
-    openRemoteFile(path: string, flags: number|Canarium.FileOpenFlags, mode?: number, interval?: number, callback?: (success: boolean, result: Canarium.RemoteFile|Error) => void): any {
-        if (typeof(mode) === 'function') {
-            callback = mode;
-            interval = null;
-            mode = null;
-        } else if (typeof(interval) === 'function') {
-            callback = interval;
-            interval = null;
-        }
-        if (callback != null) {
-            return invokeCallback(callback, this.openRemoteFile(path, flags, mode, interval));
-        }
-        return modRemoteFile.RemoteFile.open(this._rpcClient, path, flags, mode, interval);
-    }
-
-    /**
      * EEPROMの読み出し
      * @param startaddr 読み出し開始アドレス
      * @param readbytes 読み出しバイト数
@@ -688,7 +645,7 @@ export class Canarium {
                     }
 
                     // Send EEPROM address
-                    return this.i2c.write(startaddr & 0xff);
+                    return this.i2c.write((startaddr + offset) & 0xff);
                 })
                 .then((ack) => {
                     if (!ack) {
@@ -721,7 +678,7 @@ export class Canarium {
             .then(() => {
                 this._log(1, '_eepromRead', 'end', array);
                 return array;
-            })
+            });
         }, () => {
             return this.i2c.stop();
         });
@@ -790,7 +747,4 @@ export module Canarium {
     export const I2CComm = modI2CComm.I2CComm;
     export const AvsPackets = modAvsPackets.AvsPackets;
     export const AvmTransactions = modAvmTransactions.AvmTransactions;
-    export const RpcClient = modRpcClient.RpcClient;
-    export const RemoteFile = modRemoteFile.RemoteFile;
-    export const RemoteError = modRemoteError.RemoteError;
 }

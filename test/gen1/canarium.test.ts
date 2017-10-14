@@ -1,7 +1,5 @@
 import { Canarium, assert, cond, testdatacol, SWI } from './test-common';
 
-import { waitPromise } from '../src/common';
-
 describe('Canarium', function(){
     let canarium: Canarium;
 
@@ -43,7 +41,7 @@ describe('Canarium', function(){
             let value = canarium.serialBitrate * 2;
             canarium.serialBitrate = value;
             assert.equal(canarium.serialBitrate, value);
-        })
+        });
     });
 
     sandbox('connected w/o connection', function(){
@@ -53,7 +51,7 @@ describe('Canarium', function(){
         it('is false before connection', function(){
             assert.isFalse(canarium.connected);
         });
-    })
+    });
 
     sandbox('connected w/ connection', function(){
         before(function(){
@@ -68,7 +66,7 @@ describe('Canarium', function(){
                     assert.isTrue(canarium.connected);
                     return canarium.close();                    
                 })
-            )
+            );
         });
         it('is false after disconnection', function(){
             this.slow(1000);
@@ -81,9 +79,9 @@ describe('Canarium', function(){
                 .then(() => {
                     assert.isFalse(canarium.connected);
                 })
-            )
+            );
         });
-    })
+    });
 
     sandbox('configured', function(){
         it('is a boolean', function(){
@@ -115,23 +113,6 @@ describe('Canarium', function(){
     sandbox('avm', function(){
         it('is an instance of AvmTransactions', function(){
             assert.instanceOf(canarium.avm, Canarium.AvmTransactions);
-        });
-    });
-
-    sandbox('rpcClient', function(){
-        it('is an instance of RpcClient', function(){
-            assert.instanceOf(canarium.rpcClient, Canarium.RpcClient);
-        });
-    });
-
-    sandbox('swiBase', function(){
-        it('is a number', function(){
-            assert.isNumber(canarium.swiBase);
-        });
-        it('is writable', function(){
-            let value = canarium.swiBase + 16;
-            canarium.swiBase = value;
-            assert.equal(canarium.swiBase, value);
         });
     });
 
@@ -249,6 +230,47 @@ describe('Canarium', function(){
             );
         });
     });
+    sandbox('getinfo() w/o connection', function(){
+        it('is a function', function(){
+            assert.isFunction(canarium.getinfo);
+        });
+        it('returns undefined when called with callback', function(done){
+            assert.isUndefined(canarium.getinfo((success: boolean, result) => {
+                assert.isFalse(success);
+                done();
+            }));
+        });
+        it('returns Promise(rejection) when port is not opened', function(){
+            return assert.isRejected(canarium.getinfo());
+        });
+    });
+    sandbox('getinfo() w/ connection to PERIDOT Classic', function(){
+        before(function(){
+            cond.classic[0] || this.skip();
+            this.slow(1000);
+            this.timeout(2000);
+            return canarium.open(cond.classic[0])
+            .then(() => {
+                return canarium.getinfo();
+            });
+        });
+        after(function(){
+            this.slow(1000);
+            this.timeout(2000);
+            return canarium.close().catch(() => {});
+        });
+        it('stores result into canarium.boardInfo', function(){
+            assert.isOk(canarium.boardInfo);
+        });
+        it('succeeds with valid board ID', function(){
+            canarium.boardInfo || this.skip();
+            assert.match(canarium.boardInfo.id, /^J72[AN]$/);
+        });
+        it('succeeds with reasonable serial code', function(){
+            canarium.boardInfo || this.skip();
+            assert.match(canarium.boardInfo.serialcode, /^[0-9A-Z]{6}-[0-9A-Z]{6}-[0-9A-Z]{6}$/);
+        });
+    });
     sandbox('config() w/o connection', function(){
         it('is a function', function(){
             assert.isFunction(canarium.config);
@@ -260,7 +282,7 @@ describe('Canarium', function(){
             }));
         });
         it('returns Promise(rejection) when port is not opened', function(){
-            return assert.isRejected(canarium.close());
+            return assert.isRejected(canarium.config(null, Buffer.alloc(0)));
         });
     });
     sandbox('config() w/ connection to PERIDOT Classic (PS mode)', function(){

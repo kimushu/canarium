@@ -84,7 +84,7 @@ export function invokeCallback<T>(callback: (success: boolean, result: T|Error) 
     }, (reason: Error) => {
         callback(false, reason);
     });
-};
+}
 
 /**
  * 指定時間待機するPromiseオブジェクトを生成

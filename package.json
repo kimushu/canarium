@@ -1,24 +1,27 @@
 {
   "name": "canarium",
-  "version": "1.0.0-beta1",
+  "version": "1.1.0",
   "description": "PERIDOT board driver library",
-  "main": "out/src/canarium.js",
-  "types": "types/src/canarium.d.ts",
+  "main": "out/src/index.js",
+  "types": "types/src/index.d.ts",
   "scripts": {
     "clean": "rimraf out types",
+    "precompile": "cd test && typings i",
     "compile": "tsc -p ./",
     "pretest": "npm run compile",
-    "test": "node node_modules/mocha/bin/_mocha -- out/test/*.test.js",
+    "test": "npm-run-all test.*",
+    "test.gen2": "node node_modules/mocha/bin/_mocha -- out/test/gen2/*.test.js",
+    "test.gen1": "node node_modules/mocha/bin/_mocha -- out/test/gen1/*.test.js",
     "lint": "tslint -p ./",
-    "prepublish": "npm-run-all clean compile lint",
+    "prepublishOnly": "npm-run-all clean compile lint",
     "pretest:coverage": "npm run pretest",
     "test:coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --no-timeouts out/test/*.test.js",
     "posttest:coverage": "remap-istanbul -i coverage/coverage.json -o coverage/html-report -t html",
-    "docs": "typedoc --options typedoc.json"
+    "docs": "typedoc --mode file --out docs/gen2 --module commojs --target es5 --excludePrivate --excludeNotExported src/gen2/canarium.ts"
   },
   "files": [
-    "out/src/*.js",
-    "types/src/*.d.ts",
+    "out/src/**/*.js",
+    "types/src/**/*.d.ts",
     "README.md"
   ],
   "repository": {
@@ -27,7 +30,10 @@
   },
   "dependencies": {
     "bson": "^1.0.4",
-    "serialport": "^4.0.7"
+    "promise.prototype.finally": "^3.0.1"
+  },
+  "peerDependencies": {
+    "serialport": "^5.0.0"
   },
   "keywords": [
     "PERIDOT",
@@ -40,8 +46,12 @@
   },
   "homepage": "https://github.com/kimushu/canarium#readme",
   "devDependencies": {
+    "@types/bson": "^1.0.4",
     "@types/chai-as-promised": "0.0.30",
     "@types/node": "^7.0.18",
+    "@types/promise.prototype.finally": "^2.0.2",
+    "@types/semver": "^5.4.0",
+    "@types/serialport": "^4.0.10",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "coffee-script": "^1.12.4",
@@ -56,9 +66,10 @@
     "npm-run-all": "^4.0.2",
     "remap-istanbul": "^0.9.5",
     "rimraf": "^2.6.1",
+    "serialport": "^5.0.0",
     "tslint": "^5.2.0",
-    "typedoc": "^0.7.0",
+    "typedoc": "^0.9.0",
     "typescript": "^2.3.2",
-    "uglifyjs": "^2.4.10"
+    "typings": "^2.1.1"
   }
 }

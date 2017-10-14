@@ -5,12 +5,12 @@ import { AvsPackets } from './avs_packets';
 /**
  * ホスト通信用ペリフェラル(SWI)のベースアドレスの既定値
  */
-const SWI_BASE_ADDR_DEFAULT = 0x10000000;
+const SWI_BASE_ADDR_DEFAULT: number = 0x10000000;
 
 /**
  * 1回のトランザクションで読み書きできる最大バイト数
  */
-const AVM_TRANS_MAX_BYTES = 32768;
+const AVM_TRANS_MAX_BYTES: number = 32768;
 
 /**
  * Avalon-MMトランザクション層のオプション
@@ -94,7 +94,7 @@ export class AvmTransactions {
                     )
                     .then((partialData) => {
                         partialData.copy(dest, pos);
-                    })
+                    });
                 })
                 .then(() => {
                     this._log(1, 'read', 'end', dest);
@@ -192,7 +192,7 @@ export class AvmTransactions {
                 });
             });
         });
-    };
+    }
 
     /**
      * AvalonMMペリフェラルライト(IOWR, リトルエンディアンの32-bit整数)
@@ -261,7 +261,7 @@ export class AvmTransactions {
                 return this._avs.base.option(option);
             });
         });
-    };
+    }
 
     /**
      * 非同期実行キューに追加する
@@ -272,7 +272,7 @@ export class AvmTransactions {
             return this._lastAction = this._lastAction.then(action)
             .then(resolve, reject);
         });
-    };
+    }
 
     /**
      * ログの出力
@@ -302,12 +302,12 @@ export class AvmTransactions {
             len = txdata.length;
             pkt = Buffer.allocUnsafe(8 + len);
         } else {
-            len = rxsize
+            len = rxsize;
             pkt = Buffer.allocUnsafe(8);
         }
         pkt[0] = transCode;
         pkt[1] = 0x00;
-        pkt.writeUInt16BE(len, 2)
+        pkt.writeUInt16BE(len, 2);
         pkt.writeUInt32BE(address >>> 0, 4);
         if (txdata != null) {
             txdata.copy(pkt, 8);
