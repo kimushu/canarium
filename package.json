@@ -70,7 +70,6 @@
     "tslint": "^5.2.0",
     "typedoc": "^0.9.0",
     "typescript": "^2.3.2",
-    "typings": "^2.1.1",
-    "uglifyjs": "^2.4.10"
+    "typings": "^2.1.1"
   }
 }
