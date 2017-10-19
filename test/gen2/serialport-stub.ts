@@ -81,7 +81,7 @@ export class SerialPortStub extends EventEmitter {
                 process.nextTick(() => {
                     // console.log('read:', buf);
                     this.emit('data', buf);
-                })
+                });
                 this._testDataSet.splice(0, 1);
                 continue;
             }
