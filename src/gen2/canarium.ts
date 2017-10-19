@@ -154,7 +154,7 @@ function generateSerialCode(uidLow: number, uidHigh: number): string {
  * PERIDOTボードドライバ(第2世代通信仕様)
  */
 export class CanariumGen2 extends EventEmitter {
-    private static _binding: typeof SerialPort;
+    private static _binding: any;
     private static _version: string;
     private _binding: typeof SerialPort;
     private _options: CanariumGen2.OpenOptions;
@@ -173,7 +173,7 @@ export class CanariumGen2 extends EventEmitter {
      */
     constructor(private _path: string, options?: CanariumGen2.OpenOptions) {
         super();
-        this._binding = new.target._binding;
+        this._binding = new.target.Binding;
         this._options = Object.assign({}, DEFAULT_OPEN_OPTIONS, options);
         this._setupPipes();
         this._avm = new AvmTransactionsGen2(
@@ -201,13 +201,13 @@ export class CanariumGen2 extends EventEmitter {
     /**
      * SerialPortクラスへのbinding
      */
-    static get Binding() {
+    static get Binding(): any {
         if (this._binding == null) {
             this._binding = require('serialport');
         }
         return this._binding;
     }
-    static set Binding(binding: typeof SerialPort) {
+    static set Binding(binding: any) {
         this._binding = binding;
     }
 
