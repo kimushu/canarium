@@ -386,9 +386,33 @@ export class CanariumGen2 extends EventEmitter {
             }
             this._opened = true;
         })
+        .catch((reason) => {
+            return this._forceClose()
+            .finally(() => {
+                throw reason;
+            });
+        })
         .finally(() => {
             this._opening = false;
         });
+    }
+
+    /**
+     * ボードから切断する(内部用)
+     */
+    private _forceClose(): Promise<void> {
+        debug('forceClose');
+        if (this._serial != null) {
+            return new Promise<void>((resolve, reject) => {
+                this._serial.close((err) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    setTimeout(resolve, SERIAL_CLOSE_DELAY_MS);
+                });
+            });
+        }
+        return Promise.reject(new Error('interface not found'));
     }
 
     /**
@@ -409,17 +433,7 @@ export class CanariumGen2 extends EventEmitter {
         if (!this._opened) {
             return Promise.reject(new Error('not opened'));
         }
-        if (this._serial != null) {
-            return new Promise<void>((resolve, reject) => {
-                this._serial.close((err) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    setTimeout(resolve, SERIAL_CLOSE_DELAY_MS);
-                });
-            });
-        }
-        return Promise.reject(new Error('interface not found'));
+        return this._forceClose();
     }
 
     /**
