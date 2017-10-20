@@ -2,12 +2,12 @@ import { Writable, Readable } from 'stream';
 import { EventEmitter } from 'events';
 import CanariumGen2Module = require('./canarium');
 
+const debug = require('debug')('canarium:stream');
+
 const AST_SOP       = 0x7a;
 const AST_EOP       = 0x7b;
 const AST_CHANNEL   = 0x7c;
 const AST_ESCAPE    = 0x7d;
-
-const DEBUG = false;
 
 /**
  * Options for multiplexer
@@ -183,11 +183,7 @@ export class AvsMultiplexer extends EventEmitter {
         }
 
         let rawData = encode7(header, chunk, footer);
-        if (DEBUG) {
-            for (let offset = 0; offset < rawData.length; offset += 32) {
-                console.log('PC -> FPGA:', rawData.slice(offset, offset + 32));
-            }
-        }
+        debug('PC->FPGA: %o', rawData);
         if (!this._sink.write(rawData)) {
             this._sink.once('drain', callback);
         } else {
@@ -217,11 +213,7 @@ export class AvsDemultiplexer extends EventEmitter {
         source.on('close', this.emit.bind(this, 'close'));
         source.on('error', this.emit.bind(this, 'error'));
         source.on('data', (chunk: Buffer) => {
-            if (DEBUG) {
-                for (let offset = 0; offset < chunk.length; offset += 32) {
-                    console.log('FPGA -> PC:', chunk.slice(offset, offset + 32));
-                }
-            }
+            debug('FPGA->PC: %o', chunk);
             let sink = this._sinks[this._channel];
             let drain = () => {
                 if ((sink != null) && (!sink.packetized) && (sink.buffer.length > 0)) {

@@ -6,6 +6,8 @@ import * as modRpcClient from './rpc_client';
 import SerialPort = require('serialport');
 import { join as joinPath } from 'path';
 
+const debug = require('debug')('canarium:main');
+
 const DEFAULT_OPEN_OPTIONS: CanariumGen2.OpenOptions = {
     baudRate: 115200,
     channelSendInterval: 5000,
@@ -340,11 +342,13 @@ export class CanariumGen2 extends EventEmitter {
         .then(() => {
             if (this._serial != null) {
                 return new Promise<void>((resolve, reject) => {
+                    debug('open(%s)', this._path);
                     this._serial.open((err) => {
                         if (err) {
                             this._opening = false;
                             return reject(err);
                         }
+                        debug('flush');
                         this._serial.flush((err) => {
                             if (err) {
                                 this._opening = false;
@@ -358,6 +362,7 @@ export class CanariumGen2 extends EventEmitter {
             return Promise.reject(new Error('interface not found'));
         })
         .then(() => {
+            debug('connectionTest');
             return this._connectionTest();
         })
         .then(() => {
@@ -457,6 +462,7 @@ export class CanariumGen2 extends EventEmitter {
         if (this._boardInfoCache != null) {
             return Promise.resolve(this._boardInfoCache);
         }
+        debug('getInfo');
         return this.avm.read(this._systemIdBase, 16)
         .then((result) => {
             this._boardInfoCache = {
@@ -543,6 +549,7 @@ export class CanariumGen2 extends EventEmitter {
             autoOpen: false
         });
         this._serial.on('close', () => {
+            debug('on close');
             this._opened = false;
             if (!this._opening) {
                 this.emit('close');
