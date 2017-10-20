@@ -7,7 +7,7 @@ import SerialPort = require('serialport');
 import { join as joinPath } from 'path';
 
 const DEFAULT_OPEN_OPTIONS: CanariumGen2.OpenOptions = {
-    bitrate: 115200,
+    baudRate: 115200,
     channelSendInterval: 5000,
     disableTimeouts: false,
 };
@@ -80,7 +80,13 @@ export module CanariumGen2 {
      */
     export interface OpenOptions {
         /**
-         * 接続時のビットレート (デフォルトは 115200bps)
+         * 接続時のボーレート (デフォルトは 115200bps)
+         */
+        baudRate?: number;
+
+        /**
+         * 接続時のビットレート (廃止予定。baudRateを推奨)
+         * @deprecated
          */
         bitrate?: number;
 
@@ -175,6 +181,9 @@ export class CanariumGen2 extends EventEmitter {
         super();
         this._binding = new.target.Binding;
         this._options = Object.assign({}, DEFAULT_OPEN_OPTIONS, options);
+        if (this._options.bitrate != null) {
+            this._options.baudRate = this._options.bitrate;
+        }
         this._setupPipes();
         this._avm = new AvmTransactionsGen2(
             this.createWriteStream(AVS_CH_AVM_TRANSACTION, true),
@@ -516,7 +525,7 @@ export class CanariumGen2 extends EventEmitter {
      */
     private _setupPipes(): void {
         this._serial = new this._binding(this._path, {
-            baudRate: this._options.bitrate,
+            baudRate: this._options.baudRate,
             autoOpen: false
         });
         this._serial.on('close', () => {
