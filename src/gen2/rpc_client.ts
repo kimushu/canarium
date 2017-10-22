@@ -182,7 +182,7 @@ export class RpcClient extends EventEmitter {
      * @param method    呼び出すメソッド名
      * @param params    パラメータのオブジェクト
      */
-    call(method: string, params: any): Promise<any>;
+    call<T = any>(method: string, params: any): Promise<T>;
 
     /**
      * リモート呼び出し
@@ -190,9 +190,9 @@ export class RpcClient extends EventEmitter {
      * @param params    パラメータのオブジェクト
      * @param callback  コールバック関数
      */
-    call(method: string, params: any, callback: (err: Error, result: any) => void): void;
+    call<T = any>(method: string, params: any, callback: (err: Error, result: T) => void): void;
 
-    call(method: string, params: any, callback?: (err: Error, result: any) => void): Promise<any>|void {
+    call<T = any>(method: string, params: any, callback?: (err: Error, result: any) => void): Promise<T>|void {
         if (callback != null) {
             return invokeCallback(callback, this.call(method, params));
         }
