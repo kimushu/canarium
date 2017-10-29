@@ -345,17 +345,9 @@ export class CanariumGen2 extends EventEmitter {
                     debug('open(%s)', this._path);
                     this._serial.open((err) => {
                         if (err) {
-                            this._opening = false;
                             return reject(err);
                         }
-                        debug('flush');
-                        this._serial.flush((err) => {
-                            if (err) {
-                                this._opening = false;
-                                return reject(err);
-                            }
-                            return resolve();
-                        });
+                        return resolve();
                     });
                 });
             }
