@@ -178,7 +178,7 @@ export class RpcClient extends EventEmitter {
             debug('RPC.close: %o', requests);
             this._requests = {};
             for (let id in requests) {
-                let request = this._requests[id];
+                let request = requests[id];
                 if (request && request.reject) {
                     request.reject(new RpcError('Connection closed'));
                 }
