@@ -117,8 +117,8 @@ ERROR_MESSAGES[JSONRPC_ERR_INTERNAL_ERROR] = 'Internal error';
  * (idに紐付けてPromiseのコールバック関数を保持する)
  */
 interface Request {
-    resolve: Function;
-    reject: Function;
+    resolve: (result?: any) => void;
+    reject: (reason?: any) => void;
 }
 
 /**
@@ -171,8 +171,14 @@ export class RpcClient extends EventEmitter {
      */
     constructor(private _writable: AvsWritableStream, private _readable: AvsReadableStream) {
         super();
-        this._writable.once('close', this.emit.bind(this, 'close'));
-        this._writable.on('error', this.emit.bind(this, 'error'));
+        this._writable.once('close', () => {
+            let requests = this._requests;
+            this._requests = {};
+            for (let id in requests) {
+                this._requests[id].reject(new Error('Connection closed'));
+            }
+            this.emit.bind(this, 'close');
+        });
         this._readable.on('error', this.emit.bind(this, 'error'));
         this._readable.on('data', this._receiveHandler.bind(this));
     }
@@ -196,17 +202,7 @@ export class RpcClient extends EventEmitter {
         if (callback != null) {
             return invokeCallback(callback, this.call(method, params));
         }
-        let idNumber = this._getNewId();
-        let id = BSON.Timestamp.fromNumber(idNumber);
-        let request = this._bson.serialize({
-            jsonrpc: JSONRPC_VERSION,
-            method, params, id
-        });
-        return new Promise<any>((resolve, reject) => {
-            this._requests[idNumber] = {resolve, reject};
-            this._writable.once('error', reject);
-            this._writable.write(request);
-        });
+        return this._sendRequest(method, params, this._getNewId());
     }
 
     /**
@@ -226,17 +222,38 @@ export class RpcClient extends EventEmitter {
         if (callback != null) {
             return invokeCallback(callback, this.notify(method, params));
         }
-        let request = this._bson.serialize({
-            jsonrpc: JSONRPC_VERSION,
-            method, params
-        });
+        return this._sendRequest(method, params);
+    }
+
+    /**
+     * リクエストの送信
+     */
+    private _sendRequest(method: string, params: any, idNumber?: number): Promise<any> {
         return new Promise<void>((resolve, reject) => {
-            this._writable.once('error', reject);
-            let finish = () => {
-                this._writable.removeListener('error', reject);
-                resolve();
+            let request: any = {
+                jsonrpc: JSONRPC_VERSION,
+                method, params
             };
-            if (!this._writable.write(request)) {
+            let sendReject: (reason?: any) => void;
+            if (idNumber != null) {
+                request.id = BSON.Timestamp.fromNumber(idNumber);
+                this._requests[idNumber] = {resolve, reject};
+                sendReject = (reason) => {
+                    delete this._requests[idNumber];
+                    reject(reason);
+                };
+            } else {
+                sendReject = reject;
+            }
+            let requestData = this._bson.serialize(request);
+            let finish = () => {
+                this._writable.removeListener('error', sendReject);
+                if (idNumber != null) {
+                    resolve();
+                }
+            };
+            this._writable.once('error', sendReject);
+            if (!this._writable.write(requestData)) {
                 this._writable.once('drain', finish);
             } else {
                 process.nextTick(finish);
@@ -273,7 +290,7 @@ export class RpcClient extends EventEmitter {
             return;
         }
         delete this._requests[idNumber];
-        this._writable.removeListener('error', request.reject);
+        this._readable.removeListener('error', request.reject);
         if (result !== undefined) {
             request.resolve(result);
         } else {
