@@ -175,9 +175,13 @@ export class RpcClient extends EventEmitter {
         super();
         this._writable.once('close', () => {
             let requests = this._requests;
+            debug('RPC.close: %o', requests);
             this._requests = {};
             for (let id in requests) {
-                this._requests[id].reject(new Error('Connection closed'));
+                let request = this._requests[id];
+                if (request && request.reject) {
+                    request.reject(new RpcError('Connection closed'));
+                }
             }
             this.emit.bind(this, 'close');
         });
@@ -249,12 +253,16 @@ export class RpcClient extends EventEmitter {
             let requestData = this._bson.serialize(request);
             let finish = () => {
                 this._writable.removeListener('error', sendReject);
-                if (idNumber != null) {
+                if (idNumber == null) {
                     resolve();
                 }
             };
             this._writable.once('error', sendReject);
-            debug('RPC.call: { method: "%s", id=%d, param=%o }', method, idNumber, params);
+            if (idNumber != null) {
+                debug('RPC.call: { method: "%s", id: %d, params: %o }', method, idNumber, params);
+            } else {
+                debug('RPC.notify: { method: "%s", params: %o }');
+            }
             if (!this._writable.write(requestData)) {
                 this._writable.once('drain', finish);
             } else {
@@ -293,10 +301,10 @@ export class RpcClient extends EventEmitter {
         }
         delete this._requests[idNumber];
         if (result !== undefined) {
-            debug('RPC.recv: { id=%d, result=%o }', idNumber, result);
+            debug('RPC.return: { id: %d, result: %o }', idNumber, result);
             request.resolve(result);
         } else {
-            debug('RPC.recv: { id=%d, error=%o }', idNumber, error);
+            debug('RPC.return: { id: %d, error: %o }', idNumber, error);
             request.reject(new RpcError(error.message, error.code));
         }
     }
