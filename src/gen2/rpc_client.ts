@@ -3,6 +3,8 @@ import { EventEmitter } from 'events';
 import { invokeCallback } from './util';
 import * as BSON from 'bson';
 
+const debug = require('debug')('canarium:rpc');
+
 /**
  * JSON-RPC仕様バージョン
  */
@@ -179,7 +181,6 @@ export class RpcClient extends EventEmitter {
             }
             this.emit.bind(this, 'close');
         });
-        this._readable.on('error', this.emit.bind(this, 'error'));
         this._readable.on('data', this._receiveHandler.bind(this));
     }
 
@@ -253,6 +254,7 @@ export class RpcClient extends EventEmitter {
                 }
             };
             this._writable.once('error', sendReject);
+            debug('RPC.call: { method: "%s", id=%d, param=%o }', method, idNumber, params);
             if (!this._writable.write(requestData)) {
                 this._writable.once('drain', finish);
             } else {
@@ -290,10 +292,11 @@ export class RpcClient extends EventEmitter {
             return;
         }
         delete this._requests[idNumber];
-        this._readable.removeListener('error', request.reject);
         if (result !== undefined) {
+            debug('RPC.recv: { id=%d, result=%o }', idNumber, result);
             request.resolve(result);
         } else {
+            debug('RPC.recv: { id=%d, error=%o }', idNumber, error);
             request.reject(new RpcError(error.message, error.code));
         }
     }
