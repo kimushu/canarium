@@ -2,6 +2,7 @@ import { AvsReadableStream, AvsWritableStream } from './avs_streams';
 import { EventEmitter } from 'events';
 import { invokeCallback } from './util';
 import * as BSON from 'bson';
+require('promise.prototype.finally').shim();
 
 const debug = require('debug')('canarium:rpc');
 
@@ -18,6 +19,11 @@ const JSONRPC_ERR_INVALID_REQUEST   = -32600;
 const JSONRPC_ERR_METHOD_NOT_FOUND  = -32601;
 const JSONRPC_ERR_INVALID_PARAMS    = -32602;
 const JSONRPC_ERR_INTERNAL_ERROR    = -32603;
+
+/**
+ * Canariumで独自に定義されたエラーコード
+ */
+const CANARIUM_ERR_TIMED_OUT        = -32500;
 
 /**
  * メッセージと説明文字列のマップ
@@ -113,6 +119,7 @@ ERROR_MESSAGES[JSONRPC_ERR_INVALID_REQUEST] = 'Invalid request';
 ERROR_MESSAGES[JSONRPC_ERR_METHOD_NOT_FOUND] = 'Method not found';
 ERROR_MESSAGES[JSONRPC_ERR_INVALID_PARAMS] = 'Invalid parameters';
 ERROR_MESSAGES[JSONRPC_ERR_INTERNAL_ERROR] = 'Internal error';
+ERROR_MESSAGES[CANARIUM_ERR_TIMED_OUT] = 'Timed out';
 
 /**
  * リクエスト構造体
@@ -129,6 +136,11 @@ interface Request {
 interface RequestPool {
     [id: number]: Request;
 }
+
+/**
+ * RPCコールバック関数の型
+ */
+export type RpcCallback<T> = (err: Error, result: T) => void;
 
 /**
  * RPC関連エラークラス
@@ -156,6 +168,7 @@ export class RpcError extends Error {
     get METHOD_NOT_FOUND()   { return JSONRPC_ERR_METHOD_NOT_FOUND; }
     get INVALID_PARAMS()     { return JSONRPC_ERR_INVALID_PARAMS; }
     get INTERNAL_ERROR()     { return JSONRPC_ERR_INTERNAL_ERROR; }
+    get TIMED_OUT()          { return CANARIUM_ERR_TIMED_OUT; }
 }
 
 /**
@@ -201,13 +214,60 @@ export class RpcClient extends EventEmitter {
      * @param params    パラメータのオブジェクト
      * @param callback  コールバック関数
      */
-    call<T = any>(method: string, params: any, callback: (err: Error, result: T) => void): void;
+    call<T = any>(method: string, params: any, callback: RpcCallback<T>): void;
 
-    call<T = any>(method: string, params: any, callback?: (err: Error, result: any) => void): Promise<T>|void {
-        if (callback != null) {
-            return invokeCallback(callback, this.call(method, params));
+    /**
+     * タイムアウト付きリモート呼び出し
+     * @param method    呼び出すメソッド名
+     * @param params    パラメータのオブジェクト
+     * @param timeout   タイムアウト時間(ミリ秒)
+     */
+    call<T = any>(method: string, params: any, timeout: number): Promise<T>;
+
+    /**
+     * タイムアウト付きリモート呼び出し
+     * @param method    呼び出すメソッド名
+     * @param params    パラメータのオブジェクト
+     * @param timeout   タイムアウト時間(ミリ秒)
+     * @param callback  コールバック関数
+     */
+    call<T = any>(method: string, params: any, timeout: number, callback: RpcCallback<T>): Promise<T>;
+
+    call<T = any>(method: string, params: any, timeout_or_callback?: number | RpcCallback<T>, callback?: RpcCallback<T>): Promise<T>|void {
+        let timeout: number;
+        if (timeout_or_callback != null) {
+            if (typeof(timeout_or_callback) === 'number') {
+                timeout = timeout_or_callback;
+            } else if (typeof(timeout_or_callback) === 'function') {
+                callback = timeout_or_callback;
+            } else {
+                throw new TypeError('3rd argument must be a number or function');
+            }
         }
-        return this._sendRequest(method, params, this._getNewId());
+        if (callback != null) {
+            return invokeCallback(callback, this.call(method, params, timeout));
+        }
+        let promise = this._sendRequest(method, params, this._getNewId());
+        if (timeout == null) {
+            // Without timeout
+            return promise;
+        }
+
+        // With timeout
+        let timerId: NodeJS.Timer;
+        return Promise.race([
+            promise.finally(() => {
+                if (timerId != null) {
+                    clearTimeout(timerId);
+                }
+            }),
+            new Promise((resolve, reject) => {
+                timerId = setTimeout(() => {
+                    timerId = null;
+                    reject(new RpcError(null, CANARIUM_ERR_TIMED_OUT));
+                }, timeout);
+            })
+        ]);
     }
 
     /**
