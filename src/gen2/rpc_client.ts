@@ -147,15 +147,37 @@ export type RpcCallback<T> = (err: Error, result: T) => void;
  */
 export class RpcError extends Error {
     public code: number;
+    private custom: any;
 
     /**
      * エラーオブジェクトを生成
      * @param message メッセージ
      * @param code エラーコード
      */
-    constructor(message?: string, code?: number) {
+    constructor(error: any) {
+        let custom: any;
+        if (typeof(error) === 'number') {
+            error = {code: error};
+        } else if (typeof(error) === 'string') {
+            error = {message: error};
+        }
+        for (let key in error) {
+            if ((key !== 'message') && (key !== 'code')) {
+                if (custom == null) {
+                    custom = {};
+                }
+                custom[key] = error[key];
+            }
+        }
+        let { message, code } = error;
         if (message == null) {
-            message = ERROR_MESSAGES[code];
+            if (code != null) {
+                message = ERROR_MESSAGES[code] || `Unknown code (${code})`;
+            } else if (custom != null) {
+                message = JSON.stringify(custom);
+            } else {
+                message = 'No description';
+            }
         }
         super(message);
         Object.setPrototypeOf(this, new.target.prototype);
@@ -264,7 +286,7 @@ export class RpcClient extends EventEmitter {
             new Promise((resolve, reject) => {
                 timerId = setTimeout(() => {
                     timerId = null;
-                    reject(new RpcError(null, CANARIUM_ERR_TIMED_OUT));
+                    reject(new RpcError(CANARIUM_ERR_TIMED_OUT));
                 }, timeout);
             })
         ]);
@@ -365,7 +387,7 @@ export class RpcClient extends EventEmitter {
             request.resolve(result);
         } else {
             debug('RPC.return: { id: %d, error: %o }', idNumber, error);
-            request.reject(new RpcError(error.message, error.code));
+            request.reject(new RpcError(error));
         }
     }
 }
