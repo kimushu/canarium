@@ -147,7 +147,7 @@ export type RpcCallback<T> = (err: Error, result: T) => void;
  */
 export class RpcError extends Error {
     public code: number;
-    private custom: any;
+    public custom: any;
 
     /**
      * エラーオブジェクトを生成
@@ -183,6 +183,7 @@ export class RpcError extends Error {
         Object.setPrototypeOf(this, new.target.prototype);
         this.name = new.target.name;
         this.code = code;
+        this.custom = custom;
     }
 
     get PARSE_ERROR()        { return JSONRPC_ERR_PARSE_ERROR; }
